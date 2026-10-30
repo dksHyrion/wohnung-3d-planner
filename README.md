@@ -1,9 +1,12 @@
 # 3D-Wohnungsvisualisierung & Raumplaner (cm-genau)
 
 [![CI](https://github.com/dksHyrion/wohnung-3d-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/dksHyrion/wohnung-3d-planner/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success?logo=github&style=flat-square)](https://dkshyrion.github.io/wohnung-3d-planner/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Zentimetergenaue (`1 Three.js Unit = 1 cm`) 2D-/3D-Wohnungsvisualisierung mit **Three.js**, **React Three Fiber**, **TypeScript**, **Zustand** und einer integrierten **Karpathy LLM-Wiki-Wissensdatenbank**.
+
+👉 **[Hier geht's direkt zur interaktiven Live-Demo im Browser](https://dkshyrion.github.io/wohnung-3d-planner/)**
 
 ---
 
