@@ -1,23 +1,19 @@
 # 3D-Wohnungsvisualisierung & Raumplaner (cm-genau)
 
+> Zentimetergenaue (`1 Three.js Unit = 1 cm`) 2D-/3D-Wohnungsvisualisierung und Möbelstellprobe mit **Three.js**, **React Three Fiber**, **TypeScript**, **Zustand** und einer integrierten **Karpathy LLM-Wiki-Wissensdatenbank**.
+
 [![CI](https://github.com/dksHyrion/wohnung-3d-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/dksHyrion/wohnung-3d-planner/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success?logo=github&style=flat-square)](https://dkshyrion.github.io/wohnung-3d-planner/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Zentimetergenaue (`1 Three.js Unit = 1 cm`) 2D-/3D-Wohnungsvisualisierung mit **Three.js**, **React Three Fiber**, **TypeScript**, **Zustand** und einer integrierten **Karpathy LLM-Wiki-Wissensdatenbank**.
-
-👉 **[Hier geht's direkt zur interaktiven Live-Demo im Browser](https://dkshyrion.github.io/wohnung-3d-planner/)**
-
-<p align="center">
-  <img src="docs/assets/banner.svg" alt="Wohnung 3D Planner Banner" width="100%" />
-</p>
+👉 **[Interaktive Live-Demo im Browser starten](https://dkshyrion.github.io/wohnung-3d-planner/)**
 
 <p align="center">
   <a href="https://dkshyrion.github.io/wohnung-3d-planner/">
     <img src="docs/assets/floorplan-2d-55sqm.png" alt="2D Architektur-Plan (1:50 Maßstab)" width="92%" />
   </a>
   <br/>
-  <em>Maßstabsgetreuer 1:50 Architektur-Plan mit DIN-Plankopf, 90°-Türschwenkbögen, Möblierung und Netto-Innenflächen (Beispielwohnung 55 m²)</em>
+  <em>Maßstabsgetreuer 1:50 Architektur-Plan mit DIN-Plankopf, 90°-Türschwenkbögen, Möblierung und Lichter Innenfläche (Beispielwohnung 55 m²)</em>
 </p>
 
 ---
