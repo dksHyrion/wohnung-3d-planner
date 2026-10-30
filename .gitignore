@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.autosave/
+.superpowers/
+*.tsbuildinfo
+*.bak/
+.reviews.bak/
+privat/
