@@ -1,8 +1,30 @@
 {
   "name": "wohnung-3d-planner",
-  "private": true,
   "version": "0.1.0",
+  "description": "Precision 2D/3D Architectural Floorplan & Furniture Placement Simulator (1 Unit = 1 cm, OBB/SAT Collision Engine, DIN 18040 Ergonomics, Scaled 1:50 SVG Export)",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://dkshyrion.github.io/wohnung-3d-planner/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dksHyrion/wohnung-3d-planner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dksHyrion/wohnung-3d-planner/issues"
+  },
+  "keywords": [
+    "threejs",
+    "react-three-fiber",
+    "floorplan",
+    "architecture",
+    "interior-design",
+    "cad",
+    "din-18040",
+    "ergonomics",
+    "zustand",
+    "typescript",
+    "svg-export"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
