@@ -57,7 +57,7 @@ Im Browser öffnen: 👉 **`http://localhost:5173`**
 
 ### C. Tests & Production-Build
 ```bash
-npm test         # 448 Vitest-Tests in 41 Dateien
+npm test         # 453 Vitest-Tests in 45 Dateien
 npm run build    # Production-Build in dist/ (TypeScript + Vite)
 ```
 
@@ -111,7 +111,7 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 | **Geometrie & Mathe** | **`THREE.OBB`** + Separating Axis Theorem (SAT) + 1D-Skalarprodukt-Wandprojektion |
 | **Frontend & UI** | **React 18**, **TypeScript 5**, **Zustand** (Store-Slices), **Lucide React** |
 | **2D-Engine** | Natives React + SVG (`viewBox` in cm, Pan/Zoom, 90°-Türschwenkbögen) |
-| **Build & Testing** | **Vite 5** (HMR & Tree-Shaking), **Vitest 2** (448 Unit- & Integrationstests) |
+| **Build & Testing** | **Vite 5** (HMR & Tree-Shaking), **Vitest 2** (453 Unit- & Integrationstests) |
 | **Wissensbasis** | **Karpathy LLM-Wiki Pattern** (`SCHEMA.md`, `raw/`, `wiki/index.md`, `wiki/log.md`) |
 
 ---
@@ -124,7 +124,7 @@ wohnung-3d-planner/
 │   ├── core/         # Geometrie, Wand-Graph, SAT-Kollision, Ergonomie, Katalog & Presets
 │   ├── store/        # Zustand-Store (Slices: geometry, view, history)
 │   └── components/   # 2D-SVG-Canvas, 3D-R3F-Szene, Beleuchtung & Inspektoren
-├── tests/            # 41 Vitest-Testdateien (Wandgeometrie, Kollision, Ergonomie, SVG-Export)
+├── tests/            # 45 Vitest-Testdateien (Wandgeometrie, Kollision, Ergonomie, SVG-Export)
 ├── wiki/             # Vernetzte LLM-Wissensbasis (Konzepte, Architektur, Audit-Log)
 ├── raw/              # Referenz-Quellen und GitHub-Benchmark-Dokumentation
 ├── privat/           # Lokale private Pläne & Notizen (in .gitignore)
