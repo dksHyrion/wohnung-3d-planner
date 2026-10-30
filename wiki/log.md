@@ -4,6 +4,29 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-10-30] Öffentliches GitHub-Release: Datenschutz-Bereinigung, MIT-Lizenz, GitHub Actions CI & Pages Live-Demo (Tagesabschluss)
+
+- **Action:** `RELEASE`, `PRIVACY`, `CI_CD`, `DOCUMENTATION` & `TAGESABSCHLUSS`
+- **Datenschutz & Neutralisierung (100 % bereinigt):**
+  - Alle persönlichen Angaben (Namen, Bestelldaten, Händlerangaben) wurden in allen versionierten Dateien neutralisiert.
+  - Persönliche Inventar-Notizen liegen ausschließlich lokal im per `.gitignore` ausgeschlossenen Ordner `privat/` und sind nicht versioniert.
+  - Alle 3D-Katalogmodelle (`BoConcept Osaka`, `Inwerk Masterlift 2`, `Steelcase Gesture`, `Regalraum LIUM`, `Neona Viva`, `Musterring Sorrent`, `Vitsœ 606`, `Artemide Tolomeo`) und Grundrisse sind als einheitliche, neutrale Katalog- und Referenzstücke hinterlegt.
+- **Open-Source-Lizenz & Metadaten:**
+  - Offizielle [`LICENSE`](../LICENSE) (MIT License) hinzugefügt.
+  - Metadaten in [`package.json`](../package.json) ergänzt (`license`, `description`, `repository`, `homepage`, `keywords`, `bugs`).
+- **Agenten- & Entwickler-Richtlinien:**
+  - Neue Leitfäden [`AGENTS.md`](../AGENTS.md) und [`CLAUDE.md`](../CLAUDE.md) angelegt (Zentimeter-Konvention `1 Unit = 1 cm`, OBB/SAT-Kollision, strikte Typentkopplung `visual`, Offline-First).
+- **GitHub Actions CI/CD & GitHub Pages Live-Demo:**
+  - `.github/workflows/ci.yml`: Automatische CI-Pipeline für alle Tests und Production-Build auf Ubuntu-Runnern bei jedem Push/PR.
+  - `.github/workflows/deploy-pages.yml`: Automatisiertes Deployment der App auf GitHub Pages.
+  - `vite.config.ts`: `base: './'` für portable relative Asset-Pfade konfiguriert.
+  - Öffentliche Live-Demo online unter: `https://dkshyrion.github.io/wohnung-3d-planner/`.
+- **Dokumentation & Visuelle Vorschau in [`README.md`](../README.md):**
+  - Neuer Schnellstart inkl. macOS Terminal-Anleitung (`ssh -L 5173:127.0.0.1:5173`).
+  - Gestraffte, prägnante Kern-Features und kompakte Ordnerstruktur.
+  - Direkte Einbindung des maßstabsgetreuen 1:50-Vektorgrundrisses (`docs/assets/floorplan-2d-55sqm.png`) mit DIN-Plankopf und Lichter Innenfläche.
+- **Prüfung:** `tsc -b` fehlerfrei, `vitest run` 452 Tests in 44 Testdateien grün, GitHub Actions CI & Pages Deployment erfolgreich (`status: completed, conclusion: success`).
+
 ## [2026-10-30] Pakete 3C & 3D: GitHub-Referenzanalyse, Smart Alignment Guides & Kante-an-Kante Möbel-Snapping, Erweiterte Wandöffnungen & Interaktiver Teppich-Editor (Tagesabschluss)
 
 - **Action:** `INGEST`, `FEATURE`, `GEOMETRY`, `UI`, `LINT` & `TAGESABSCHLUSS`

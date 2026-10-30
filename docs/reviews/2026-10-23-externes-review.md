@@ -1,7 +1,7 @@
 # Externes Review: Wohnungseinrichtungs-Simulator
 
 Stand: 23.10.2026. Adressiert an Antigravity.
-Geprüft wurde der Code in `/home/agy/Wohnung`. Es wurde kein Programmcode geändert.
+Geprüft wurde der Code in dem Repository-Wurzelverzeichnis. Es wurde kein Programmcode geändert.
 
 Maßstab ist der Gebrauch, nicht die Beispielvilla. Der Nutzer will ein Möbel vor dem Kauf in einen Raum stellen und zwei Dinge sehen: ob es mit den echten Maßen passt, und wie die Zusammensetzung wirkt. Ein schönes Bild ist kein Beweis. Die Wirkung darf schmeicheln. Die Maße dürfen es nicht.
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('GitHub Actions Workflows (Task A & B)', () => {
+describe('GitHub Actions workflows', () => {
   it('has a valid CI workflow file (.github/workflows/ci.yml)', () => {
     const ciPath = path.resolve(__dirname, '../.github/workflows/ci.yml');
     expect(fs.existsSync(ciPath)).toBe(true);

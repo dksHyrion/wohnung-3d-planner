@@ -37,7 +37,7 @@ graph TD
 
 **Tech Stack:** React 18, Three.js r170, `@react-three/fiber` ^8.17.10, `@react-three/drei` ^9.114.0, `@react-three/postprocessing` ^2.16.3, `postprocessing` ^6.36.0, Zustand ^5.0.1, TypeScript 5, Vite 5, Vitest 2.
 
-**Spec:** [`docs/superpowers/specs/2026-10-21-cinematic-lighting-and-atmosphere-design.md`](file:///home/agy/Wohnung/docs/superpowers/specs/2026-10-21-cinematic-lighting-and-atmosphere-design.md)
+**Spec:** [`docs/superpowers/specs/2026-10-21-cinematic-lighting-and-atmosphere-design.md`](../../../docs/superpowers/specs/2026-10-21-cinematic-lighting-and-atmosphere-design.md)
 
 ## Global Constraints
 

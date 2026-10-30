@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Enhance the public GitHub repository [`dksHyrion/wohnung-3d-planner`](https://github.com/dksHyrion/wohnung-3d-planner) with automated CI testing (Task A), a 1-click GitHub Pages live-demo deployment (Task B), visual architectural previews in [`README.md`](file:///home/agy/Wohnung/README.md) (Task C), and enriched metadata in [`package.json`](file:///home/agy/Wohnung/package.json) (Task D).
+**Goal:** Enhance the public GitHub repository [`dksHyrion/wohnung-3d-planner`](https://github.com/dksHyrion/wohnung-3d-planner) with automated CI testing (Task A), a 1-click GitHub Pages live-demo deployment (Task B), visual architectural previews in [`README.md`](../../../README.md) (Task C), and enriched metadata in [`package.json`](../../../package.json) (Task D).
 
 **Architecture:**
 - **CI / CD Pipeline:** GitHub Actions workflows (`.github/workflows/ci.yml` and `.github/workflows/deploy-pages.yml`) execute on `ubuntu-latest` with Node 20. CI validates all 448 Vitest tests and production TypeScript builds on every push/PR. Pages workflow builds with relative asset resolution (`base: './'` in `vite.config.ts`) and deploys to `https://dkshyrion.github.io/wohnung-3d-planner/`.
@@ -59,8 +59,8 @@ graph TD
 ### Task 1 (Task D): Enrich `package.json` Metadata
 
 **Files:**
-- Modify: [`package.json`](file:///home/agy/Wohnung/package.json)
-- Test: [`tests/packageMetadata.test.ts`](file:///home/agy/Wohnung/tests/packageMetadata.test.ts)
+- Modify: [`package.json`](../../../package.json)
+- Test: [`tests/packageMetadata.test.ts`](../../../tests/packageMetadata.test.ts)
 
 **Interfaces:**
 - Consumes: Existing package configuration
@@ -77,9 +77,9 @@ graph TD
 ### Task 2 (Task A): GitHub Actions CI Workflow
 
 **Files:**
-- Create: [`.github/workflows/ci.yml`](file:///home/agy/Wohnung/.github/workflows/ci.yml)
-- Modify: [`README.md`](file:///home/agy/Wohnung/README.md)
-- Test: [`tests/workflowSyntax.test.ts`](file:///home/agy/Wohnung/tests/workflowSyntax.test.ts)
+- Create: [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)
+- Modify: [`README.md`](../../../README.md)
+- Test: [`tests/workflowSyntax.test.ts`](../../../tests/workflowSyntax.test.ts)
 
 **Interfaces:**
 - Consumes: `package.json`, `npm test`, `npm run build`
@@ -97,10 +97,10 @@ graph TD
 ### Task 3 (Task B): GitHub Pages Live-Demo Deployment
 
 **Files:**
-- Modify: [`vite.config.ts`](file:///home/agy/Wohnung/vite.config.ts)
-- Create: [`.github/workflows/deploy-pages.yml`](file:///home/agy/Wohnung/.github/workflows/deploy-pages.yml)
-- Modify: [`README.md`](file:///home/agy/Wohnung/README.md)
-- Test: [`tests/workflowSyntax.test.ts`](file:///home/agy/Wohnung/tests/workflowSyntax.test.ts)
+- Modify: [`vite.config.ts`](../../../vite.config.ts)
+- Create: [`.github/workflows/deploy-pages.yml`](../../../.github/workflows/deploy-pages.yml)
+- Modify: [`README.md`](../../../README.md)
+- Test: [`tests/workflowSyntax.test.ts`](../../../tests/workflowSyntax.test.ts)
 
 **Interfaces:**
 - Consumes: `vite build` with relative asset links (`base: './'`)
@@ -118,11 +118,11 @@ graph TD
 ### Task 4 (Task C): Visual Preview & Screenshots in `README.md`
 
 **Files:**
-- Create: [`docs/assets/floorplan-2d-55sqm.svg`](file:///home/agy/Wohnung/docs/assets/floorplan-2d-55sqm.svg)
-- Create: [`docs/assets/floorplan-2d-55sqm.png`](file:///home/agy/Wohnung/docs/assets/floorplan-2d-55sqm.png)
-- Create: [`docs/assets/banner.svg`](file:///home/agy/Wohnung/docs/assets/banner.svg)
-- Modify: [`README.md`](file:///home/agy/Wohnung/README.md)
-- Test: [`tests/assetsIntegrity.test.ts`](file:///home/agy/Wohnung/tests/assetsIntegrity.test.ts)
+- Create: [`docs/assets/floorplan-2d-55sqm.svg`](../../../docs/assets/floorplan-2d-55sqm.svg)
+- Create: [`docs/assets/floorplan-2d-55sqm.png`](../../../docs/assets/floorplan-2d-55sqm.png)
+- Create: [`docs/assets/banner.svg`](../../../docs/assets/banner.svg)
+- Modify: [`README.md`](../../../README.md)
+- Test: [`tests/assetsIntegrity.test.ts`](../../../tests/assetsIntegrity.test.ts)
 
 **Interfaces:**
 - Consumes: `exportScaledFloorplanSvg` in `src/core/export/planSvgExport.ts`, `PRESET_FLOORPLANS['standard-55'].data`

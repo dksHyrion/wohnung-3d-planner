@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a hybrid Karpathy LLM-Wiki knowledge base (`SCHEMA.md`, `raw/`, `wiki/`) and a centimeter-accurate 2D/3D apartment & furniture planner web application in `/home/agy/Wohnung` using Vite, React, TypeScript, Three.js (`THREE.OBB`), React Three Fiber, and Zustand.
+**Goal:** Build a hybrid Karpathy LLM-Wiki knowledge base (`SCHEMA.md`, `raw/`, `wiki/`) and a centimeter-accurate 2D/3D apartment & furniture planner web application in the repository root using Vite, React, TypeScript, Three.js (`THREE.OBB`), React Three Fiber, and Zustand.
 
 **Architecture:** The repository combines an LLM-maintained Markdown knowledge base at the root (`SCHEMA.md`, immutable `raw/` sources, and interlinked `wiki/` pages with `index.md` and `log.md`) with a modular TypeScript web application (`src/`). All spatial coordinates and dimensions use the strict convention `1 Three.js unit = 1 cm` with a collision tolerance of `EPSILON_CM = 0.05`. Pure geometry and collision functions (`src/core/`) are decoupled from the UI and verified with Vitest unit tests before wiring into the Zustand state store (`src/store/`) and synchronized 2D SVG / 3D React Three Fiber viewports (`src/components/`).
 
@@ -35,7 +35,7 @@ graph TD
 
 **Tech Stack:** TypeScript 5, Vite 6, React 18, Three.js (`three`, `@types/three`, `three/addons/math/OBB.js`), `@react-three/fiber`, `@react-three/drei`, `zustand`, `lucide-react`, `vitest`.
 
-**Spec:** [2026-10-20-3d-wohnungsvisualisierung-design.md](file:///home/agy/Wohnung/docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md)
+**Spec:** [2026-10-20-3d-wohnungsvisualisierung-design.md](../../../docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md)
 
 ## Global Constraints
 
@@ -64,12 +64,12 @@ graph TD
 - Test: `tests/wikiStructure.test.ts`
 
 **Interfaces:**
-- Consumes: Design specification [2026-10-20-3d-wohnungsvisualisierung-design.md](file:///home/agy/Wohnung/docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md)
+- Consumes: Design specification [2026-10-20-3d-wohnungsvisualisierung-design.md](../../../docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md)
 - Produces: Installed npm dependencies (`three`, `react`, `@react-three/fiber`, `@react-three/drei`, `zustand`, `vitest`) and verified Karpathy LLM-Wiki directory layout (`SCHEMA.md`, `raw/`, `wiki/index.md`, `wiki/log.md`, interlinked concept pages).
 
 - [ ] **Step 1: Create `package.json`, `tsconfig.json`, `vite.config.ts`, and install dependencies**
 
-Create [package.json](file:///home/agy/Wohnung/package.json):
+Create [package.json](../../../package.json):
 ```json
 {
   "name": "wohnung-3d-planner",
@@ -104,7 +104,7 @@ Create [package.json](file:///home/agy/Wohnung/package.json):
 }
 ```
 
-Create [tsconfig.json](file:///home/agy/Wohnung/tsconfig.json):
+Create [tsconfig.json](../../../tsconfig.json):
 ```json
 {
   "compilerOptions": {
@@ -128,7 +128,7 @@ Create [tsconfig.json](file:///home/agy/Wohnung/tsconfig.json):
 }
 ```
 
-Create [vite.config.ts](file:///home/agy/Wohnung/vite.config.ts):
+Create [vite.config.ts](../../../vite.config.ts):
 ```typescript
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -140,7 +140,7 @@ export default defineConfig({
 
 - [ ] **Step 2: Write the failing test `tests/wikiStructure.test.ts`**
 
-Create [tests/wikiStructure.test.ts](file:///home/agy/Wohnung/tests/wikiStructure.test.ts):
+Create [tests/wikiStructure.test.ts](../../../tests/wikiStructure.test.ts):
 ```typescript
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -182,7 +182,7 @@ Expected: FAIL because `SCHEMA.md`, `raw/`, and `wiki/` files do not exist yet.
 
 - [ ] **Step 4: Create `SCHEMA.md`, `raw/` sources, and `wiki/` pages**
 
-Create [SCHEMA.md](file:///home/agy/Wohnung/SCHEMA.md):
+Create [SCHEMA.md](../../../SCHEMA.md):
 ```markdown
 # LLM-Wiki Schema: 3D-Wohnungsvisualisierung (`Wohnung`)
 
@@ -204,11 +204,11 @@ Dieses Repository folgt Andrej Karpathys **LLM-Wiki-Pattern** ([Gist 442a6bf5559
 3. **Lint:** Prüft regelmäßig, ob alle Links in `wiki/index.md` auf existierende Dateien zeigen, ob Formeln in `wiki/concepts/` mit dem Code in `src/core/` übereinstimmen und ob verwaiste Seiten existieren.
 ```
 
-Create [raw/2026-10-20-threejs-research-report.md](file:///home/agy/Wohnung/raw/2026-10-20-threejs-research-report.md) with the complete findings from our initial Three.js floorplan and collision research (including the RoomSketcher and ArchDaily reference URLs, `furnishup/blueprint3d`, `cvdlab/react-planner`, `checkWallFitCm` dot-product formula, and `THREE.OBB`).
+Create [raw/2026-10-20-threejs-research-report.md](../../../raw/2026-10-20-threejs-research-report.md) with the complete findings from our initial Three.js floorplan and collision research (including the RoomSketcher and ArchDaily reference URLs, `furnishup/blueprint3d`, `cvdlab/react-planner`, `checkWallFitCm` dot-product formula, and `THREE.OBB`).
 
-Create [raw/furniture-specs/din-and-neufert-standards.md](file:///home/agy/Wohnung/raw/furniture-specs/din-and-neufert-standards.md) containing standard German interior dimensions in `cm` (standard interior wall height `250 cm`, wall thickness `15 cm` / `24 cm`, door widths `86 cm` / `73.5 cm` with `200 cm` height, window sill height `90 cm`, minimum passage clearance `80 cm`, standard wardrobe depth `60 cm`, sofa depths `90–100 cm`, bed sizes `140×200 cm`, `180×200 cm`).
+Create [raw/furniture-specs/din-and-neufert-standards.md](../../../raw/furniture-specs/din-and-neufert-standards.md) containing standard German interior dimensions in `cm` (standard interior wall height `250 cm`, wall thickness `15 cm` / `24 cm`, door widths `86 cm` / `73.5 cm` with `200 cm` height, window sill height `90 cm`, minimum passage clearance `80 cm`, standard wardrobe depth `60 cm`, sofa depths `90–100 cm`, bed sizes `140×200 cm`, `180×200 cm`).
 
-Create [wiki/index.md](file:///home/agy/Wohnung/wiki/index.md), [wiki/log.md](file:///home/agy/Wohnung/wiki/log.md), [wiki/concepts/coordinate-system-cm.md](file:///home/agy/Wohnung/wiki/concepts/coordinate-system-cm.md), [wiki/concepts/wall-graph-topology.md](file:///home/agy/Wohnung/wiki/concepts/wall-graph-topology.md), [wiki/concepts/collision-detection.md](file:///home/agy/Wohnung/wiki/concepts/collision-detection.md), and [wiki/architecture/app-state-and-views.md](file:///home/agy/Wohnung/wiki/architecture/app-state-and-views.md) cross-linking to each other and to `raw/`.
+Create [wiki/index.md](../../../wiki/index.md), [wiki/log.md](../../../wiki/log.md), [wiki/concepts/coordinate-system-cm.md](../../../wiki/concepts/coordinate-system-cm.md), [wiki/concepts/wall-graph-topology.md](../../../wiki/concepts/wall-graph-topology.md), [wiki/concepts/collision-detection.md](../../../wiki/concepts/collision-detection.md), and [wiki/architecture/app-state-and-views.md](../../../wiki/architecture/app-state-and-views.md) cross-linking to each other and to `raw/`.
 
 - [ ] **Step 5: Run test to verify it passes and commit**
 
@@ -242,7 +242,7 @@ git commit -m "feat: initialize project and Karpathy LLM-Wiki knowledge base"
 
 - [ ] **Step 1: Write the failing test `tests/wallMath.test.ts`**
 
-Create [tests/wallMath.test.ts](file:///home/agy/Wohnung/tests/wallMath.test.ts):
+Create [tests/wallMath.test.ts](../../../tests/wallMath.test.ts):
 ```typescript
 import { describe, it, expect } from 'vitest';
 import {
@@ -411,7 +411,7 @@ Expected: FAIL with module not found `../src/core/wallMath`.
 
 - [ ] **Step 3: Implement `src/core/types.ts` and `src/core/wallMath.ts`**
 
-Create [src/core/types.ts](file:///home/agy/Wohnung/src/core/types.ts):
+Create [src/core/types.ts](../../../src/core/types.ts):
 ```typescript
 export const EPSILON_CM = 0.05;
 
@@ -500,7 +500,7 @@ export interface FloorplanData {
 }
 ```
 
-Create [src/core/wallMath.ts](file:///home/agy/Wohnung/src/core/wallMath.ts):
+Create [src/core/wallMath.ts](../../../src/core/wallMath.ts):
 ```typescript
 import * as THREE from 'three';
 import {
@@ -808,7 +808,7 @@ git commit -m "feat: add cm-accurate wall geometry, 1D fit projection, and wall 
 
 - [ ] **Step 1: Write the failing test `tests/collisionEngine.test.ts`**
 
-Create [tests/collisionEngine.test.ts](file:///home/agy/Wohnung/tests/collisionEngine.test.ts):
+Create [tests/collisionEngine.test.ts](../../../tests/collisionEngine.test.ts):
 ```typescript
 import { describe, it, expect } from 'vitest';
 import {
@@ -961,7 +961,7 @@ Expected: FAIL with module not found `../src/core/collisionEngine`.
 
 - [ ] **Step 3: Implement `src/core/collisionEngine.ts` and `src/core/presets.ts`**
 
-Create [src/core/collisionEngine.ts](file:///home/agy/Wohnung/src/core/collisionEngine.ts):
+Create [src/core/collisionEngine.ts](../../../src/core/collisionEngine.ts):
 ```typescript
 import * as THREE from 'three';
 import { OBB } from 'three/addons/math/OBB.js';
@@ -1181,7 +1181,7 @@ export function evaluateFloorplanCollisions(
 }
 ```
 
-Create [src/core/presets.ts](file:///home/agy/Wohnung/src/core/presets.ts) containing:
+Create [src/core/presets.ts](../../../src/core/presets.ts) containing:
 - `PRESET_FLOORPLANS`:
   - `'studio-apartment'`: 2-Raum-/L-Schnitt-Wohnung (Wohn-/Schlafbereich + Flur/Küche) mit echten cm-Maßen, Türen, Fenstern und Beispielmöbeln (inkl. einem absichtlich zu breiten Schrank zum sofortigen Testen oder sauber platzierten Standardmöbeln).
   - `'rectangular-room'`: Klassisches Rechteck-Zimmer (`450 cm × 360 cm`, Höhe `250 cm`) mit Tür (`86 cm`) und Fenster (`140 cm`).
@@ -1219,7 +1219,7 @@ git commit -m "feat: add 3D OBB collision engine and apartment/furniture presets
 
 - [ ] **Step 1: Write the failing test `tests/store.test.ts`**
 
-Create [tests/store.test.ts](file:///home/agy/Wohnung/tests/store.test.ts):
+Create [tests/store.test.ts](../../../tests/store.test.ts):
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
@@ -1294,7 +1294,7 @@ Expected: FAIL with module not found `../src/store/useFloorplanStore`.
 
 - [ ] **Step 3: Implement `src/store/useFloorplanStore.ts`**
 
-Create [src/store/useFloorplanStore.ts](file:///home/agy/Wohnung/src/store/useFloorplanStore.ts) implementing all state slices, automatic collision evaluation via `evaluateFloorplanCollisions`, wall length resizing via `setWallLengthCm`, wall snapping via `findWallSnap`, and validated JSON serialization.
+Create [src/store/useFloorplanStore.ts](../../../src/store/useFloorplanStore.ts) implementing all state slices, automatic collision evaluation via `evaluateFloorplanCollisions`, wall length resizing via `setWallLengthCm`, wall snapping via `findWallSnap`, and validated JSON serialization.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1335,7 +1335,7 @@ git commit -m "feat: add reactive Zustand floorplan store with cm wall resizing 
 
 - [ ] **Step 1: Write the failing verification test `tests/appBuild.test.ts`**
 
-Create [tests/appBuild.test.ts](file:///home/agy/Wohnung/tests/appBuild.test.ts):
+Create [tests/appBuild.test.ts](../../../tests/appBuild.test.ts):
 ```typescript
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -1371,7 +1371,7 @@ Expected: FAIL because UI component files do not exist yet.
 
 - [ ] **Step 3: Implement `index.html`, `src/index.css`, `TopBar.tsx`, `FloorplanCanvas2D.tsx`, `WallMesh3D.tsx`, `FurnitureMesh3D.tsx`, `Scene3D.tsx`, `InspectorSidebar.tsx`, `App.tsx`, and `main.tsx`**
 
-Implement each component cleanly following the specification in [2026-10-20-3d-wohnungsvisualisierung-design.md](file:///home/agy/Wohnung/docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md) and update `wiki/log.md` to record the initial implementation milestone.
+Implement each component cleanly following the specification in [2026-10-20-3d-wohnungsvisualisierung-design.md](../../../docs/superpowers/specs/2026-10-20-3d-wohnungsvisualisierung-design.md) and update `wiki/log.md` to record the initial implementation milestone.
 
 - [ ] **Step 4: Run full Vitest test suite and production TypeScript/Vite build**
 

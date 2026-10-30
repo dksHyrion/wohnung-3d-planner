@@ -56,7 +56,7 @@ graph TD
 
 ### Komponente 1: Core Types & Mathematik-Engines
 
-#### [MODIFY] [`src/core/types.ts`](file:///home/agy/Wohnung/src/core/types.ts)
+#### [MODIFY] [`src/core/types.ts`](../../../src/core/types.ts)
 * Ergänzung von `BackgroundImageOverlay`:
 ```ts
 export interface BackgroundImageOverlay {
@@ -107,7 +107,7 @@ export interface PassageClearanceReport {
 
 ---
 
-#### [NEW] [`src/core/tracingMath.ts`](file:///home/agy/Wohnung/src/core/tracingMath.ts)
+#### [NEW] [`src/core/tracingMath.ts`](../../../src/core/tracingMath.ts)
 * Reine Berechnungsfunktionen für Bildskalierung und Referenzstrecken:
   * `calculateScaleFromReference(p1: Point2D, p2: Point2D, realDistanceCm: number, naturalWidthPx: number, naturalHeightPx: number)`:
     Berechnet die Pixel-Distanz $\sqrt{\Delta x^2 + \Delta y^2}$, ermittelt $\text{cmPerPixel} = \frac{\text{realDistanceCm}}{\text{pixelDist}}$ und liefert `widthCm` und `heightCm`.
@@ -116,10 +116,10 @@ export interface PassageClearanceReport {
 
 ---
 
-#### [NEW] [`src/core/ergonomicsEngine.ts`](file:///home/agy/Wohnung/src/core/ergonomicsEngine.ts)
+#### [NEW] [`src/core/ergonomicsEngine.ts`](../../../src/core/ergonomicsEngine.ts)
 * Analysiert systematisch alle Engstellen der Wohnung:
   * `evaluatePassageClearances(furniture: FurnitureItem[], walls: Wall[], corners: Corner[], maxDistanceCm: number = 120): PassageClearanceReport`
-  * Nutzt die bestehende SAT-Abstandsberechnung aus [`measureMath.ts`](file:///home/agy/Wohnung/src/core/measureMath.ts).
+  * Nutzt die bestehende SAT-Abstandsberechnung aus [`measureMath.ts`](../../../src/core/measureMath.ts).
   * Untersucht:
     1. Möbel $\leftrightarrow$ Möbel (z. B. Bett $\leftrightarrow$ Kleiderschrank, Couch $\leftrightarrow$ Couchtisch).
     2. Möbel $\leftrightarrow$ Wand (z. B. Schreibtischstuhl $\leftrightarrow$ Wand, Esstisch $\leftrightarrow$ Wand).
@@ -133,7 +133,7 @@ export interface PassageClearanceReport {
 
 ### Komponente 2: State Management
 
-#### [MODIFY] [`src/store/useFloorplanStore.ts`](file:///home/agy/Wohnung/src/store/useFloorplanStore.ts)
+#### [MODIFY] [`src/store/useFloorplanStore.ts`](../../../src/store/useFloorplanStore.ts)
 * Neue State-Felder & Aktionen:
   * `backgroundImage: BackgroundImageOverlay | null`
   * `setBackgroundImage: (image: BackgroundImageOverlay | null) => void`
@@ -151,7 +151,7 @@ export interface PassageClearanceReport {
 
 ### Komponente 3: 2D-Editor & Overlays
 
-#### [NEW] [`src/components/editor2d/BackgroundOverlayControls.tsx`](file:///home/agy/Wohnung/src/components/editor2d/BackgroundOverlayControls.tsx)
+#### [NEW] [`src/components/editor2d/BackgroundOverlayControls.tsx`](../../../src/components/editor2d/BackgroundOverlayControls.tsx)
 * Schwebende Toolbar im 2D-Canvas (oben rechts unter den Viewport-Controls), wenn ein Unterleger geladen ist:
   * Schnellanzeige des Bildnamens.
   * Schieberegler für Deckkraft ($10\%\dots100\%$).
@@ -160,7 +160,7 @@ export interface PassageClearanceReport {
   * Button `Sichtbarkeit (Auge)`.
   * Button `Löschen`.
 
-#### [MODIFY] [`src/components/editor2d/FloorplanCanvas2D.tsx`](file:///home/agy/Wohnung/src/components/editor2d/FloorplanCanvas2D.tsx)
+#### [MODIFY] [`src/components/editor2d/FloorplanCanvas2D.tsx`](../../../src/components/editor2d/FloorplanCanvas2D.tsx)
 * **Unterleger-Ebene:** Rendert das SVG `<image>` unter dem Gitter und unter den Boden-Polygonen (`pointer-events: none`, wenn gesperrt).
 * **Kalibrierungs-Vorschau:** Wenn `activeTool === 'calibrate-scale'`, werden Klicks als Referenzpunkte A und B registriert, eine leuchtende Cyan-Messlinie mit Fadenkreuz-Punkten gezeichnet und ein Eingabe-Dialog ("Reales Maß in cm eingeben") geöffnet.
 * **Laufwege-Overlay:** Wenn `showPassageHeatmap === true`:
@@ -172,7 +172,7 @@ export interface PassageClearanceReport {
 
 ### Komponente 4: TopBar Integration
 
-#### [MODIFY] [`src/components/layout/TopBar.tsx`](file:///home/agy/Wohnung/src/components/layout/TopBar.tsx)
+#### [MODIFY] [`src/components/layout/TopBar.tsx`](../../../src/components/layout/TopBar.tsx)
 * Neuer Button **„Grundriss-Unterleger“** (`ImageIcon` / `FileUp`):
   * Öffnet Dateiauswahl für PNG, JPG, WebP, SVG.
   * Nach Auswahl automatische Platzierung und Aktivierung des Tracing-Modus.
@@ -184,13 +184,13 @@ export interface PassageClearanceReport {
 
 ### Komponente 5: 3D Ergonomie-Visualisierung
 
-#### [NEW] [`src/components/viewer3d/PassageClearance3D.tsx`](file:///home/agy/Wohnung/src/components/viewer3d/PassageClearance3D.tsx)
+#### [NEW] [`src/components/viewer3d/PassageClearance3D.tsx`](../../../src/components/viewer3d/PassageClearance3D.tsx)
 * Visualisiert die Engstellen in der 3D-Szene:
   * Flache, dezent leuchtende Streifen auf Fußbodenhöhe ($Y = 0.2\text{ cm}$) zwischen den kollidierenden Kanten.
   * R3F `<Html>` Pill-Label bei kritischen Engstellen ($< 60\text{ cm}$), lesbar aus jedem Kamerawinkel.
 * Deaktiviert im Performance-Modus oder wenn Heatmap ausgeschaltet ist.
 
-#### [MODIFY] [`src/components/viewer3d/Scene3D.tsx`](file:///home/agy/Wohnung/src/components/viewer3d/Scene3D.tsx)
+#### [MODIFY] [`src/components/viewer3d/Scene3D.tsx`](../../../src/components/viewer3d/Scene3D.tsx)
 * Mountet `<PassageClearance3D />` dynamisch in der 3D-Szene.
 
 ---
@@ -199,8 +199,8 @@ export interface PassageClearanceReport {
 
 ### Task 1: Tracing-Mathematik & Skalierung
 **Dateien:**
-- Create: [`src/core/tracingMath.ts`](file:///home/agy/Wohnung/src/core/tracingMath.ts)
-- Test: [`tests/tracingMath.test.ts`](file:///home/agy/Wohnung/tests/tracingMath.test.ts)
+- Create: [`src/core/tracingMath.ts`](../../../src/core/tracingMath.ts)
+- Test: [`tests/tracingMath.test.ts`](../../../tests/tracingMath.test.ts)
 
 - [ ] **Schritt 1:** Test für `calculateScaleFromReference` schreiben (Prüfung von Diagonalen, Skalierungsfaktor cm/px, Grenzfall `dist <= 0`).
 - [ ] **Schritt 2:** Test ausführen und verifizieren, dass er fehlschlägt.
@@ -212,8 +212,8 @@ export interface PassageClearanceReport {
 
 ### Task 2: Ergonomie- & Engstellen-Engine (DIN 18040 / Neufert)
 **Dateien:**
-- Create: [`src/core/ergonomicsEngine.ts`](file:///home/agy/Wohnung/src/core/ergonomicsEngine.ts)
-- Test: [`tests/ergonomicsEngine.test.ts`](file:///home/agy/Wohnung/tests/ergonomicsEngine.test.ts)
+- Create: [`src/core/ergonomicsEngine.ts`](../../../src/core/ergonomicsEngine.ts)
+- Test: [`tests/ergonomicsEngine.test.ts`](../../../tests/ergonomicsEngine.test.ts)
 
 - [ ] **Schritt 1:** Test schreiben: Sofa und Couchtisch mit 50 cm Abstand (muss `critical` sein), Esstisch zu Wand mit 75 cm (muss `warning` sein), Durchgang mit 105 cm (muss `optimal` sein).
 - [ ] **Schritt 2:** Test ausführen und Fehlschlag prüfen.
@@ -225,9 +225,9 @@ export interface PassageClearanceReport {
 
 ### Task 3: Zustand Store Erweiterung (Unterleger & Heatmap State)
 **Dateien:**
-- Modify: [`src/core/types.ts`](file:///home/agy/Wohnung/src/core/types.ts)
-- Modify: [`src/store/useFloorplanStore.ts`](file:///home/agy/Wohnung/src/store/useFloorplanStore.ts)
-- Test: [`tests/storeTracingErgonomics.test.ts`](file:///home/agy/Wohnung/tests/storeTracingErgonomics.test.ts)
+- Modify: [`src/core/types.ts`](../../../src/core/types.ts)
+- Modify: [`src/store/useFloorplanStore.ts`](../../../src/store/useFloorplanStore.ts)
+- Test: [`tests/storeTracingErgonomics.test.ts`](../../../tests/storeTracingErgonomics.test.ts)
 
 - [ ] **Schritt 1:** Test schreiben für `setBackgroundImage`, `updateBackgroundImage`, 2-Punkt-Kalibrierung und Heatmap-Toggle.
 - [ ] **Schritt 2:** Typen und Store-Actions implementieren.
@@ -238,10 +238,10 @@ export interface PassageClearanceReport {
 
 ### Task 4: 2D Grundriss-Unterleger & Kalibrierungs-UI
 **Dateien:**
-- Create: [`src/components/editor2d/BackgroundOverlayControls.tsx`](file:///home/agy/Wohnung/src/components/editor2d/BackgroundOverlayControls.tsx)
-- Modify: [`src/components/editor2d/FloorplanCanvas2D.tsx`](file:///home/agy/Wohnung/src/components/editor2d/FloorplanCanvas2D.tsx)
-- Modify: [`src/components/layout/TopBar.tsx`](file:///home/agy/Wohnung/src/components/layout/TopBar.tsx)
-- Test: [`tests/backgroundOverlayUI.test.ts`](file:///home/agy/Wohnung/tests/backgroundOverlayUI.test.ts)
+- Create: [`src/components/editor2d/BackgroundOverlayControls.tsx`](../../../src/components/editor2d/BackgroundOverlayControls.tsx)
+- Modify: [`src/components/editor2d/FloorplanCanvas2D.tsx`](../../../src/components/editor2d/FloorplanCanvas2D.tsx)
+- Modify: [`src/components/layout/TopBar.tsx`](../../../src/components/layout/TopBar.tsx)
+- Test: [`tests/backgroundOverlayUI.test.ts`](../../../tests/backgroundOverlayUI.test.ts)
 
 - [ ] **Schritt 1:** Test für das Rendern des `<image>` und der Floating-Controls schreiben.
 - [ ] **Schritt 2:** Floating Overlay Controls und Canvas `<image>` Integration implementieren.
@@ -253,11 +253,11 @@ export interface PassageClearanceReport {
 
 ### Task 5: 2D & 3D Ergonomie- & Laufwege-Heatmap Overlay
 **Dateien:**
-- Modify: [`src/components/editor2d/FloorplanCanvas2D.tsx`](file:///home/agy/Wohnung/src/components/editor2d/FloorplanCanvas2D.tsx)
-- Create: [`src/components/viewer3d/PassageClearance3D.tsx`](file:///home/agy/Wohnung/src/components/viewer3d/PassageClearance3D.tsx)
-- Modify: [`src/components/viewer3d/Scene3D.tsx`](file:///home/agy/Wohnung/src/components/viewer3d/Scene3D.tsx)
-- Modify: [`src/components/layout/TopBar.tsx`](file:///home/agy/Wohnung/src/components/layout/TopBar.tsx)
-- Test: [`tests/passageHeatmapUI.test.ts`](file:///home/agy/Wohnung/tests/passageHeatmapUI.test.ts)
+- Modify: [`src/components/editor2d/FloorplanCanvas2D.tsx`](../../../src/components/editor2d/FloorplanCanvas2D.tsx)
+- Create: [`src/components/viewer3d/PassageClearance3D.tsx`](../../../src/components/viewer3d/PassageClearance3D.tsx)
+- Modify: [`src/components/viewer3d/Scene3D.tsx`](../../../src/components/viewer3d/Scene3D.tsx)
+- Modify: [`src/components/layout/TopBar.tsx`](../../../src/components/layout/TopBar.tsx)
+- Test: [`tests/passageHeatmapUI.test.ts`](../../../tests/passageHeatmapUI.test.ts)
 
 - [ ] **Schritt 1:** Test für die Visualisierung der DIN-Pills im 2D-Canvas und TopBar-Indikator schreiben.
 - [ ] **Schritt 2:** 2D-Ampel-Badges und Verbindungslinien in `FloorplanCanvas2D.tsx` einbauen.
@@ -269,8 +269,8 @@ export interface PassageClearanceReport {
 
 ### Task 6: Wiki-Dokumentation & Gesamtsystem-Verifikation
 **Dateien:**
-- Modify: [`wiki/log.md`](file:///home/agy/Wohnung/wiki/log.md)
-- Modify: [`README.md`](file:///home/agy/Wohnung/README.md)
+- Modify: [`wiki/log.md`](../../../wiki/log.md)
+- Modify: [`README.md`](../../../README.md)
 
 - [ ] **Schritt 1:** Gesamte Testsuite (`npm test`) ausführen (alle Tests grün).
 - [ ] **Schritt 2:** Production-Build (`npm run build`) fehlerfrei durchführen.

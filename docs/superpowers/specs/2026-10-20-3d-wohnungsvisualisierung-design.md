@@ -1,14 +1,14 @@
 # Design-Spezifikation: 3D-Wohnungsvisualisierung & Raumplaner (Karpathy LLM-Wiki + Three.js/R3F)
 
 **Datum:** 2026-10-20  
-**Workspace:** `/home/agy/Wohnung`  
+**Workspace:** `Wohnung`  
 **Architektur-Ansatz:** Dual-Layer-Architektur (Karpathy LLM-Wiki Pattern + Vite / React / TypeScript / React Three Fiber Web-App)
 
 ---
 
 ## 1. Zielsetzung & Überblick
 
-Dieses Projekt kombiniert zwei Ebenen in einem gemeinsamen Repository (`/home/agy/Wohnung`):
+Dieses Projekt kombiniert zwei Ebenen in einem gemeinsamen Repository (`Wohnung`):
 1. **Karpathy LLM-Wiki Layer (`SCHEMA.md`, `raw/`, `wiki/`):** Eine vom Agenten gepflegte, vernetzte Markdown-Wissensdatenbank nach Andrej Karpathys `llm-wiki.md`-Blueprint. Sie speichert unveränderliche Rohquellen in `raw/` (z. B. unseren Recherchebericht, Referenz-URLs und spätere reale Wohnungs-/Möbeldatenblätter) und pflegt in `wiki/` vernetzte Konzept-, Mathematik- und Architektur-Dokumente inklusive `wiki/index.md` und chronologischem `wiki/log.md`.
 2. **Interaktive 2D/3D-Web-App (`src/`, `tests/`):** Eine zentimetergenaue (`1 Three.js Unit = 1 cm`) Web-Anwendung mit Vite, React, TypeScript, React Three Fiber (`@react-three/fiber`, `@react-three/drei`) und `Zustand`. Nutzer können ohne bestehenden Grundriss beliebige Räume/Wände in Zentimetern anlegen, Türen und Fenster positionieren, parametrische Möbelstücke (`Breite × Höhe × Tiefe` in cm) platzieren und erhalten in Echtzeit eine cm-genaue Kollisions- und Wandlängenprüfung.
 
@@ -17,7 +17,7 @@ Dieses Projekt kombiniert zwei Ebenen in einem gemeinsamen Repository (`/home/ag
 ## 2. Verzeichnisstruktur
 
 ```text
-/home/agy/Wohnung/
+Wohnung/
 ├── SCHEMA.md                                    # LLM-Wiki Regeln, Workflows (Ingest, Query, Lint) & Projekt-Konventionen
 ├── raw/                                         # Unveränderliche Quellen (Immutable Sources)
 │   ├── 2026-10-20-threejs-research-report.md    # Vollständiger Recherchebericht inkl. Referenz-URLs & Snippets
