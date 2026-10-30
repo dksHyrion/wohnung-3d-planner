@@ -99,17 +99,17 @@ export function exportScaledFloorplanSvg(
       .arch-window-glass { stroke: #0284c7; stroke-width: 0.3; }
       .arch-rug-rect { fill: #f8fafc; stroke: #94a3b8; stroke-width: 0.3; stroke-dasharray: 1.2 0.8; }
       .arch-furniture-rect { fill: #f1f5f9; stroke: #475569; stroke-width: 0.4; }
-      .arch-furniture-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 2.2px; fill: #334155; text-anchor: middle; font-weight: 500; }
+      .arch-furniture-text { font-family: system-ui, -apple-system, sans-serif; font-size: 2.2px; fill: #334155; text-anchor: middle; font-weight: 500; }
       .arch-room-polygon { fill: #f8fafc; stroke: none; }
       .arch-room-badge { fill: #ffffff; stroke: #94a3b8; stroke-width: 0.3; }
-      .arch-room-text-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 2.8px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
-      .arch-room-text-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 2.2px; font-weight: 500; fill: #475569; text-anchor: middle; }
+      .arch-room-text-title { font-family: system-ui, -apple-system, sans-serif; font-size: 2.8px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+      .arch-room-text-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 2.2px; font-weight: 500; fill: #475569; text-anchor: middle; }
       .arch-titleblock-bg { fill: #ffffff; stroke: #0f172a; stroke-width: 0.5; }
-      .arch-titleblock-text-bold { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 2.8px; font-weight: 700; fill: #0f172a; }
-      .arch-titleblock-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 2.0px; fill: #334155; }
+      .arch-titleblock-text-bold { font-family: system-ui, -apple-system, sans-serif; font-size: 2.8px; font-weight: 700; fill: #0f172a; }
+      .arch-titleblock-text { font-family: system-ui, -apple-system, sans-serif; font-size: 2.0px; fill: #334155; }
       .arch-dim-line { stroke: #475569; stroke-width: 0.3; fill: none; }
       .arch-dim-tick { stroke: #0f172a; stroke-width: 0.45; fill: none; }
-      .arch-dim-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 2.0px; font-weight: 600; fill: #0f172a; text-anchor: middle; }
+      .arch-dim-text { font-family: system-ui, -apple-system, sans-serif; font-size: 2.0px; font-weight: 600; fill: #0f172a; text-anchor: middle; }
     </style>
   </defs>`);
 

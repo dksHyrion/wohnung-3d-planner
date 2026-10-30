@@ -8,6 +8,18 @@ Zentimetergenaue (`1 Three.js Unit = 1 cm`) 2D-/3D-Wohnungsvisualisierung mit **
 
 👉 **[Hier geht's direkt zur interaktiven Live-Demo im Browser](https://dkshyrion.github.io/wohnung-3d-planner/)**
 
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Wohnung 3D Planner Banner" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://dkshyrion.github.io/wohnung-3d-planner/">
+    <img src="docs/assets/floorplan-2d-55sqm.png" alt="2D Architektur-Plan (1:50 Maßstab)" width="92%" />
+  </a>
+  <br/>
+  <em>Maßstabsgetreuer 1:50 Architektur-Plan mit DIN-Plankopf, 90°-Türschwenkbögen, Möblierung und Netto-Innenflächen (Beispielwohnung 55 m²)</em>
+</p>
+
 ---
 
 ## 1. Schnellstart
