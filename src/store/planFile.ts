@@ -2,7 +2,14 @@ import { isPristinePlan } from './autosave';
 
 export const PLAN_FILE_URL = '/api/plan';
 
+/**
+ * Die Plan-Datei-API gibt es nur im Vite-Dev-Server (`planAutosavePlugin`).
+ * In statischen Produktions-Builds (z. B. GitHub Pages) entfällt die Anfrage.
+ */
+const PLAN_FILE_API_AVAILABLE = import.meta.env.DEV;
+
 export async function writePlanFile(json: string): Promise<boolean> {
+  if (!PLAN_FILE_API_AVAILABLE) return false;
   try {
     const response = await fetch(PLAN_FILE_URL, {
       method: 'PUT',
@@ -16,6 +23,7 @@ export async function writePlanFile(json: string): Promise<boolean> {
 }
 
 export async function readPlanFile(): Promise<string | null> {
+  if (!PLAN_FILE_API_AVAILABLE) return null;
   try {
     const response = await fetch(PLAN_FILE_URL);
     if (!response.ok) return null;

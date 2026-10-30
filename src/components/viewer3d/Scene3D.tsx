@@ -38,6 +38,24 @@ import { WindowLightPool3D } from './decor/WindowLightPool3D';
 import { PostFX3D } from './PostFX3D';
 import { interpolateMood } from '../../core/lighting/moodPresets';
 
+declare global {
+  interface Window {
+    __DEBUG_THREE__?: {
+      gl: THREE.WebGLRenderer;
+      scene: THREE.Scene;
+      camera: THREE.Camera;
+    };
+  }
+}
+
+/** Minimal structural view of drei's OrbitControls instance (exposed as an EventDispatcher by useThree). */
+interface OrbitControlsLike {
+  target: THREE.Vector3;
+  update: () => void;
+  addEventListener: (type: string, listener: () => void) => void;
+  removeEventListener: (type: string, listener: () => void) => void;
+}
+
 export const CANVAS_GL_CONFIG = {
   preserveDrawingBuffer: false,
   powerPreference: 'high-performance',
@@ -80,13 +98,14 @@ const RendererConfigController: React.FC<{
     gl.toneMapping = isBeauty ? THREE.NoToneMapping : THREE.AgXToneMapping;
     gl.toneMappingExposure = exposure;
     if (typeof window !== 'undefined') {
-      (window as any).__DEBUG_THREE__ = { gl, scene, camera };
+      window.__DEBUG_THREE__ = { gl, scene, camera };
     }
 
-    const handleSnapshotRequest = (e: any) => {
+    const handleSnapshotRequest = (e: Event) => {
       try {
         gl.render(scene, camera);
-        const prefix = e.detail?.prefix ?? 'wohnung-3d';
+        const detail = (e as CustomEvent<{ prefix?: string } | undefined>).detail;
+        const prefix = detail?.prefix ?? 'wohnung-3d';
         const dataUrl = gl.domElement.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = dataUrl;
@@ -103,9 +122,9 @@ const RendererConfigController: React.FC<{
       }
     };
 
-    window.addEventListener('wohnung-capture-snapshot' as any, handleSnapshotRequest);
+    window.addEventListener('wohnung-capture-snapshot', handleSnapshotRequest);
     return () => {
-      window.removeEventListener('wohnung-capture-snapshot' as any, handleSnapshotRequest);
+      window.removeEventListener('wohnung-capture-snapshot', handleSnapshotRequest);
     };
   }, [gl, scene, camera, isBeauty, exposure]);
   return null;
@@ -235,7 +254,7 @@ export const CameraController: React.FC<{
 
   useEffect(() => {
     if (!controls || !('addEventListener' in controls)) return;
-    const orbit = controls as any;
+    const orbit = controls as unknown as OrbitControlsLike;
     const cancelTransition = () => {
       transitionRef.current.active = false;
     };
@@ -250,7 +269,7 @@ export const CameraController: React.FC<{
     const alpha = 1 - Math.exp(-9 * Math.min(delta, 0.1));
     camera.position.lerp(transitionRef.current.goalPos, alpha);
     if (controls && 'target' in controls) {
-      const orbit = controls as any;
+      const orbit = controls as unknown as OrbitControlsLike;
       orbit.target.lerp(transitionRef.current.goalTarget, alpha);
       orbit.update();
     } else {
@@ -262,7 +281,7 @@ export const CameraController: React.FC<{
     if (distPos < 0.8) {
       camera.position.copy(transitionRef.current.goalPos);
       if (controls && 'target' in controls) {
-        const orbit = controls as any;
+        const orbit = controls as unknown as OrbitControlsLike;
         orbit.target.copy(transitionRef.current.goalTarget);
         orbit.update();
       } else {

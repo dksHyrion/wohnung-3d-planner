@@ -53,7 +53,7 @@ Im Browser öffnen: 👉 **`http://localhost:5173`**
 
 ### C. Tests & Production-Build
 ```bash
-npm test         # 452 Vitest-Tests in 44 Dateien
+npm test         # 454 Vitest-Tests in 45 Dateien
 npm run build    # Production-Build in dist/ (TypeScript + Vite)
 ```
 
@@ -107,7 +107,7 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 | **Geometrie & Mathe** | **`THREE.OBB`** + Separating Axis Theorem (SAT) + 1D-Skalarprodukt-Wandprojektion |
 | **Frontend & UI** | **React 18**, **TypeScript 5**, **Zustand** (Store-Slices), **Lucide React** |
 | **2D-Engine** | Natives React + SVG (`viewBox` in cm, Pan/Zoom, 90°-Türschwenkbögen) |
-| **Build & Testing** | **Vite 5** (HMR & Tree-Shaking), **Vitest 2** (452 Unit- & Integrationstests) |
+| **Build & Testing** | **Vite 5** (HMR & Tree-Shaking), **Vitest 2** (454 Unit- & Integrationstests) |
 | **Wissensbasis** | **Karpathy LLM-Wiki Pattern** (`SCHEMA.md`, `raw/`, `wiki/index.md`, `wiki/log.md`) |
 
 ---

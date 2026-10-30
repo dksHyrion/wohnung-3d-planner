@@ -4,6 +4,16 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-10-30] Review-Nachbesserungen zum Öffentlichen Release: Datenschutz, CI-Härtung & Produktions-Build
+
+- **Action:** `REVIEW`, `PRIVACY`, `CI_CD`, `LINT`
+- **Datenschutz:** Persönliche Bestelldaten und Händlerangaben aus dem Release-Eintrag entfernt, Verweis auf die nicht versionierte Datei in `privat/` gestrichen, lokale Entwicklerpfade aus allen Plan-/Spec-Dokumenten entfernt. Der Release-Commit wurde bereinigt und per Force-Push ersetzt.
+- **CI:** `.github/workflows/ci.yml` mit `permissions: contents: read` und Concurrency-Gruppe gehärtet.
+- **Assets:** Vorschau-SVG wird nicht mehr von einem Test, sondern per `npm run docs:assets` ([`scripts/generate-doc-assets.ts`](../scripts/generate-doc-assets.ts)) erzeugt; `npm test` schreibt nicht mehr ins Repository.
+- **Produktions-Build:** `src/store/planFile.ts` überspringt `/api/plan` außerhalb des Vite-Dev-Servers (kein 404 mehr auf GitHub Pages); neuer Test `tests/planFileProduction.test.ts`.
+- **Typsicherheit:** Alle `any` in `Scene3D.tsx` durch Typdeklarationen ersetzt (`Window.__DEBUG_THREE__`, `OrbitControlsLike`, `CustomEvent`); `src/vite-env.d.ts` ergänzt.
+- **Prüfung:** `tsc -b` fehlerfrei, `vitest run` 454 Tests in 45 Testdateien grün.
+
 ## [2026-10-30] Öffentliches GitHub-Release: Datenschutz-Bereinigung, MIT-Lizenz, GitHub Actions CI & Pages Live-Demo (Tagesabschluss)
 
 - **Action:** `RELEASE`, `PRIVACY`, `CI_CD`, `DOCUMENTATION` & `TAGESABSCHLUSS`
@@ -25,7 +35,7 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
   - Neuer Schnellstart inkl. macOS Terminal-Anleitung (`ssh -L 5173:127.0.0.1:5173`).
   - Gestraffte, prägnante Kern-Features und kompakte Ordnerstruktur.
   - Direkte Einbindung des maßstabsgetreuen 1:50-Vektorgrundrisses (`docs/assets/floorplan-2d-55sqm.png`) mit DIN-Plankopf und Lichter Innenfläche.
-- **Prüfung:** `tsc -b` fehlerfrei, `vitest run` 452 Tests in 44 Testdateien grün, GitHub Actions CI & Pages Deployment erfolgreich (`status: completed, conclusion: success`).
+- **Prüfung:** `tsc -b` fehlerfrei, `vitest run` 454 Tests in 45 Testdateien grün, GitHub Actions CI & Pages Deployment erfolgreich (`status: completed, conclusion: success`).
 
 ## [2026-10-30] Pakete 3C & 3D: GitHub-Referenzanalyse, Smart Alignment Guides & Kante-an-Kante Möbel-Snapping, Erweiterte Wandöffnungen & Interaktiver Teppich-Editor (Tagesabschluss)
 
