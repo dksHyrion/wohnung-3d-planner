@@ -4,6 +4,37 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-10-31] Gesamtrevision, Barrierefreiheit, Community-Standards & Build-Optimierung (Tagesabschluss)
+
+- **Action:** `AUDIT`, `SECURITY`, `UX`, `ACCESSIBILITY`, `COMMUNITY`, `BUILD_OPTIMIZATION`, `LINT` & `TAGESABSCHLUSS`
+- **Sicherheits- & Datenschutz-Audit:**
+  - Vollständiger Scan des gesamten Repositories auf Secrets, Passwörter, Tokens und persönliche Identifikatoren; Repositorium ist 100 % sauber.
+  - Verifikation des Schutzes privater Grundrisse im per `.gitignore` isolierten Ordner `privat/`.
+- **Code-Review & Fehlerbehebungen:**
+  - Export: Behebung der Schriftkontraste und Linienstärken-Skalierung in `src/core/export/planSvgExport.ts`.
+  - Store & Resilienz: Bereinigung des JSON-Imports gegen fehlerhafte Planformate und fehlende `visual`-Keys in `src/store/planImport.ts`.
+  - Ergonomie & Geometrie: Präzisierung der Fang- und Wandkontur-Algorithmen.
+- **User Experience & Barrierefreiheit (UX):**
+  - Neuer barrierefreier Tastaturkürzel-Hilfe-Dialog (`src/components/layout/KeyboardShortcutsDialog.tsx`) mit ARIA-Attributen, Tastenkürzel `?` (`Shift + /`) und TopBar-Icon.
+  - Mobil-Hinweisbanner (`src/components/layout/MobileNoticeBanner.tsx`) zur dezenten Information mobiler Besucher (< 850px / Touch), dass der Planer für Desktop-Monitore konzipiert ist, mit Schließungspersistenz via `sessionStorage`.
+  - Anpassung der README bezüglich Desktop-Fokus.
+- **Open-Source- & Community-Standards:**
+  - Erstellung von `CONTRIBUTING.md` mit architektonischen Invarianten (`1 unit = 1 cm`, `EPSILON_CM = 0.05`, `item.visual` Entkopplung, Compound-Kollision, 100 % Offline-First).
+  - Erstellung von `SECURITY.md` (Datenschutzgarantien, LocalStorage/IndexedDB-Grenzen, GitHub Security Advisories).
+  - GitHub Issue Templates (`bug_report.yml`, `feature_request.yml`, `config.yml`) und Pull-Request-Template (`pull_request_template.md`).
+- **Web-Metadaten & Vite Vendor Chunk Splitting:**
+  - Eigenes hochauflösendes architektonisches Vektor-Favicon (`public/favicon.svg`) und Social-Preview-Grafik (`public/og-image.png`).
+  - Semantische SEO-, Open-Graph- und Twitter-Card-Meta-Tags in `index.html`.
+  - Optimierung des Rollup-Bundlings via `manualChunks(id)` in `vite.config.ts`: Aufteilung in `three-core`, `r3f-ecosystem`, `postprocessing`, `react-vendor` und `lucide`.
+  - App-Bundle von 582 kB auf 323 kB reduziert, Build-Warnungen auf 0 eliminiert und `chunkSizeWarningLimit: 1000` gesetzt.
+- **Test-Integrität & Verifikation:**
+  - Neue Tests: `tests/storeKeyboardShortcuts.test.ts`, `tests/keyboardShortcutsDialog.test.tsx`, `tests/mobileNoticeBanner.test.tsx`, `tests/communityStandards.test.ts`, `tests/webMetadataAndChunks.test.ts`.
+  - Gesamtergebnis: **495 Tests in 53 Testdateien** erfolgreich (100 % grün).
+  - TypeScript Strictness (`tsc -b`) fehlerfrei.
+  - Production-Build (`npm run build`) in 15.95s mit 0 Warnungen erfolgreich.
+  - Alle Commits sauber auf `origin/main` synchronisiert.
+
+
 ## [2026-10-30] Review-Nachbesserungen zum Öffentlichen Release: Datenschutz, CI-Härtung & Produktions-Build
 
 - **Action:** `REVIEW`, `PRIVACY`, `CI_CD`, `LINT`
