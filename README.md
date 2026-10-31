@@ -8,6 +8,9 @@
 
 👉 **[Interaktive Live-Demo im Browser starten](https://dkshyrion.github.io/wohnung-3d-planner/)**
 
+> [!NOTE]
+> **Für Desktop & große Bildschirme:** Diese App ist für die präzise 2D/3D-Raumplanung mit Maus und Tastatur an großen Bildschirmen konzipiert und **nicht für Mobilgeräte optimiert**. Auf dem Smartphone lässt sich die Anwendung nicht bedienen.
+
 <p align="center">
   <a href="https://dkshyrion.github.io/wohnung-3d-planner/">
     <img src="docs/assets/floorplan-2d-55sqm.png" alt="2D Architektur-Plan (1:50 Maßstab)" width="92%" />
