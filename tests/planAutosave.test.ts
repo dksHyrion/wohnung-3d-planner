@@ -55,6 +55,41 @@ describe('Plansicherung als Datei', () => {
     expect(await readPlanAutosave(file)).toBe(plan);
   });
 
+  it('blockiert nicht-JSON PUT-Requests mit 415', async () => {
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'plan-'));
+    folders.push(folder);
+    const file = path.join(folder, 'plan.json');
+
+    const res = await callPlan('PUT', file, plan, { 'content-type': 'text/plain' });
+    expect(res.statusCode).toBe(415);
+  });
+
+  it('blockiert Cross-Origin und böswillige Host/Origin Missmatches mit 403', async () => {
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'plan-'));
+    folders.push(folder);
+    const file = path.join(folder, 'plan.json');
+
+    const evilOrigin = await callPlan('PUT', file, plan, {
+      'content-type': 'application/json',
+      host: 'localhost:5173',
+      origin: 'https://attacker.example.com',
+    });
+    expect(evilOrigin.statusCode).toBe(403);
+
+    const crossSite = await callPlan('PUT', file, plan, {
+      'content-type': 'application/json',
+      'sec-fetch-site': 'cross-site',
+    });
+    expect(crossSite.statusCode).toBe(403);
+
+    const validOrigin = await callPlan('PUT', file, plan, {
+      'content-type': 'application/json',
+      host: 'localhost:5173',
+      origin: 'http://localhost:5173',
+    });
+    expect(validOrigin.statusCode).toBe(204);
+  });
+
   it('holt die Datei nur, wenn im Browser die Beispielwohnung liegt', async () => {
     rememberPristinePlan('beispiel');
     const imported: string[] = [];
@@ -86,10 +121,12 @@ describe('Plansicherung als Datei', () => {
 async function callPlan(
   method: string,
   file: string,
-  body?: string
+  body?: string,
+  headers: Record<string, string> = { 'content-type': 'application/json' }
 ): Promise<{ statusCode: number; body: string }> {
   const req = new EventEmitter() as IncomingMessage;
   req.method = method;
+  req.headers = { ...headers };
   req.destroy = () => req;
   const response = {
     statusCode: 0,

@@ -38,8 +38,17 @@ export async function writePlanAutosave(
   }
   if (!isPlanDocument(parsed)) return 'invalid';
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const temporary = `${filePath}.tmp`;
-  await fs.writeFile(temporary, body);
-  await fs.rename(temporary, filePath);
-  return 'ok';
+  const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    await fs.writeFile(temporary, body);
+    await fs.rename(temporary, filePath);
+    return 'ok';
+  } catch (err) {
+    try {
+      await fs.unlink(temporary);
+    } catch {
+      // Ignore cleanup error
+    }
+    throw err;
+  }
 }

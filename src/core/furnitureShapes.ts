@@ -156,9 +156,47 @@ export function bedLayout(item: FurnitureItem): {
   };
 }
 
+export function osakaSofaBedLayout(item: FurnitureItem): { body: LocalPart; mattress: LocalPart } {
+  const bodyDepth = Math.min(item.depthCm, 95);
+  const backThickness = 18;
+  const mattressDepth = Math.max(40, item.depthCm - backThickness);
+  const mattressWidth = Math.max(40, item.widthCm - 32);
+
+  const bodyCz = -item.depthCm / 2 + bodyDepth / 2;
+  const mattressCz = -item.depthCm / 2 + backThickness + mattressDepth / 2;
+  const mattressHeight = Math.min(item.heightCm * 0.45, 45);
+  const mattressCy = -item.heightCm / 2 + mattressHeight / 2;
+
+  const body: LocalPart = {
+    id: 'sofa-body',
+    cx: 0,
+    cy: 0,
+    cz: bodyCz,
+    widthCm: item.widthCm,
+    heightCm: item.heightCm,
+    depthCm: bodyDepth,
+  };
+
+  const mattress: LocalPart = {
+    id: 'mattress-open',
+    cx: 0,
+    cy: mattressCy,
+    cz: mattressCz,
+    widthCm: mattressWidth,
+    heightCm: mattressHeight,
+    depthCm: mattressDepth,
+  };
+
+  return { body, mattress };
+}
+
 /** Tragende Kästen, aus denen Bild und Kollision dieselbe Mitte lesen. */
 export function layoutFurnitureParts(item: FurnitureItem): LocalPart[] {
   const visual = resolveFurnitureVisual(item);
+  if (visual === 'boconcept-osaka' && (item.pose === 'open' || item.depthCm > 140)) {
+    const layout = osakaSofaBedLayout(item);
+    return [layout.body, layout.mattress];
+  }
   if (visual === 'dining-table') {
     const layout = diningTableLayout(item);
     return [layout.top, ...layout.chairs];

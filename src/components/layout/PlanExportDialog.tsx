@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 import { Download, Ruler } from 'lucide-react';
 
 export function PlanExportDialog({
@@ -34,6 +34,24 @@ export function PlanExportDialog({
   setPlanTitle: (title: string) => void;
   handleDownloadPlanSvg: () => void;
 }) {
+  const dialogTitleId = useId();
+  const scaleId = useId();
+  const paperId = useId();
+  const orientationId = useId();
+  const titleInputId = useId();
+
+  useEffect(() => {
+    if (!planExportModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setPlanExportModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [planExportModalOpen, setPlanExportModalOpen]);
+
   return (
     <>
       {planExportModalOpen && (
@@ -43,11 +61,15 @@ export function PlanExportDialog({
         >
           <div
             className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
             style={{ maxWidth: '520px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="sidebar-title"
+              id={dialogTitleId}
               style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
             >
               <Ruler size={18} color="#818cf8" />
@@ -68,6 +90,7 @@ export function PlanExportDialog({
             >
               <div>
                 <label
+                  htmlFor={scaleId}
                   style={{
                     fontSize: '0.78rem',
                     color: '#94a3b8',
@@ -78,6 +101,7 @@ export function PlanExportDialog({
                   Maßstab
                 </label>
                 <select
+                  id={scaleId}
                   className="select-input"
                   value={planScale}
                   onChange={(e) =>
@@ -91,6 +115,7 @@ export function PlanExportDialog({
 
               <div>
                 <label
+                  htmlFor={paperId}
                   style={{
                     fontSize: '0.78rem',
                     color: '#94a3b8',
@@ -101,6 +126,7 @@ export function PlanExportDialog({
                   Papierformat
                 </label>
                 <select
+                  id={paperId}
                   className="select-input"
                   value={planPaper}
                   onChange={(e) =>
@@ -122,6 +148,7 @@ export function PlanExportDialog({
             >
               <div>
                 <label
+                  htmlFor={orientationId}
                   style={{
                     fontSize: '0.78rem',
                     color: '#94a3b8',
@@ -132,6 +159,7 @@ export function PlanExportDialog({
                   Ausrichtung
                 </label>
                 <select
+                  id={orientationId}
                   className="select-input"
                   value={planOrientation}
                   onChange={(e) =>
@@ -147,6 +175,7 @@ export function PlanExportDialog({
 
               <div>
                 <label
+                  htmlFor={titleInputId}
                   style={{
                     fontSize: '0.78rem',
                     color: '#94a3b8',
@@ -157,6 +186,7 @@ export function PlanExportDialog({
                   Projektname
                 </label>
                 <input
+                  id={titleInputId}
                   type="text"
                   className="text-input"
                   value={planTitle}

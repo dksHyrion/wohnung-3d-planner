@@ -1,7 +1,6 @@
-export interface Point2D {
-  x: number;
-  z: number;
-}
+import { Point2D } from './types';
+
+export type { Point2D };
 
 export interface ReferenceScaleResult {
   pixelDistance: number;

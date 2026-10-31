@@ -143,6 +143,7 @@ export interface ProceduralCurtain3DProps {
   start?: Corner;
   end?: Corner;
   roomCenter?: { x: number; z: number };
+  showDecor?: boolean;
 }
 
 /**
@@ -158,8 +159,10 @@ export const ProceduralCurtain3D = React.memo<ProceduralCurtain3DProps>(({
   start,
   end,
   roomCenter,
+  showDecor: propShowDecor,
 }) => {
-  const showDecor = useFloorplanStore((s) => s.showDecor);
+  const storeShowDecor = useFloorplanStore((s) => s.showDecor);
+  const showDecor = propShowDecor ?? storeShowDecor;
   const [internalCutaway, setInternalCutaway] = useState(false);
   const isCutaway = propIsCutaway ?? internalCutaway;
   const lastCamRef = useRef({ x: NaN, y: NaN, z: NaN });
@@ -186,8 +189,6 @@ export const ProceduralCurtain3D = React.memo<ProceduralCurtain3DProps>(({
       setInternalCutaway(nextCut);
     }
   });
-
-  if (!showDecor) return null;
 
   const placement = useMemo(() => {
     if (propPlacement) return propPlacement;

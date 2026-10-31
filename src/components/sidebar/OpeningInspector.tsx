@@ -8,6 +8,13 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
   const updateOpening = useFloorplanStore((s) => s.updateOpening);
   const removeOpening = useFloorplanStore((s) => s.removeOpening);
 
+  const idType = React.useId();
+  const idOffset = React.useId();
+  const idWidth = React.useId();
+  const idHeight = React.useId();
+  const idSill = React.useId();
+  const idSwing = React.useId();
+
   const handleTypeChange = (nextType: OpeningType) => {
     const patch: Partial<Omit<WallOpening, 'id'>> = { type: nextType };
     if (nextType === 'window' && selectedOpening.sillHeightCm === 0) {
@@ -47,8 +54,9 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
 
       <div className="form-grid">
         <div className="form-field full">
-          <label className="form-label">Bauart / Öffnungstyp</label>
+          <label htmlFor={idType} className="form-label">Bauart / Öffnungstyp</label>
           <select
+            id={idType}
             className="select-input"
             aria-label="Bauart / Öffnungstyp"
             value={selectedOpening.type}
@@ -63,8 +71,9 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label className="form-label">Abstand ab Ecke (cm)</label>
+          <label htmlFor={idOffset} className="form-label">Abstand ab Ecke (cm)</label>
           <input
+            id={idOffset}
             type="number"
             min={0}
             step={5}
@@ -79,8 +88,9 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label className="form-label">Breite (cm)</label>
+          <label htmlFor={idWidth} className="form-label">Breite (cm)</label>
           <input
+            id={idWidth}
             type="number"
             min={20}
             step={5}
@@ -95,8 +105,9 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label className="form-label">Höhe (cm)</label>
+          <label htmlFor={idHeight} className="form-label">Höhe (cm)</label>
           <input
+            id={idHeight}
             type="number"
             min={20}
             step={5}
@@ -111,8 +122,9 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label className="form-label">Brüstungshöhe (cm)</label>
+          <label htmlFor={idSill} className="form-label">Brüstungshöhe (cm)</label>
           <input
+            id={idSill}
             type="number"
             min={0}
             step={5}
@@ -129,12 +141,13 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         {(openingHasSwingArc(selectedOpening.type) ||
           selectedOpening.type === 'sliding-door') && (
           <div className="form-field full">
-            <label className="form-label">
+            <label htmlFor={idSwing} className="form-label">
               {selectedOpening.type === 'sliding-door'
                 ? 'Laufrichtung / Wandseite'
                 : 'Anschlagrichtung'}
             </label>
             <select
+              id={idSwing}
               className="select-input"
               value={selectedOpening.swingDirection ?? 'in-left'}
               onChange={(e) =>

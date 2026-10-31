@@ -5,7 +5,7 @@ import { layoutFurnitureParts } from '../furnitureShapes';
 import { resolveFurnitureVisual } from '../furnitureVisual';
 
 export interface PlanExportOptions {
-  scale: '1:50' | '1:100';
+  scale: '1:50' | '1:100' | '1:200';
   paperSize?: 'A4' | 'A3';
   orientation?: 'landscape' | 'portrait';
   includeFurniture?: boolean;
@@ -14,26 +14,26 @@ export interface PlanExportOptions {
   projectTitle?: string;
   authorName?: string;
   dateStr?: string;
+  autoScale?: boolean;
 }
 
-export function exportScaledFloorplanSvg(
+export interface PlanFitInfo {
+  fits: boolean;
+  requestedScale: '1:50' | '1:100' | '1:200';
+  effectiveScale: '1:50' | '1:100' | '1:200';
+  recommendedScale: '1:50' | '1:100' | '1:200';
+  contentWidthCm: number;
+  contentDepthCm: number;
+  drawWidthMm: number;
+  drawHeightMm: number;
+  availWidthMm: number;
+  availHeightMm: number;
+}
+
+export function computePlanBoundingBoxCm(
   data: FloorplanData,
-  options: PlanExportOptions
-): string {
-  const scaleRatio = options.scale === '1:100' ? 0.1 : 0.2; // mm per cm
-  const paper = options.paperSize ?? 'A4';
-  const orientation = options.orientation ?? 'landscape';
-
-  // Paper dimensions in mm
-  let paperW = paper === 'A3' ? 420 : 297;
-  let paperH = paper === 'A3' ? 297 : 210;
-  if (orientation === 'portrait') {
-    const tmp = paperW;
-    paperW = paperH;
-    paperH = tmp;
-  }
-
-  // Calculate bounding box in cm
+  options?: Pick<PlanExportOptions, 'includeDimensions' | 'includeFurniture'>
+): { minX: number; maxX: number; minZ: number; maxZ: number } {
   let minX = Infinity;
   let minZ = Infinity;
   let maxX = -Infinity;
@@ -52,6 +52,120 @@ export function exportScaledFloorplanSvg(
     minZ = 0;
     maxZ = 300;
   }
+
+  // Account for maximum wall thickness (walls extend thickness/2 beyond centerline)
+  let maxHalfWallThick = 10;
+  for (const w of data.walls) {
+    const half = (w.thicknessCm || 15) / 2;
+    if (half > maxHalfWallThick) maxHalfWallThick = half;
+  }
+  minX -= maxHalfWallThick;
+  maxX += maxHalfWallThick;
+  minZ -= maxHalfWallThick;
+  maxZ += maxHalfWallThick;
+
+  // Account for exterior dimension chains (offsetCm = 35 + text height ~ 15 cm -> 50 cm)
+  if (options?.includeDimensions !== false && data.walls.length > 0) {
+    const dimMarginCm = 50;
+    minX -= dimMarginCm;
+    maxX += dimMarginCm;
+    minZ -= dimMarginCm;
+    maxZ += dimMarginCm;
+  }
+
+  return { minX, maxX, minZ, maxZ };
+}
+
+export function computePlanFit(
+  data: FloorplanData,
+  options: PlanExportOptions
+): PlanFitInfo {
+  const paper = options.paperSize ?? 'A4';
+  const orientation = options.orientation ?? 'landscape';
+
+  let paperW = paper === 'A3' ? 420 : 297;
+  let paperH = paper === 'A3' ? 297 : 210;
+  if (orientation === 'portrait') {
+    const tmp = paperW;
+    paperW = paperH;
+    paperH = tmp;
+  }
+
+  const marginMm = 20;
+  const titleBlockHMm = 32;
+  const availWidthMm = paperW - marginMm * 2;
+  const availHeightMm = paperH - marginMm * 2 - titleBlockHMm;
+
+  const bounds = computePlanBoundingBoxCm(data, options);
+  const contentWidthCm = Math.max(100, bounds.maxX - bounds.minX);
+  const contentDepthCm = Math.max(100, bounds.maxZ - bounds.minZ);
+
+  const scaleRatio50 = 0.2;
+  const scaleRatio100 = 0.1;
+
+  const fits50 =
+    contentWidthCm * scaleRatio50 <= availWidthMm &&
+    contentDepthCm * scaleRatio50 <= availHeightMm;
+  const fits100 =
+    contentWidthCm * scaleRatio100 <= availWidthMm &&
+    contentDepthCm * scaleRatio100 <= availHeightMm;
+
+  const recommendedScale: '1:50' | '1:100' | '1:200' = fits50
+    ? '1:50'
+    : fits100
+    ? '1:100'
+    : '1:200';
+
+  const reqScale = options.scale;
+  const reqRatio = reqScale === '1:200' ? 0.05 : reqScale === '1:100' ? 0.1 : 0.2;
+  const fits =
+    contentWidthCm * reqRatio <= availWidthMm &&
+    contentDepthCm * reqRatio <= availHeightMm;
+
+  const effectiveScale =
+    options.autoScale === true ? (fits ? reqScale : recommendedScale) : reqScale;
+  const effectiveRatio =
+    effectiveScale === '1:200' ? 0.05 : effectiveScale === '1:100' ? 0.1 : 0.2;
+
+  return {
+    fits,
+    requestedScale: reqScale,
+    effectiveScale,
+    recommendedScale,
+    contentWidthCm,
+    contentDepthCm,
+    drawWidthMm: contentWidthCm * effectiveRatio,
+    drawHeightMm: contentDepthCm * effectiveRatio,
+    availWidthMm,
+    availHeightMm,
+  };
+}
+
+export function exportScaledFloorplanSvg(
+  data: FloorplanData,
+  options: PlanExportOptions
+): string {
+  const fitInfo = computePlanFit(data, options);
+  const effectiveScale = fitInfo.effectiveScale;
+  const scaleRatio = effectiveScale === '1:200' ? 0.05 : effectiveScale === '1:100' ? 0.1 : 0.2; // mm per cm
+  const paper = options.paperSize ?? 'A4';
+  const orientation = options.orientation ?? 'landscape';
+
+  // Paper dimensions in mm
+  let paperW = paper === 'A3' ? 420 : 297;
+  let paperH = paper === 'A3' ? 297 : 210;
+  if (orientation === 'portrait') {
+    const tmp = paperW;
+    paperW = paperH;
+    paperH = tmp;
+  }
+
+  // Calculate bounding box in cm
+  const bounds = computePlanBoundingBoxCm(data, options);
+  const minX = bounds.minX;
+  const maxX = bounds.maxX;
+  const minZ = bounds.minZ;
+  const maxZ = bounds.maxZ;
 
   const contentWidthCm = Math.max(100, maxX - minX);
   const contentDepthCm = Math.max(100, maxZ - minZ);
@@ -86,13 +200,13 @@ export function exportScaledFloorplanSvg(
   // Header & Styles
   parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${paperW}mm" height="${paperH}mm" viewBox="0 0 ${paperW} ${paperH}">`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${paperW}mm" height="${paperH}mm" viewBox="0 0 ${paperW} ${paperH}" data-scale="${effectiveScale}" data-fits="${fitInfo.fits}">`
   );
   parts.push(`  <defs>
     <style>
       .arch-paper-bg { fill: #ffffff; }
       .arch-frame { fill: none; stroke: #0f172a; stroke-width: 0.5; }
-      .arch-wall { stroke: #0f172a; stroke-linecap: square; fill: none; }
+      .arch-wall { stroke: #0f172a; stroke-linecap: round; stroke-linejoin: round; fill: none; }
       .arch-door-leaf { stroke: #0f172a; stroke-width: 0.5; fill: none; }
       .arch-door-arc { stroke: #64748b; stroke-width: 0.35; stroke-dasharray: 1 1; fill: none; }
       .arch-window-frame { stroke: #0f172a; stroke-width: 0.4; }
@@ -253,9 +367,11 @@ export function exportScaledFloorplanSvg(
       parts.push(
         `    <line class="arch-door-leaf" x1="${hingeX}" y1="${hingeY}" x2="${leafOpenX}" y2="${leafOpenY}" />`
       );
-      // 90-degree swing arc (quarter circle via quadratic bezier or arc path)
+      // 90-degree swing arc (quarter circle centered at hinge)
+      // Sweep flag: clockwise (1) for in-left / out-right; counter-clockwise (0) for in-right / out-left.
+      const sweepFlag = swingSign > 0 ? (hingeOnRight ? 0 : 1) : (hingeOnRight ? 1 : 0);
       parts.push(
-        `    <path class="arch-door-arc" d="M ${latchClosedX} ${latchClosedY} A ${doorW_mm} ${doorW_mm} 0 0 ${swingSign > 0 ? (hingeOnRight ? 1 : 0) : (hingeOnRight ? 0 : 1)} ${leafOpenX} ${leafOpenY}" />`
+        `    <path class="arch-door-arc" d="M ${latchClosedX} ${latchClosedY} A ${doorW_mm} ${doorW_mm} 0 0 ${sweepFlag} ${leafOpenX} ${leafOpenY}" />`
       );
       parts.push(`  </g>`);
     }
@@ -270,7 +386,7 @@ export function exportScaledFloorplanSvg(
       const rPaperX = toPaperX(r.x);
       const rPaperY = toPaperY(r.z);
       parts.push(
-        `  <g class="arch-rug" data-rug-id="${r.id}" data-rug-name="${escapeXml(r.name ?? 'Teppich')}" transform="translate(${rPaperX}, ${rPaperY}) rotate(${-(r.rotationYDeg ?? 0)})">`
+        `  <g class="arch-rug" data-rug-id="${escapeXml(r.id)}" data-rug-name="${escapeXml(r.name ?? 'Teppich')}" transform="translate(${rPaperX}, ${rPaperY}) rotate(${-(r.rotationYDeg ?? 0)})">`
       );
       parts.push(
         `    <rect class="arch-rug-rect" x="${-rWidthMm / 2}" y="${-rDepthMm / 2}" width="${rWidthMm}" height="${rDepthMm}" rx="${Math.min(1.5, rWidthMm * 0.02)}" />`
@@ -291,29 +407,19 @@ export function exportScaledFloorplanSvg(
       const localParts = layoutFurnitureParts(f);
 
       parts.push(
-        `  <g class="arch-furniture" data-visual="${visual}" transform="translate(${fPaperX}, ${fPaperY}) rotate(${-f.rotationYDeg})">`
+        `  <g class="arch-furniture" data-furniture-id="${escapeXml(f.id)}" data-visual="${escapeXml(visual)}" transform="translate(${fPaperX}, ${fPaperY}) rotate(${-f.rotationYDeg})">`
       );
-      if (visual === 'boconcept-osaka' && (f.pose === 'open' || f.depthCm > 140)) {
-        const bodyDepthMm = Math.min(f.depthCm, 95) * scaleRatio;
-        const mattressInsetMm = 16 * scaleRatio;
-        const backThickMm = 18 * scaleRatio;
+
+      for (const lp of localParts) {
+        const pwMm = Number((lp.widthCm * scaleRatio).toFixed(2));
+        const pdMm = Number((lp.depthCm * scaleRatio).toFixed(2));
+        const pxMm = Number((lp.cx * scaleRatio - pwMm / 2).toFixed(2));
+        const pyMm = Number((lp.cz * scaleRatio - pdMm / 2).toFixed(2));
         parts.push(
-          `    <rect class="arch-furniture-rect" data-part="sofa-body" x="${Number((-fWidthMm / 2).toFixed(2))}" y="${Number((-fDepthMm / 2).toFixed(2))}" width="${Number(fWidthMm.toFixed(2))}" height="${Number(bodyDepthMm.toFixed(2))}" rx="1" />`
+          `    <rect class="arch-furniture-rect" data-part="${escapeXml(lp.id)}" x="${pxMm}" y="${pyMm}" width="${pwMm}" height="${pdMm}" rx="1" />`
         );
-        parts.push(
-          `    <rect class="arch-furniture-rect" data-part="mattress-open" x="${Number((-fWidthMm / 2 + mattressInsetMm).toFixed(2))}" y="${Number((-fDepthMm / 2 + backThickMm).toFixed(2))}" width="${Number((fWidthMm - mattressInsetMm * 2).toFixed(2))}" height="${Number((fDepthMm - backThickMm).toFixed(2))}" rx="0.8" />`
-        );
-      } else {
-        for (const lp of localParts) {
-          const pwMm = Number((lp.widthCm * scaleRatio).toFixed(2));
-          const pdMm = Number((lp.depthCm * scaleRatio).toFixed(2));
-          const pxMm = Number((lp.cx * scaleRatio - pwMm / 2).toFixed(2));
-          const pyMm = Number((lp.cz * scaleRatio - pdMm / 2).toFixed(2));
-          parts.push(
-            `    <rect class="arch-furniture-rect" data-part="${lp.id}" x="${pxMm}" y="${pyMm}" width="${pwMm}" height="${pdMm}" rx="1" />`
-          );
-        }
       }
+
       // Furniture front line indicator
       parts.push(
         `    <line x1="${-fWidthMm / 2 + 1}" y1="${fDepthMm / 2 - 0.8}" x2="${fWidthMm / 2 - 1}" y2="${fDepthMm / 2 - 0.8}" stroke="#94a3b8" stroke-width="0.3" />`
@@ -390,7 +496,7 @@ export function exportScaledFloorplanSvg(
         );
         // Text
         parts.push(
-          `    <text class="arch-dim-text" x="${tx}" y="${ty + 0.7}">${seg.formattedLength}</text>`
+          `    <text class="arch-dim-text" x="${tx}" y="${ty + 0.7}">${escapeXml(seg.formattedLength)}</text>`
         );
         parts.push(`  </g>`);
       }
@@ -403,7 +509,7 @@ export function exportScaledFloorplanSvg(
   const tbX = paperW - 10 - tbWidth;
   const tbY = paperH - 10 - tbHeight;
   const projectTitle = options.projectTitle || 'Grundriss-Stellprobe';
-  const scaleText = options.scale === '1:100' ? '1 : 100' : '1 : 50';
+  const scaleText = effectiveScale === '1:200' ? '1 : 200' : effectiveScale === '1:100' ? '1 : 100' : '1 : 50';
   const dateStr = options.dateStr || new Date().toLocaleDateString('de-DE');
   const areaTotalFormatted = totalNetArea.toLocaleString('de-DE', {
     minimumFractionDigits: 1,
@@ -445,7 +551,7 @@ export function exportScaledFloorplanSvg(
   // Graphical Scale Bar (Maßstabsbalken)
   const barX = tbX - 45;
   const barY = tbY + 12;
-  const unitM_width = 100 * scaleRatio; // 100 cm in mm: 20 mm for 1:50, 10 mm for 1:100
+  const unitM_width = 100 * scaleRatio; // 100 cm in mm: 20 mm for 1:50, 10 mm for 1:100, 5 mm for 1:200
 
   parts.push(`  <!-- Graphical Scale Bar -->`);
   parts.push(`  <g class="arch-scale-bar" transform="translate(${barX}, ${barY})">`);
@@ -476,7 +582,7 @@ export function exportScaledFloorplanSvg(
   return parts.join('\n');
 }
 
-function escapeXml(unsafe: string): string {
+export function escapeXml(unsafe: string): string {
   return unsafe
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

@@ -16,7 +16,7 @@ A centimeter-accurate 2D/3D architectural floorplan and furniture placement simu
 # Start development server (local)
 npm run dev
 
-# Run all automated tests (454 tests across 45 files)
+# Run all automated tests (479 tests across 48 files)
 npm test
 
 # Run Vitest once without watch mode
@@ -70,6 +70,6 @@ npm run build
 ## 4. Coding & Testing Guidelines
 
 * **TypeScript Strictness:** Strict types enabled. Avoid `any`. Prefer Discriminated Unions for visual types and tool modes.
-* **Preserve Integrity:** Keep all 454 automated tests passing when refactoring or adding features.
+* **Preserve Integrity:** Keep all 479 automated tests passing when refactoring or adding features.
 * **Privacy by Design:** Never commit personal names, real addresses, private purchase receipts, or private floorplans to git. Keep private plans in `privat/` (ignored by `.gitignore`).
 * **Verification Before Completion:** Always execute `npm test` and `npm run build` before claiming completion.

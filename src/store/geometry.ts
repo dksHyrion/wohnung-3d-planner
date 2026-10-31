@@ -877,7 +877,7 @@ export function createGeometryActions(deps: StoreDeps): GeometryActions {
         isRealFurniture: isReal,
       };
     });
-    set({ furniture });
+    setWithCollisions({ furniture }, true);
   },
 
   setFurnitureRealStatus: (id, isReal, brand, modelName) => {
@@ -893,7 +893,7 @@ export function createGeometryActions(deps: StoreDeps): GeometryActions {
         modelName: modelName !== undefined ? modelName : f.modelName,
       };
     });
-    set({ furniture });
+    setWithCollisions({ furniture }, true);
   },
 
   resetFurnitureToCatalogDimensions: (furnitureId: string) => {

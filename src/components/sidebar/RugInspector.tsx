@@ -16,6 +16,14 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
   const updateRug = useFloorplanStore((s) => s.updateRug);
   const removeRug = useFloorplanStore((s) => s.removeRug);
 
+  const idName = React.useId();
+  const idWidth = React.useId();
+  const idDepth = React.useId();
+  const idX = React.useId();
+  const idZ = React.useId();
+  const idRotation = React.useId();
+  const idColor = React.useId();
+
   return (
     <section className="sidebar-section" data-testid="rug-inspector">
       <div className="sidebar-title">
@@ -33,8 +41,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
 
       <div className="form-grid">
         <div className="form-field full">
-          <label className="form-label">Bezeichnung</label>
+          <label htmlFor={idName} className="form-label">Bezeichnung</label>
           <input
+            id={idName}
             type="text"
             className="text-input"
             value={selectedRug.name ?? 'Teppich'}
@@ -45,8 +54,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Breite (cm)</label>
+          <label htmlFor={idWidth} className="form-label">Breite (cm)</label>
           <input
+            id={idWidth}
             type="number"
             min={20}
             step={10}
@@ -59,8 +69,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Tiefe (cm)</label>
+          <label htmlFor={idDepth} className="form-label">Tiefe (cm)</label>
           <input
+            id={idDepth}
             type="number"
             min={20}
             step={10}
@@ -73,8 +84,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Position X (cm)</label>
+          <label htmlFor={idX} className="form-label">Position X (cm)</label>
           <input
+            id={idX}
             type="number"
             step={5}
             className="number-input"
@@ -86,8 +98,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Position Z (cm)</label>
+          <label htmlFor={idZ} className="form-label">Position Z (cm)</label>
           <input
+            id={idZ}
             type="number"
             step={5}
             className="number-input"
@@ -99,9 +112,10 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Drehung (°)</label>
+          <label htmlFor={idRotation} className="form-label">Drehung (°)</label>
           <div style={{ display: 'flex', gap: '4px' }}>
             <input
+              id={idRotation}
               type="number"
               step={15}
               className="number-input"
@@ -129,8 +143,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label className="form-label">Farbton</label>
+          <label htmlFor={idColor} className="form-label">Farbton</label>
           <input
+            id={idColor}
             type="color"
             className="number-input"
             style={{ height: '31px', padding: '2px 4px' }}

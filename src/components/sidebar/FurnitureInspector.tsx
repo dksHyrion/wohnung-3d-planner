@@ -31,6 +31,21 @@ export function FurnitureInspector({
     (s) => s.resetFurnitureToCatalogDimensions
   );
 
+  const idBrand = React.useId();
+  const idModel = React.useId();
+  const idName = React.useId();
+  const idVisual = React.useId();
+  const idWidth = React.useId();
+  const idMasterlift = React.useId();
+  const idHeight = React.useId();
+  const idDepth = React.useId();
+  const idElevation = React.useId();
+  const idPosX = React.useId();
+  const idPosZ = React.useId();
+  const idRotation = React.useId();
+  const idColor = React.useId();
+  const idClearanceZone = React.useId();
+
         const report = collisionReports[selectedFurniture.id];
         const hasCollision = report?.hasCollision ?? false;
 
@@ -125,8 +140,9 @@ export function FurnitureInspector({
             {selectedFurniture.isRealFurniture && (
               <div className="form-grid" style={{ marginBottom: '4px' }}>
                 <div className="form-field">
-                  <label className="form-label">Marke / Hersteller</label>
+                  <label htmlFor={idBrand} className="form-label">Marke / Hersteller</label>
                   <input
+                    id={idBrand}
                     type="text"
                     className="text-input"
                     placeholder="z.B. BoConcept, Vitsœ"
@@ -139,8 +155,9 @@ export function FurnitureInspector({
                   />
                 </div>
                 <div className="form-field">
-                  <label className="form-label">Modell</label>
+                  <label htmlFor={idModel} className="form-label">Modell</label>
                   <input
+                    id={idModel}
                     type="text"
                     className="text-input"
                     placeholder="z.B. Osaka, 606"
@@ -157,8 +174,9 @@ export function FurnitureInspector({
 
             <div className="form-grid">
               <div className="form-field full">
-                <label className="form-label">Bezeichnung</label>
+                <label htmlFor={idName} className="form-label">Bezeichnung</label>
                 <input
+                  id={idName}
                   type="text"
                   className="text-input"
                   value={selectedFurniture.name}
@@ -171,8 +189,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field full">
-                <label className="form-label">3D-Modell-Darstellung</label>
+                <label htmlFor={idVisual} className="form-label">3D-Modell-Darstellung</label>
                 <select
+                  id={idVisual}
                   className="select-input"
                   value={selectedFurniture.visual ?? ''}
                   onChange={(e) => {
@@ -192,8 +211,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Breite (cm)</label>
+                <label htmlFor={idWidth} className="form-label">Breite (cm)</label>
                 <input
+                  id={idWidth}
                   type="number"
                   min={1}
                   step={1}
@@ -247,10 +267,11 @@ export function FurnitureInspector({
 
               {effectiveVisual === 'inwerk-masterlift' && (
                 <div className="form-field full">
-                  <label className="form-label">
+                  <label htmlFor={idMasterlift} className="form-label">
                     Sitzhöhe Masterlift ({MASTERLIFT_HEIGHT.minCm}–{MASTERLIFT_HEIGHT.maxCm} cm)
                   </label>
                   <input
+                    id={idMasterlift}
                     type="range"
                     min={MASTERLIFT_HEIGHT.minCm}
                     max={MASTERLIFT_HEIGHT.maxCm}
@@ -272,8 +293,9 @@ export function FurnitureInspector({
               )}
 
               <div className="form-field">
-                <label className="form-label">Höhe (cm)</label>
+                <label htmlFor={idHeight} className="form-label">Höhe (cm)</label>
                 <input
+                  id={idHeight}
                   type="number"
                   min={effectiveVisual === 'inwerk-masterlift' ? MASTERLIFT_HEIGHT.minCm : 1}
                   max={effectiveVisual === 'inwerk-masterlift' ? MASTERLIFT_HEIGHT.maxCm : undefined}
@@ -292,8 +314,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Tiefe (cm)</label>
+                <label htmlFor={idDepth} className="form-label">Tiefe (cm)</label>
                 <input
+                  id={idDepth}
                   type="number"
                   min={1}
                   step={1}
@@ -347,8 +370,9 @@ export function FurnitureInspector({
               )}
 
               <div className="form-field">
-                <label className="form-label">Höhe ab Boden (cm)</label>
+                <label htmlFor={idElevation} className="form-label">Höhe ab Boden (cm)</label>
                 <input
+                  id={idElevation}
                   type="number"
                   min={0}
                   step={5}
@@ -369,8 +393,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Pos X (cm)</label>
+                <label htmlFor={idPosX} className="form-label">Pos X (cm)</label>
                 <input
+                  id={idPosX}
                   type="number"
                   step={5}
                   className="number-input"
@@ -384,8 +409,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Pos Z (cm)</label>
+                <label htmlFor={idPosZ} className="form-label">Pos Z (cm)</label>
                 <input
+                  id={idPosZ}
                   type="number"
                   step={5}
                   className="number-input"
@@ -399,8 +425,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Rotation (°)</label>
+                <label htmlFor={idRotation} className="form-label">Rotation (°)</label>
                 <input
+                  id={idRotation}
                   type="number"
                   step={15}
                   className="number-input"
@@ -414,8 +441,9 @@ export function FurnitureInspector({
               </div>
 
               <div className="form-field">
-                <label className="form-label">Farbe</label>
+                <label htmlFor={idColor} className="form-label">Farbe</label>
                 <input
+                  id={idColor}
                   type="color"
                   className="number-input"
                   style={{ height: '31px', padding: '2px 4px' }}
@@ -436,8 +464,9 @@ export function FurnitureInspector({
                 effectiveVisual === 'generic-storage') && (
                 <>
                   <div className="form-field">
-                    <label className="form-label">Auszugszone / Türfreiraum (cm)</label>
+                    <label htmlFor={idClearanceZone} className="form-label">Auszugszone / Türfreiraum (cm)</label>
                     <input
+                      id={idClearanceZone}
                       type="number"
                       min={0}
                       step={5}

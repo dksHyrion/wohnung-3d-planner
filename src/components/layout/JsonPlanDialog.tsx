@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 
 export function JsonPlanDialog({
   jsonModalMode,
@@ -17,6 +17,20 @@ export function JsonPlanDialog({
   handleDownloadJson: () => void;
   handleConfirmImport: () => void;
 }) {
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!jsonModalMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setJsonModalMode(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [jsonModalMode, setJsonModalMode]);
+
   return (
     <>
       {jsonModalMode && (
@@ -26,9 +40,12 @@ export function JsonPlanDialog({
         >
           <div
             className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sidebar-title">
+            <div className="sidebar-title" id={titleId}>
               <span>
                 {jsonModalMode === 'export'
                   ? 'Grundriss JSON exportieren (alle Maße in cm)'
@@ -38,6 +55,11 @@ export function JsonPlanDialog({
 
             <textarea
               className="modal-textarea"
+              aria-label={
+                jsonModalMode === 'export'
+                  ? 'Grundriss JSON Export'
+                  : 'Grundriss JSON Import'
+              }
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
               readOnly={jsonModalMode === 'export'}

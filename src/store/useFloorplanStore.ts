@@ -101,7 +101,16 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
 
   const setWithCollisions = (patch: Partial<FloorplanState>, recordHistory = true) => {
     const state = get();
-    const historyPatch = recordHistory ? pushHistory() : {};
+    const hasDataChanged =
+      (patch.corners !== undefined && patch.corners !== state.corners) ||
+      (patch.walls !== undefined && patch.walls !== state.walls) ||
+      (patch.openings !== undefined && patch.openings !== state.openings) ||
+      (patch.furniture !== undefined && patch.furniture !== state.furniture) ||
+      (patch.rugs !== undefined && patch.rugs !== state.rugs) ||
+      (patch.roomLabels !== undefined && patch.roomLabels !== state.roomLabels) ||
+      (patch.backgroundImage !== undefined && patch.backgroundImage !== state.backgroundImage);
+
+    const historyPatch = recordHistory && hasDataChanged ? pushHistory() : {};
     const corners = patch.corners ?? state.corners;
     const walls = patch.walls ?? state.walls;
     const openings = patch.openings ?? state.openings;
@@ -137,7 +146,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     for (const snap of state.undoStack) add(snap.backgroundImage);
     for (const snap of state.redoStack) add(snap.backgroundImage);
     const stale = memoryOverlayIds().filter((id) => !keep.has(id));
-    if (stale.length > 0) void deleteOverlayBlobs(stale);
+    if (stale.length > 0) void deleteOverlayBlobs(stale).catch(() => {});
   };
 
   const withRuntimeImage = (
@@ -172,6 +181,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     roomLabels: initialData.roomLabels ?? [],
     backgroundImage: initialData.backgroundImage ?? null,
     overlayError: null,
+    persistenceError: null,
     showPassageHeatmap: false,
     passageReport: null,
     activeAlignmentGuides: [],

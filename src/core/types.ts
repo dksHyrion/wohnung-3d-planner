@@ -1,4 +1,11 @@
 export const EPSILON_CM = 0.05;
+export const EPSILON_ANGLE_RAD = 1e-4;
+export const EPSILON_DEGENERATE = 1e-6;
+export const WALL_SPLIT_THRESHOLD_CM = 2;
+export const WALL_SPLIT_MIN_LEN_CM = 5;
+export const DIMENSION_CHAIN_OFFSET_CM = 35;
+export const ALIGNMENT_SNAP_THRESHOLD_CM = 15;
+export const ALIGNMENT_GUIDE_LENGTH_CM = 60;
 
 export type ViewMode = '2d' | 'split' | '3d-iso' | '3d-persp';
 export type EditorTool = 'select' | 'draw-wall' | 'add-door' | 'add-window' | 'measure' | 'calibrate-scale';

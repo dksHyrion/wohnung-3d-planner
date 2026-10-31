@@ -1,5 +1,9 @@
-import { FurnitureItem, Wall, Corner } from './types';
-import { computeFurnitureClearanceCm, getFurniture2DCorners, Point2D } from './measureMath';
+import { FurnitureItem, Wall, Corner, EPSILON_CM } from './types';
+import {
+  computeFurnitureClearanceCm,
+  computeFurnitureToWallClearance,
+  Point2D,
+} from './measureMath';
 
 export type PassageSeverity = 'critical' | 'warning' | 'optimal';
 
@@ -128,41 +132,6 @@ export function isVerticallySeparated(f1: FurnitureItem, f2: FurnitureItem): boo
 }
 
 /**
- * Projects a 2D point onto a line segment and calculates distance and projection point.
- */
-function projectPointOnSegment(
-  p: Point2D,
-  a: Point2D,
-  b: Point2D
-): { point: Point2D; distance: number } {
-  const abX = b.x - a.x;
-  const abZ = b.z - a.z;
-  const lenSq = abX * abX + abZ * abZ;
-
-  if (lenSq === 0) {
-    return {
-      point: { x: a.x, z: a.z },
-      distance: Math.hypot(p.x - a.x, p.z - a.z),
-    };
-  }
-
-  const apX = p.x - a.x;
-  const apZ = p.z - a.z;
-  let t = (apX * abX + apZ * abZ) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-
-  const proj = {
-    x: a.x + t * abX,
-    z: a.z + t * abZ,
-  };
-
-  return {
-    point: proj,
-    distance: Math.hypot(p.x - proj.x, p.z - proj.z),
-  };
-}
-
-/**
  * Classifies passage clearance into DIN 18040 severity categories:
  * - < 60 cm: 'critical' (narrower than DIN minimum movement space)
  * - 60 <= clearance < 90 cm: 'warning' (narrow secondary passage)
@@ -262,6 +231,11 @@ export function evaluatePassageClearances(
       }
 
       const clearanceResult = computeFurnitureClearanceCm(f1, f2);
+      if (!clearanceResult.isOverlapping && clearanceResult.clearanceCm <= EPSILON_CM) {
+        // Flush furniture placed edge-to-edge does not form a passage bottleneck
+        continue;
+      }
+
       const clearanceCm = clearanceResult.isOverlapping
         ? 0
         : Number(clearanceResult.clearanceCm.toFixed(1));
@@ -295,78 +269,23 @@ export function evaluatePassageClearances(
 
   // 2. Furniture-to-wall clearance evaluation
   for (const item of furniture) {
-    const itemCorners = getFurniture2DCorners(item);
-
     for (const wall of walls) {
       // Snapped to this wall -> flushed against wall, not a passage bottleneck
       if (item.snappedWallId === wall.id) {
         continue;
       }
 
-      const start = cornerMap.get(wall.startCornerId);
-      const end = cornerMap.get(wall.endCornerId);
-      if (!start || !end) {
-        continue;
-      }
+      const wallRes = computeFurnitureToWallClearance(item, wall, cornerMap);
+      const clearanceCm = wallRes.clearanceCm;
 
-      const wallLenSq = (end.x - start.x) ** 2 + (end.z - start.z) ** 2;
-      if (wallLenSq === 0) {
-        continue;
-      }
-
-      let minCenterlineDist = Infinity;
-      let bestCorner: Point2D = itemCorners[0];
-      let bestCenterlinePt: Point2D = { x: start.x, z: start.z };
-
-      // 1. Project furniture corners onto wall centerline segment
-      for (const pt of itemCorners) {
-        const res = projectPointOnSegment(pt, start, end);
-        if (res.distance < minCenterlineDist) {
-          minCenterlineDist = res.distance;
-          bestCorner = pt;
-          bestCenterlinePt = res.point;
-        }
-      }
-
-      // 2. Project wall endpoints onto furniture boundary edges (for partition walls ending at furniture edge)
-      for (let k = 0; k < itemCorners.length; k++) {
-        const eStart = itemCorners[k];
-        const eEnd = itemCorners[(k + 1) % itemCorners.length];
-        for (const wallPt of [start, end]) {
-          const res = projectPointOnSegment(wallPt, eStart, eEnd);
-          if (res.distance < minCenterlineDist) {
-            minCenterlineDist = res.distance;
-            bestCorner = res.point;
-            bestCenterlinePt = wallPt;
-          }
-        }
-      }
-
-      const halfThickness = wall.thicknessCm / 2;
-      const rawClearance = minCenterlineDist - halfThickness;
-      const clearanceCm = Number(Math.max(0, rawClearance).toFixed(1));
-
-      // Flushed against wall (clearance <= 5 cm) -> ignore
-      if (clearanceCm <= WALL_FLUSHED_THRESHOLD_CM) {
+      // Flushed against wall (clearance <= 5 cm) -> ignore unless crossing
+      if (!wallRes.isCrossing && clearanceCm <= WALL_FLUSHED_THRESHOLD_CM) {
         continue;
       }
 
       const severity = classifyPassageSeverity(clearanceCm, effectiveMaxDistanceCm);
       if (!severity) {
         continue;
-      }
-
-      // Closest point on wall surface
-      let wallPoint: Point2D;
-      if (minCenterlineDist > 1e-6) {
-        const ux = (bestCorner.x - bestCenterlinePt.x) / minCenterlineDist;
-        const uz = (bestCorner.z - bestCenterlinePt.z) / minCenterlineDist;
-        wallPoint = {
-          x: bestCenterlinePt.x + ux * halfThickness,
-          z: bestCenterlinePt.z + uz * halfThickness,
-        };
-      } else {
-        wallPoint = { ...bestCenterlinePt };
       }
 
       const wallName = (wall as { name?: string }).name ?? `Wand (${wall.id})`;
@@ -381,14 +300,8 @@ export function evaluatePassageClearances(
         entity2Name: wallName,
         clearanceCm,
         severity,
-        point1: {
-          x: Number(bestCorner.x.toFixed(1)),
-          z: Number(bestCorner.z.toFixed(1)),
-        },
-        point2: {
-          x: Number(wallPoint.x.toFixed(1)),
-          z: Number(wallPoint.z.toFixed(1)),
-        },
+        point1: wallRes.closestPointOnFurniture,
+        point2: wallRes.closestPointOnWall,
       });
     }
   }

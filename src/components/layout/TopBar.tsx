@@ -42,16 +42,16 @@ export async function handleOverlayImageFile(
   dataUrl?: string,
   dimensions?: { naturalWidth: number; naturalHeight: number }
 ): Promise<void> {
-  const state = useFloorplanStore.getState();
   try {
     const prepared = await prepareOverlayImage(file, dataUrl, dimensions);
+    const freshState = useFloorplanStore.getState();
     const naturalWidth = dimensions?.naturalWidth ?? prepared.naturalWidthPx;
     const naturalHeight = dimensions?.naturalHeight ?? prepared.naturalHeightPx;
-    const currentViewBox = computeFitViewBox(state.corners);
+    const currentViewBox = computeFitViewBox(freshState.corners);
     const placement = fitOverlayToViewport(naturalWidth, naturalHeight, currentViewBox);
 
-    state.setOverlayError(null);
-    state.setBackgroundImage({
+    freshState.setOverlayError(null);
+    freshState.setBackgroundImage({
       id: prepared.imageId,
       imageId: prepared.imageId,
       url: prepared.url,
@@ -67,13 +67,13 @@ export async function handleOverlayImageFile(
       naturalWidthPx: naturalWidth,
       naturalHeightPx: naturalHeight,
     });
-  } catch {
-    state.setOverlayError('Das Grundrissbild konnte nicht gespeichert werden.');
-    return;
-  }
 
-  if (state.viewMode !== '2d') {
-    state.setViewMode('2d');
+    if (freshState.viewMode !== '2d') {
+      freshState.setViewMode('2d');
+    }
+  } catch {
+    useFloorplanStore.getState().setOverlayError('Das Grundrissbild konnte nicht gespeichert werden.');
+    return;
   }
 }
 

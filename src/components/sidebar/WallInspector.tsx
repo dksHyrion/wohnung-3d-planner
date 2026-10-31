@@ -6,6 +6,10 @@ import { OPENING_TYPE_LABELS } from '../../core/doorLeaf';
 import type { Wall } from '../../core/types';
 
 export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
+  const idLength = React.useId();
+  const idThickness = React.useId();
+  const idHeight = React.useId();
+
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const openings = useFloorplanStore((s) => s.openings);
@@ -40,8 +44,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
 
             <div className="form-grid">
               <div className="form-field full">
-                <label className="form-label">Exakte Wandlänge (cm)</label>
+                <label htmlFor={idLength} className="form-label">Exakte Wandlänge (cm)</label>
                 <input
+                  id={idLength}
                   type="number"
                   min={10}
                   step={1}
@@ -57,8 +62,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
               </div>
 
               <div className="form-field">
-                <label className="form-label">Wandstärke (cm)</label>
+                <label htmlFor={idThickness} className="form-label">Wandstärke (cm)</label>
                 <input
+                  id={idThickness}
                   type="number"
                   min={5}
                   step={1}
@@ -73,8 +79,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
               </div>
 
               <div className="form-field">
-                <label className="form-label">Wandhöhe (cm)</label>
+                <label htmlFor={idHeight} className="form-label">Wandhöhe (cm)</label>
                 <input
+                  id={idHeight}
                   type="number"
                   min={50}
                   step={5}

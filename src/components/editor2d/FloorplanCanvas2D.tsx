@@ -85,26 +85,43 @@ export const FloorplanCanvas2D: React.FC = () => {
 
   const snapToGridCm = (val: number) => snapValueToGrid(val, gridSizeCm);
 
-  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 1.12 : 0.89;
-    const newW = Math.min(3000, Math.max(250, viewBox.w * factor));
-    const newH = Math.min(2400, Math.max(200, viewBox.h * factor));
-    const cx = viewBox.x + viewBox.w / 2;
-    const cy = viewBox.y + viewBox.h / 2;
-    setViewBox({
-      x: cx - newW / 2,
-      y: cy - newH / 2,
-      w: newW,
-      h: newH,
-    });
-  };
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const onNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.12 : 0.89;
+      setViewBox((v) => {
+        const newW = Math.min(3000, Math.max(250, v.w * factor));
+        const newH = Math.min(2400, Math.max(200, v.h * factor));
+        const cx = v.x + v.w / 2;
+        const cy = v.y + v.h / 2;
+        return {
+          x: cx - newW / 2,
+          y: cy - newH / 2,
+          w: newW,
+          h: newH,
+        };
+      });
+    };
+    svgEl.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => {
+      svgEl.removeEventListener('wheel', onNativeWheel);
+    };
+  }, []);
 
   const handleResetView = () => {
     setViewBox(computeFitViewBox(corners));
   };
 
   const handleSvgPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (typeof e.currentTarget.setPointerCapture === 'function') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore in environments without pointer capture
+      }
+    }
     if (activeTool === 'calibrate-scale') {
       if (!calibrationPoints.p1 || !calibrationPoints.p2) {
         const pt = clientToWorldCm(e.clientX, e.clientY);
@@ -296,9 +313,14 @@ export const FloorplanCanvas2D: React.FC = () => {
         );
       }
     }
-    if (dragState?.type === 'furniture') {
+    if (dragState?.type === 'furniture' || dragState?.type === 'rug') {
       clearAlignmentGuides();
     }
+    setDragState(null);
+  };
+
+  const handleSvgPointerCancel = () => {
+    clearAlignmentGuides();
     setDragState(null);
   };
 
@@ -361,6 +383,7 @@ export const FloorplanCanvas2D: React.FC = () => {
             }))
           }
           title="Vergrößern"
+          aria-label="Vergrößern"
         >
           <ZoomIn size={14} />
         </button>
@@ -376,6 +399,7 @@ export const FloorplanCanvas2D: React.FC = () => {
             }))
           }
           title="Verkleinern"
+          aria-label="Verkleinern"
         >
           <ZoomOut size={14} />
         </button>
@@ -384,6 +408,7 @@ export const FloorplanCanvas2D: React.FC = () => {
           className="btn btn-outline"
           onClick={handleResetView}
           title="Ansicht zentrieren"
+          aria-label="Ansicht zentrieren"
         >
           <Maximize2 size={14} />
           <span>Zentrieren</span>
@@ -392,6 +417,8 @@ export const FloorplanCanvas2D: React.FC = () => {
 
       <svg
         ref={svgRef}
+        role="img"
+        aria-label="2D Grundriss-Editor"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
         style={{
           width: '100%',
@@ -405,10 +432,11 @@ export const FloorplanCanvas2D: React.FC = () => {
               ? 'grabbing'
               : 'grab',
         }}
-        onWheel={handleWheel}
         onPointerDown={handleSvgPointerDown}
         onPointerMove={handleSvgPointerMove}
         onPointerUp={handleSvgPointerUp}
+        onPointerCancel={handleSvgPointerCancel}
+        onLostPointerCapture={handleSvgPointerCancel}
       >
         <FloorplanSvg2D
           viewBox={viewBox}

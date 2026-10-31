@@ -56,6 +56,15 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
     const nextUndo = state.undoStack.slice(0, state.undoStack.length - 1);
     const nextRedo = [...state.redoStack, currentSnapshot];
 
+    const validEntityIds = new Set([
+      ...previousSnapshot.corners.map((c) => c.id),
+      ...previousSnapshot.walls.map((w) => w.id),
+      ...previousSnapshot.openings.map((o) => o.id),
+      ...previousSnapshot.furniture.map((f) => f.id),
+      ...(previousSnapshot.rugs ?? []).map((r) => r.id),
+    ]);
+    const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
+
     setWithCollisions(
       {
         corners: previousSnapshot.corners,
@@ -65,6 +74,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         rugs: previousSnapshot.rugs ?? [],
         roomLabels: previousSnapshot.roomLabels ?? [],
         backgroundImage: withRuntimeImage(previousSnapshot.backgroundImage),
+        selectedId: keepSelection ? state.selectedId : null,
+        selectedType: keepSelection ? state.selectedType : null,
+        activeAlignmentGuides: [],
         undoStack: nextUndo,
         redoStack: nextRedo,
         canUndo: nextUndo.length > 0,
@@ -82,6 +94,15 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
     const nextRedo = state.redoStack.slice(0, state.redoStack.length - 1);
     const nextUndo = [...state.undoStack, currentSnapshot];
 
+    const validEntityIds = new Set([
+      ...nextSnapshot.corners.map((c) => c.id),
+      ...nextSnapshot.walls.map((w) => w.id),
+      ...nextSnapshot.openings.map((o) => o.id),
+      ...nextSnapshot.furniture.map((f) => f.id),
+      ...(nextSnapshot.rugs ?? []).map((r) => r.id),
+    ]);
+    const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
+
     setWithCollisions(
       {
         corners: nextSnapshot.corners,
@@ -91,6 +112,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         rugs: nextSnapshot.rugs ?? [],
         roomLabels: nextSnapshot.roomLabels ?? [],
         backgroundImage: withRuntimeImage(nextSnapshot.backgroundImage),
+        selectedId: keepSelection ? state.selectedId : null,
+        selectedType: keepSelection ? state.selectedType : null,
+        activeAlignmentGuides: [],
         undoStack: nextUndo,
         redoStack: nextRedo,
         canUndo: true,
@@ -107,11 +131,12 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         const existing = localStorage.getItem('wohnung_autosave');
         if (wouldClobberSavedPlan(existing, json)) return;
         localStorage.setItem('wohnung_autosave', json);
-        set({ overlayError: null });
+        set({ persistenceError: null });
         void writePlanFile(json);
       }
     } catch {
-      set({ overlayError: 'Der Plan konnte nicht im Browser gesichert werden.' });
+      set({ persistenceError: 'Der Plan konnte nicht im Browser gesichert werden.' });
+      void writePlanFile(jsonOverride ?? get().exportJson());
     }
   },
 
@@ -127,15 +152,25 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
               redoStack: [],
               canUndo: false,
               canRedo: false,
+              persistenceError: null,
+            });
+            return true;
+          } else {
+            try {
+              localStorage.setItem('wohnung_autosave.corrupt', json);
+            } catch {
+              // ignore
+            }
+            set({
+              persistenceError: 'Die automatische Sicherung war beschädigt und wurde als Kopie gesichert.',
             });
           }
-          return ok;
         }
       }
-    } catch (err) {
-      console.warn('Load from localStorage error:', err);
+      return false;
+    } catch {
+      return false;
     }
-    return false;
   },
 
   clearLocalStorageBackup: () => {
@@ -283,16 +318,21 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
     });
   },
 
-  exportJson: () => {
+  exportJson: (options?: { includeOverlayImage?: boolean }) => {
     const state = get();
-    const payload: FloorplanData = {
+    let bg = backgroundImageForExport(state.backgroundImage);
+    if (options?.includeOverlayImage && state.backgroundImage?.url) {
+      bg = state.backgroundImage;
+    }
+    const payload = {
+      schemaVersion: 1,
       corners: state.corners,
       walls: state.walls,
       openings: state.openings,
       furniture: state.furniture,
       rugs: state.rugs,
       roomLabels: state.roomLabels,
-      backgroundImage: backgroundImageForExport(state.backgroundImage),
+      backgroundImage: bg,
     };
     return JSON.stringify(payload, null, 2);
   },

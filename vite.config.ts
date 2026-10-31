@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { planAutosavePlugin } from './src/server/planAutosavePlugin';
 
@@ -21,7 +21,6 @@ export default defineConfig({
       },
     },
   },
-  // @ts-expect-error vitest config field
   test: {
     testTimeout: 15000,
   },

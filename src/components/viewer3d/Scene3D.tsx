@@ -48,6 +48,8 @@ declare global {
   }
 }
 
+const EMPTY_ARRAY: readonly never[] = Object.freeze([]);
+
 /** Minimal structural view of drei's OrbitControls instance (exposed as an EventDispatcher by useThree). */
 interface OrbitControlsLike {
   target: THREE.Vector3;
@@ -523,6 +525,7 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
                   start={start}
                   end={end}
                   roomCenter={roomCenter}
+                  showDecor={effectiveShowDecor}
                 />
               ))}
             </group>
@@ -539,7 +542,8 @@ export const Scene3D: React.FC = () => {
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
   const furniture = useFloorplanStore((s) => s.furniture);
-  const rugs = useFloorplanStore((s) => s.rugs) ?? [];
+  const rugs =
+    useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const cameraPreset = useFloorplanStore((s) => s.cameraPreset);
@@ -559,7 +563,7 @@ export const Scene3D: React.FC = () => {
   const moveFurniture = useFloorplanStore((s) => s.moveFurniture);
   const moveRug = useFloorplanStore((s) => s.moveRug);
   const activeAlignmentGuides =
-    useFloorplanStore((s) => s.activeAlignmentGuides) ?? [];
+    useFloorplanStore((s) => s.activeAlignmentGuides) ?? EMPTY_ARRAY;
   const clearAlignmentGuides = useFloorplanStore(
     (s) => s.clearAlignmentGuides
   );
@@ -570,8 +574,8 @@ export const Scene3D: React.FC = () => {
     id: string;
     offsetX: number;
     offsetZ: number;
-    hasMoved?: boolean;
   } | null>(null);
+  const dragHasMovedRef = useRef<boolean>(false);
 
   const cornerMap = useMemo(
     () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
@@ -690,6 +694,7 @@ export const Scene3D: React.FC = () => {
     hitPoint: THREE.Vector3
   ) => {
     selectEntity(item.id, 'furniture');
+    dragHasMovedRef.current = false;
     setDraggingFurniture({
       kind: 'furniture',
       id: item.id,
@@ -700,6 +705,7 @@ export const Scene3D: React.FC = () => {
 
   const handleStartRugDrag = (rug: AreaRug, hitPoint: THREE.Vector3) => {
     selectEntity(rug.id, 'rug');
+    dragHasMovedRef.current = false;
     setDraggingFurniture({
       kind: 'rug',
       id: rug.id,
@@ -711,9 +717,9 @@ export const Scene3D: React.FC = () => {
   const handleDragPlaneMove = (e: ThreeEvent<PointerEvent>) => {
     if (!draggingFurniture) return;
     e.stopPropagation();
-    if (!draggingFurniture.hasMoved) {
+    if (!dragHasMovedRef.current) {
       pushUndoSnapshot();
-      draggingFurniture.hasMoved = true;
+      dragHasMovedRef.current = true;
     }
     const targetX = e.point.x - draggingFurniture.offsetX;
     const targetZ = e.point.z - draggingFurniture.offsetZ;
@@ -729,6 +735,7 @@ export const Scene3D: React.FC = () => {
   const handleDragPlaneUp = () => {
     if (draggingFurniture) {
       setDraggingFurniture(null);
+      dragHasMovedRef.current = false;
       clearAlignmentGuides();
     }
   };
@@ -737,6 +744,7 @@ export const Scene3D: React.FC = () => {
     <div
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onPointerUp={handleDragPlaneUp}
+      onPointerCancel={handleDragPlaneUp}
     >
       <div className="viewport-badge">
         <span>
@@ -890,6 +898,7 @@ export const Scene3D: React.FC = () => {
             position={[roomBounds.cx, 0.5, roomBounds.cz]}
             onPointerMove={handleDragPlaneMove}
             onPointerUp={handleDragPlaneUp}
+            onPointerCancel={handleDragPlaneUp}
           >
             <planeGeometry args={[8000, 8000]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />

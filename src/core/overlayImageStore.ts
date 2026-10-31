@@ -71,20 +71,28 @@ function openDb(): Promise<IDBDatabase | null> {
   });
 }
 
-export async function putOverlayBlob(imageId: string, blob: Blob): Promise<void> {
+export async function putOverlayBlob(imageId: string, blob: Blob): Promise<boolean> {
   const existing = memory.get(imageId);
   if (!existing || existing.blob !== blob) {
     rememberOverlayBlob(imageId, blob);
   }
   const db = await openDb();
-  if (!db) return;
-  await new Promise<void>((resolve) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).put(blob, imageId);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
-  });
-  db.close();
+  if (!db) return false;
+  try {
+    return await new Promise<boolean>((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(blob, imageId);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+        tx.onabort = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
+    });
+  } finally {
+    db.close();
+  }
 }
 
 export async function getOverlayBlob(imageId: string): Promise<Blob | null> {
@@ -92,21 +100,30 @@ export async function getOverlayBlob(imageId: string): Promise<Blob | null> {
   if (cached) return cached.blob;
   const db = await openDb();
   if (!db) return null;
-  const blob = await new Promise<Blob | null>((resolve) => {
-    const tx = db.transaction(DB_STORE, 'readonly');
-    const request = tx.objectStore(DB_STORE).get(imageId);
-    request.onsuccess = () => {
-      const result = request.result;
-      resolve(result instanceof Blob ? result : null);
-    };
-    request.onerror = () => resolve(null);
-  });
-  db.close();
-  if (blob) rememberOverlayBlob(imageId, blob);
-  return blob;
+  try {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const request = tx.objectStore(DB_STORE).get(imageId);
+        request.onsuccess = () => {
+          const result = request.result;
+          resolve(result instanceof Blob ? result : null);
+        };
+        request.onerror = () => resolve(null);
+        tx.onerror = () => resolve(null);
+        tx.onabort = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
+    });
+    if (blob) rememberOverlayBlob(imageId, blob);
+    return blob;
+  } finally {
+    db.close();
+  }
 }
 
-export async function deleteOverlayBlobs(imageIds: string[]): Promise<void> {
+export async function deleteOverlayBlobs(imageIds: string[]): Promise<boolean> {
   for (const imageId of imageIds) {
     const previous = memory.get(imageId);
     if (previous?.url && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
@@ -114,17 +131,25 @@ export async function deleteOverlayBlobs(imageIds: string[]): Promise<void> {
     }
     memory.delete(imageId);
   }
-  if (imageIds.length === 0) return;
+  if (imageIds.length === 0) return true;
   const db = await openDb();
-  if (!db) return;
-  await new Promise<void>((resolve) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    const store = tx.objectStore(DB_STORE);
-    for (const imageId of imageIds) store.delete(imageId);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
-  });
-  db.close();
+  if (!db) return false;
+  try {
+    return await new Promise<boolean>((resolve) => {
+      try {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const store = tx.objectStore(DB_STORE);
+        for (const imageId of imageIds) store.delete(imageId);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+        tx.onabort = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
+    });
+  } finally {
+    db.close();
+  }
 }
 
 export function isHeavyImageUrl(url: string | undefined): boolean {
@@ -246,6 +271,13 @@ export async function prepareOverlayImage(
 
 /** Data-URL sofort in den Speicher legen. Die zurückgegebene url ist keine Data-URL. */
 export function adoptOverlayImage(image: BackgroundImageOverlay): BackgroundImageOverlay {
+  if (
+    image.url.startsWith('http:') ||
+    image.url.startsWith('https:') ||
+    image.url.startsWith('//')
+  ) {
+    return { ...image, url: '' };
+  }
   if (image.url.startsWith('data:')) {
     const blob = dataUrlToBlob(image.url) ?? new Blob([image.url]);
     const imageId = image.imageId || `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

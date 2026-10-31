@@ -36,6 +36,7 @@ export interface FloorplanState {
   roomLabels: RoomLabel[];
   backgroundImage: BackgroundImageOverlay | null;
   overlayError: string | null;
+  persistenceError: string | null;
   showPassageHeatmap: boolean;
   passageReport: PassageClearanceReport | null;
   activeAlignmentGuides: AlignmentGuide[];

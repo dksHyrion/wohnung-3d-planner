@@ -11,8 +11,8 @@ This file provides project-specific commands and architecture guidelines for Cla
 npm run dev                  # Start local Vite dev server (http://localhost:5173)
 
 # Testing
-npm test                     # Run all Vitest tests in watch mode
-npx vitest run               # Run all Vitest tests once (CI mode)
+npm test                     # Run all Vitest tests once (vitest run)
+npx vitest                   # Run Vitest tests in watch mode
 npx vitest run tests/<file>  # Run a specific test file
 
 # Type-Checking & Build
@@ -31,7 +31,7 @@ npm run build                # Run tsc -b && vite build
 ### State & Store Slices
 * State is managed with **Zustand** in `src/store/`:
   * `geometry.ts`: Walls, corners, openings, furniture placement, rugs, collision recalculation.
-  * `view.ts`: Active tool (`select`, `wall`, `measure`), camera angles, lighting/sun presets.
+  * `view.ts`: Active tool (`select`, `draw-wall`, `measure`, `split-wall`), camera angles, lighting/sun presets.
   * `history.ts`: Undo/Redo (30 snapshots), autosave, JSON serialization.
 * During drag operations, trigger `pushUndoSnapshot()` on drag start and pass `{ recordHistory: false }` during pointer move.
 

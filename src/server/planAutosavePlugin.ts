@@ -42,6 +42,40 @@ export function planAutosavePlugin(root: string): Plugin {
   };
 }
 
+export function isRequestOriginAllowed(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  const secFetchSite = req.headers['sec-fetch-site'];
+
+  if (secFetchSite === 'cross-site') {
+    return false;
+  }
+
+  if (!origin) {
+    return true;
+  }
+
+  try {
+    const originUrl = new URL(origin);
+    const hostHeader = req.headers.host;
+    if (!hostHeader) return false;
+
+    if (originUrl.host === hostHeader) return true;
+
+    const [originHostname, originPort = ''] = originUrl.host.split(':');
+    const [hostHostname, hostPort = ''] = hostHeader.split(':');
+    const isLocalOrigin = originHostname === 'localhost' || originHostname === '127.0.0.1';
+    const isLocalHost = hostHostname === 'localhost' || hostHostname === '127.0.0.1';
+
+    if (isLocalOrigin && isLocalHost && originPort === hostPort) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
 export async function handlePlanRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -62,6 +96,12 @@ async function routePlanRequest(
   res: ServerResponse,
   filePath: string
 ): Promise<void> {
+  if (!isRequestOriginAllowed(req)) {
+    res.statusCode = 403;
+    res.end();
+    return;
+  }
+
   if (req.method === 'GET') {
     const text = await readPlanAutosave(filePath);
     if (!text) {
@@ -76,6 +116,13 @@ async function routePlanRequest(
   }
 
   if (req.method === 'PUT') {
+    const contentType = req.headers['content-type'] ?? '';
+    if (!contentType.includes('application/json')) {
+      res.statusCode = 415;
+      res.end();
+      return;
+    }
+
     let body = '';
     try {
       body = await readBody(req, 1_500_000);

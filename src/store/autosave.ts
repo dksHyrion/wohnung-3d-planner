@@ -23,6 +23,15 @@ export function planContentChanged(prev: PlanSlice, next: PlanSlice): boolean {
 }
 
 let pristinePlanJson: string | null = null;
+let hasUserInteracted = false;
+
+export function markUserInteracted(): void {
+  hasUserInteracted = true;
+}
+
+export function resetUserInteractionForTests(): void {
+  hasUserInteracted = false;
+}
 
 const generationHost = globalThis as {
   __wohnungStoreGeneration?: number;
@@ -31,6 +40,7 @@ const generationHost = globalThis as {
 
 /** true, wenn das Beispiel einen anderen, schon gespeicherten Plan ersetzen würde. */
 export function wouldClobberSavedPlan(existingJson: string | null, nextJson: string): boolean {
+  if (hasUserInteracted) return false;
   return Boolean(
     existingJson &&
       pristinePlanJson &&
@@ -66,6 +76,7 @@ export function restoreAutosaveForGeneration(generation: number, load: () => boo
 export function resetAutosaveRestoreForTests(): void {
   delete generationHost.__wohnungAutosaveLoadedGeneration;
   pristinePlanJson = null;
+  hasUserInteracted = false;
 }
 
 export function createAutosaveScheduler(
@@ -74,8 +85,13 @@ export function createAutosaveScheduler(
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pendingJson: string | null = null;
+  let pendingSerializer: (() => string) | null = null;
 
   const writePending = () => {
+    if (pendingSerializer) {
+      pendingJson = pendingSerializer();
+      pendingSerializer = null;
+    }
     const json = pendingJson;
     pendingJson = null;
     if (json) save(json);
@@ -83,12 +99,17 @@ export function createAutosaveScheduler(
 
   return {
     /**
-     * Der Text wird beim Ändern festgehalten. Ein späterer Flush schreibt diesen Text,
-     * auch wenn der offene Plan inzwischen auf das Beispiel zurückgefallen ist.
+     * Der Text wird beim ersten Ändern festgehalten. Weitere Änderungen während des
+     * Timers werden erst beim Ablaufen oder Flush serialisiert (lazy).
      */
     notify(prev: PlanSlice, next: PlanSlice, toJson: () => string) {
       if (!planContentChanged(prev, next)) return;
-      pendingJson = toJson();
+      markUserInteracted();
+      if (timer === undefined) {
+        pendingJson = toJson();
+      } else {
+        pendingSerializer = toJson;
+      }
       if (timer !== undefined) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = undefined;
@@ -97,9 +118,11 @@ export function createAutosaveScheduler(
     },
     /** Schreibt sofort, wenn noch ein verzögertes Speichern wartet. */
     flush() {
-      if (timer === undefined) return;
-      clearTimeout(timer);
-      timer = undefined;
+      if (timer === undefined && !pendingJson && !pendingSerializer) return;
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
       writePending();
     },
   };

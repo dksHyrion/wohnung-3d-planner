@@ -25,6 +25,9 @@
     "typescript",
     "svg-export"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
