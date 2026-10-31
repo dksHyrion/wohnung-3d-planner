@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Architectural Dark App Background -->
+  <rect width="64" height="64" rx="14" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Subtle Blueprint Grid -->
+  <path d="M 8 20 H 56 M 8 32 H 56 M 8 44 H 56 M 20 8 V 56 M 32 8 V 56 M 44 8 V 56" stroke="#1e293b" stroke-width="0.75" stroke-dasharray="1,3"/>
+
+  <!-- Architectural Outer Walls (cm-accurate perimeter) -->
+  <path d="M 12 12 H 52 V 52 H 12 Z" fill="#0f172a" stroke="#6366f1" stroke-width="3.5" stroke-linejoin="round"/>
+
+  <!-- Internal Dividing Wall with Doorway Opening -->
+  <line x1="32" y1="12" x2="32" y2="34" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Architectural Door Swing (cyan DIN arc) -->
+  <path d="M 40 42 A 10 10 0 0 1 32 44" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <line x1="32" y1="34" x2="40" y2="42" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+
+  <!-- Stylized Furniture Placement -->
+  <!-- Bed with pillows in Room 1 -->
+  <rect x="16" y="16" width="12" height="15" rx="2" fill="#1e293b" stroke="#818cf8" stroke-width="1.5"/>
+  <rect x="17.5" y="18" width="4" height="3" rx="0.75" fill="#818cf8" opacity="0.8"/>
+  <rect x="22.5" y="18" width="4" height="3" rx="0.75" fill="#818cf8" opacity="0.8"/>
+  
+  <!-- Lounge / Table in Room 2 -->
+  <rect x="37" y="16" width="11" height="8" rx="2" fill="#1e293b" stroke="#94a3b8" stroke-width="1.2"/>
+  <circle cx="42.5" cy="30" r="3" fill="#1e293b" stroke="#94a3b8" stroke-width="1.2"/>
+
+  <!-- Scale Dimension Bar Indicator -->
+  <line x1="16" y1="46" x2="26" y2="46" stroke="#94a3b8" stroke-width="1"/>
+  <line x1="16" y1="44.5" x2="16" y2="47.5" stroke="#94a3b8" stroke-width="1"/>
+  <line x1="26" y1="44.5" x2="26" y2="47.5" stroke="#94a3b8" stroke-width="1"/>
+</svg>

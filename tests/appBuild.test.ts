@@ -9,6 +9,8 @@ const ROOT = path.resolve(__dirname, '..');
 describe('Application UI Files & Component Integration', () => {
   const requiredFiles = [
     'index.html',
+    'public/favicon.svg',
+    'public/og-image.png',
     'src/index.css',
     'src/main.tsx',
     'src/App.tsx',

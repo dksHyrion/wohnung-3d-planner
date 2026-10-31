@@ -13,10 +13,39 @@ export default defineConfig({
     dedupe: ['three'],
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three', '@react-three/fiber', '@react-three/drei'],
+        manualChunks(id) {
+          if (id.includes('node_modules/three/')) {
+            return 'three-core';
+          }
+          if (
+            id.includes('node_modules/@react-three/drei') ||
+            id.includes('node_modules/@react-three/fiber') ||
+            id.includes('node_modules/three-stdlib') ||
+            id.includes('node_modules/suspend-react') ||
+            id.includes('node_modules/maath')
+          ) {
+            return 'r3f-ecosystem';
+          }
+          if (
+            id.includes('node_modules/postprocessing') ||
+            id.includes('node_modules/@react-three/postprocessing')
+          ) {
+            return 'postprocessing';
+          }
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/') ||
+            id.includes('node_modules/zustand/')
+          ) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/lucide-react/')) {
+            return 'lucide';
+          }
         },
       },
     },
