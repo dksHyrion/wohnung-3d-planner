@@ -24,11 +24,13 @@ import {
   FileText,
   FileUp,
   Footprints,
+  HelpCircle,
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
 import { PlanExportDialog } from './PlanExportDialog';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import { EditorTool, ViewMode } from '../../core/types';
 import { MoodPresetKey } from '../../core/lighting/moodPresets';
@@ -138,6 +140,7 @@ export const TopBar: React.FC = () => {
   const canRedo = useFloorplanStore((s) => s.canRedo);
   const undo = useFloorplanStore((s) => s.undo);
   const redo = useFloorplanStore((s) => s.redo);
+  const toggleKeyboardShortcuts = useFloorplanStore((s) => s.toggleKeyboardShortcuts);
 
   const setViewMode = useFloorplanStore((s) => s.setViewMode);
   const setActiveTool = useFloorplanStore((s) => s.setActiveTool);
@@ -567,6 +570,16 @@ export const TopBar: React.FC = () => {
             <span>Import</span>
           </button>
 
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={toggleKeyboardShortcuts}
+            title="Tastaturkürzel & Hilfe anzeigen (?)"
+            aria-label="Tastaturkürzel anzeigen"
+          >
+            <HelpCircle size={14} />
+          </button>
+
           {/* Global Collision Status Badge */}
           <div
             className={`status-badge ${collisionCount === 0 ? 'ok' : 'conflict'}`}
@@ -616,6 +629,7 @@ export const TopBar: React.FC = () => {
         setPlanTitle={setPlanTitle}
         handleDownloadPlanSvg={handleDownloadPlanSvg}
       />
+      <KeyboardShortcutsDialog />
     </>
   );
 };

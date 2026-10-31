@@ -6,6 +6,7 @@ import { TopBar } from './components/layout/TopBar';
 import { FloorplanCanvas2D } from './components/editor2d/FloorplanCanvas2D';
 import { Scene3D } from './components/viewer3d/Scene3D';
 import { InspectorSidebar } from './components/sidebar/InspectorSidebar';
+import { MobileNoticeBanner } from './components/layout/MobileNoticeBanner';
 
 export const App: React.FC = () => {
   const viewMode = useFloorplanStore((s) => s.viewMode);
@@ -58,6 +59,9 @@ export const App: React.FC = () => {
             state.selectEntity(null, null);
           }
         }
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        useFloorplanStore.getState().toggleKeyboardShortcuts();
       }
     };
 
@@ -104,6 +108,7 @@ export const App: React.FC = () => {
   return (
     <div className="app-shell">
       <TopBar />
+      <MobileNoticeBanner />
       <main className="workspace-main">
         <div className="viewports-area">
           {show2D && (

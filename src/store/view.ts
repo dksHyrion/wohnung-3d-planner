@@ -15,6 +15,8 @@ type ViewActions = Pick<
   | 'setGlowingWallCaps'
   | 'setCameraEyeLevelCm'
   | 'setShowDecor'
+  | 'setShowKeyboardShortcuts'
+  | 'toggleKeyboardShortcuts'
   | 'setAlignSunWithWindows'
   | 'setRoomLightsActive'
   | 'setViewMode'
@@ -69,6 +71,10 @@ export function createViewActions(deps: StoreDeps): ViewActions {
   },
 
   setShowDecor: (show) => set({ showDecor: Boolean(show) }),
+
+  setShowKeyboardShortcuts: (show) => set({ showKeyboardShortcuts: Boolean(show) }),
+
+  toggleKeyboardShortcuts: () => set((s) => ({ showKeyboardShortcuts: !s.showKeyboardShortcuts })),
 
   setAlignSunWithWindows: (align) => set({ alignSunWithWindows: Boolean(align) }),
 

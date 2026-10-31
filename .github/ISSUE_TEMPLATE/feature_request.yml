@@ -1,0 +1,35 @@
+name: Feature Request
+description: Schlage eine neue Funktion, ein Möbelstück oder eine Verbesserung vor.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vielen Dank für deine Idee zur Weiterentwicklung von **wohnung-3d-planner**!
+  - type: input
+    id: title
+    attributes:
+      label: Feature-Titel
+      description: Kurze Zusammenfassung der Idee.
+      placeholder: z. B. Unterstützung für L-förmige Kücheninseln
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem oder Motivation
+      description: Welches Problem soll gelöst werden oder welches Bedürfnis besteht bei der Raumplanung?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Lösungsvorschlag
+      description: Wie stellst du dir die Umsetzung oder Bedienung vor?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Betrachtete Alternativen
+      description: Gibt es andere Möglichkeiten oder Workarounds?

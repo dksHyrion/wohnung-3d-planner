@@ -204,6 +204,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     glowingWallCaps: true,
     cameraEyeLevelCm: 170,
     showDecor: true,
+    showKeyboardShortcuts: false,
     alignSunWithWindows: true,
     roomLightsActive: false,
     measureStart: null,

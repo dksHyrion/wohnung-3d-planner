@@ -62,6 +62,9 @@ export interface FloorplanState {
   setCameraEyeLevelCm: (heightCm: number) => void;
   showDecor: boolean;
   setShowDecor: (show: boolean) => void;
+  showKeyboardShortcuts: boolean;
+  setShowKeyboardShortcuts: (show: boolean) => void;
+  toggleKeyboardShortcuts: () => void;
   alignSunWithWindows: boolean;
   setAlignSunWithWindows: (align: boolean) => void;
   roomLightsActive: boolean;

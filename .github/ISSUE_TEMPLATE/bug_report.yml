@@ -1,0 +1,47 @@
+name: Bug Report
+description: Melde einen Fehler oder ein unerwartetes Verhalten im Raumplaner.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vielen Dank, dass du dir die Zeit nimmst, einen Bug zu melden! Bitte prüfe vorab, ob der Fehler bereits gemeldet wurde.
+  - type: input
+    id: summary
+    attributes:
+      label: Kurzbeschreibung
+      description: Eine prägnante Zusammenfassung des Fehlers.
+      placeholder: z. B. Möbelstück schnappt beim Drehen nicht an Wand
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Schritte zur Reproduktion
+      description: Was hast du getan, bevor der Fehler aufgetreten ist?
+      placeholder: |
+        1. Grundriss 'standard-55' geladen
+        2. In 2D-Ansicht gewechselt
+        3. Wand angeklickt und Länge geändert...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+      description: Was hätte stattdessen passieren sollen?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Umgebung & Browser
+      description: Browser (Chrome/Firefox/Safari/Brave), Betriebssystem (macOS/Linux/Windows).
+      placeholder: z. B. Chrome 130 auf macOS Sequoia, Desktop
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Zusätzliche Informationen / Screenshots
+      description: Screenshots, Konsolenfehler oder anonymer JSON-Grundriss-Export.
