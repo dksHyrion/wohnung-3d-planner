@@ -4,6 +4,29 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-03] DX, Test-Hygiene & Zustand-Store Modularisierung (Domain Slices)
+
+- **Action:** `DX`, `TEST_HYGIENE`, `REFACTOR`, `STORE_MODULARIZATION`
+- **Vitest Test-Hygiene & R3F Console-Filter:**
+  - Erstellung von `tests/setup.ts` und Registrierung via `test.setupFiles` in `vite.config.ts`.
+  - Gezielte Filterung von erwarteten React DOM SSR-Warnungen beim Rendern von Three.js/R3F JSX-Primitiven über `ReactDOMServer.renderToStaticMarkup` (`castShadow`, `receiveShadow`, Casing-Meldungen für `<...Geometry />` / `<meshStandardMaterial />`, `useLayoutEffect` auf dem Server).
+  - Voller Erhalt aller echten Laufzeitfehler, Test-Assertions und sonstiger DOM-Warnungen; Stderr im gesamten Testrunner von hunderten Zeilen Rauschen auf 0 bereinigt.
+- **Store-Modularisierung von `src/store/geometry.ts` in Domain Slices:**
+  - Der vormals 1038 Zeilen lange Monolith `src/store/geometry.ts` wurde in vier fokussierte Slices unter `src/store/slices/` zerlegt:
+    - `src/store/slices/furnitureSlice.ts` (Möbel-CRUD, Reale Möbel, Katalog-Reset, Hierarchische Objektkopplung via `propagateAttachedChildren`).
+    - `src/store/slices/wallSlice.ts` (Wand-Geometrie, Wandlängen-Update, Wandstärke, Ecken-Verschiebung, Öffnungen/Türen/Fenster, Raum-Labels).
+    - `src/store/slices/rugSlice.ts` (Teppich-CRUD, Dragging ohne History-Flood, Maßstabsnormalisierung).
+    - `src/store/slices/presetSlice.ts` (Grundriss-Presets, DIN 18040 Laufwege-Heatmap Evaluation).
+  - `src/store/geometry.ts` fungiert nun als schlanker Typed-Orchestrator (< 50 Zeilen), der alle Slices aggregiert und `propagateAttachedChildren` re-exportiert.
+  - 100 % abwärtskompatibel: Bestehende Store-APIs, Schnittstellen und Konsumenten (`useFloorplanStore.ts`) bleiben unverändert.
+- **Test-Integrität & Verifikation:**
+  - Neuer Unit-Test-Suite: `tests/storeSlices.test.ts` (22 Tests für Slice-Isolation, Mock-Dependencies, Transitive Hierarchie-Propagation und Store-Komposition).
+  - Gesamtergebnis: **520 Tests in 54 Testdateien** erfolgreich (100 % grün).
+  - TypeScript Strictness (`tsc -b`) fehlerfrei.
+  - Production-Build (`npm run build`) erfolgreich in 15.0s.
+
+---
+
 ## [2026-10-31] Gesamtrevision, Barrierefreiheit, Community-Standards & Build-Optimierung (Tagesabschluss)
 
 - **Action:** `AUDIT`, `SECURITY`, `UX`, `ACCESSIBILITY`, `COMMUNITY`, `BUILD_OPTIMIZATION`, `LINT` & `TAGESABSCHLUSS`
