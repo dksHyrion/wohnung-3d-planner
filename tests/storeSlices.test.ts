@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
 import {
   createGeometryActions,
@@ -442,6 +442,9 @@ describe('Store Slices & Geometry Orchestration', () => {
       expect(updatedDesk.z).toBe(260);
       expect(updatedMonitor.x).toBe(280);
       expect(updatedMonitor.z).toBe(260);
+
+      // Cleanup global store state
+      useFloorplanStore.getState().setSnapToWallEnabled(true);
     });
   });
 
