@@ -27,7 +27,12 @@ Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-Stat
    * `state.ts` hält `FloorplanState`, `CameraPreset` und `SelectableEntityType`. `geometry.ts`, `view.ts`, `history.ts` und `deps.ts` importieren den Typ von dort.
    * `useFloorplanStore.ts` baut den Store mit `createStore` und exportiert den Hook `useFloorplanStore`. Die Aktionsnamen bleiben. `getState`, `setState`, `subscribe` und `getInitialState` bleiben am Hook. Ergänzt sind `moveCorner(id, x, z, { recordHistory?: boolean })` und `moveFurniture(id, x, z, snapThresholdCm, { recordHistory?: boolean })` gegen Undo-Flutung beim Ziehen, `removeWall`, `removeCorner`, `selectRoom`, `updateRoom` sowie `propagateAttachedChildren` für gekoppelte Objekte (`attachedToId`).
    * `getInitialState` auf dem Store-Objekt gibt `getState()` zurück. `renderToStaticMarkup` liest diese Funktion. Eine spätere Zuweisung nur am Hook trifft sie nicht.
-   * `geometry.ts`: Wände, Öffnungen, Möbel, Kollision und Laufwege.
+   * `geometry.ts`: Schlanker Orchestrator (< 50 Zeilen), der die Domain-Slices aus `src/store/slices/` aggregiert (`furnitureSlice.ts`, `wallSlice.ts`, `rugSlice.ts`, `presetSlice.ts`) und `propagateAttachedChildren` re-exportiert.
+   * `src/store/slices/`:
+     * `furnitureSlice.ts`: Möbel-CRUD, Katalog-Reset, Reale Möbel und Hierarchische Objektkopplung (`propagateAttachedChildren`).
+     * `wallSlice.ts`: Wände, Ecken, Öffnungen und Raum-Labels.
+     * `rugSlice.ts`: Teppich-Verwaltung (`AreaRug`).
+     * `presetSlice.ts`: Preset-Laden und DIN 18040 Laufwege-Heatmap.
    * `view.ts`: Ansicht, Werkzeug, Kamera, Licht, Maßband und Raster.
    * `history.ts`: Undo, Redo, LocalStorage und JSON, dazu Unterleger und Kalibrierung. `importJson` ruft `parsePlanJson` aus `planImport.ts` und schreibt das Ergebnis wie bisher, inklusive Unterleger, `attachedToId` und `roomLabels[].flooringType`.
    * `planImport.ts`: `parsePlanJson`. Ein `visual` bleibt nur, wenn es in `VALID_FURNITURE_VISUAL_TYPES` steht. Sonst bleibt das Feld leer. Ungültiges JSON oder fehlende Arrays ergeben `null`.
