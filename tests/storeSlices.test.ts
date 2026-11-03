@@ -240,6 +240,10 @@ describe('Store Slices & Geometry Orchestration', () => {
   });
 
   describe('3. Hierarchical Attachment Propagation (propagateAttachedChildren)', () => {
+    afterEach(() => {
+      useFloorplanStore.getState().setSnapToWallEnabled(true);
+    });
+
     const parentDesk: FurnitureItem = {
       id: 'desk-1',
       name: 'Schreibtisch',
