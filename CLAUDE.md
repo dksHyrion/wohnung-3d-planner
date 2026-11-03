@@ -48,3 +48,7 @@ npm run build                # Run tsc -b && vite build
 ### Privacy & Repository Cleanliness
 * Do not commit personal user data or real purchase details.
 * Local private plans belong in `privat/` (ignored by `.gitignore`).
+
+### Operational Directness (Tunnel & Dev Server)
+* When asked to start the dev server or open the tunnel ("mache den tunnel auf", "starte dev server"), run `npm run dev -- --host 0.0.0.0 --port 5173` directly in the background.
+* Do not run the Vitest test suite or extensive file searches for simple operational commands. Report reachable URLs immediately.

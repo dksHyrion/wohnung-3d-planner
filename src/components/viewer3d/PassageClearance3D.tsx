@@ -44,7 +44,6 @@ export const PassageClearance3D: React.FC = () => {
             <Html
               position={[midX, 4, midZ]}
               center
-              distanceFactor={140}
               style={{ pointerEvents: 'none' }}
             >
               <div

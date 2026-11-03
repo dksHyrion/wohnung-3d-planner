@@ -183,4 +183,164 @@ describe('Geometry & Ergonomics Fixes', () => {
       expect(wallPassage?.severity).toBe('critical'); // < 60 cm is critical
     });
   });
+
+  describe('W6: Dead-end niches, along-wall fixtures and wall occlusions', () => {
+    it('does not report a passage between two fixtures along a wall when the gap dead-ends into the wall (e.g. shower & toilet)', () => {
+      // Wall along Z axis from (0, 0) to (0, 500), thickness = 15 cm (inner face at x = 7.5 cm)
+      const corners: Corner[] = [
+        { id: 'c1', x: 0, z: 0 },
+        { id: 'c2', x: 0, z: 500 },
+      ];
+      const wall: Wall = {
+        id: 'w-back',
+        startCornerId: 'c1',
+        endCornerId: 'c2',
+        thicknessCm: 15,
+        heightCm: 250,
+      };
+      // Shower against wall (left edge at x = 7.5 cm, z from 55 to 145)
+      const shower: FurnitureItem = {
+        id: 'shower',
+        name: 'Duschkabine',
+        visual: 'shower',
+        category: 'bathroom',
+        color: '#ffffff',
+        widthCm: 90,
+        heightCm: 200,
+        depthCm: 90,
+        x: 52.5,
+        z: 100,
+        elevationCm: 0,
+        rotationYDeg: 0,
+      };
+      // Toilet against wall (left edge at x = 7.5 cm, z from 190 to 240)
+      // Gap between shower bottom edge (z=145) and toilet top edge (z=190) is 45 cm.
+      const toilet: FurnitureItem = {
+        id: 'toilet',
+        name: 'Toilette',
+        visual: 'toilet',
+        category: 'bathroom',
+        color: '#ffffff',
+        widthCm: 40,
+        heightCm: 45,
+        depthCm: 50,
+        x: 32.5,
+        z: 215,
+        elevationCm: 0,
+        rotationYDeg: 0,
+      };
+      const report = evaluatePassageClearances({
+        furniture: [shower, toilet],
+        walls: [wall],
+        corners,
+      });
+      const passage = report.passages.find(
+        (p) =>
+          (p.entity1Id === 'shower' && p.entity2Id === 'toilet') ||
+          (p.entity1Id === 'toilet' && p.entity2Id === 'shower')
+      );
+      expect(passage).toBeUndefined();
+    });
+
+    it('does not report a passage for a dead-end corner gap between furniture side and perpendicular wall', () => {
+      const corners: Corner[] = [
+        { id: 'c-corner', x: 0, z: 0 },
+        { id: 'c-x', x: 400, z: 0 },
+        { id: 'c-z', x: 0, z: 400 },
+      ];
+      const wallBack: Wall = {
+        id: 'w-back',
+        startCornerId: 'c-corner',
+        endCornerId: 'c-x',
+        thicknessCm: 15,
+        heightCm: 250,
+      };
+      const wallSide: Wall = {
+        id: 'w-side',
+        startCornerId: 'c-corner',
+        endCornerId: 'c-z',
+        thicknessCm: 15,
+        heightCm: 250,
+      };
+      // Wardrobe against w-back: back edge at z = 7.5 cm (wall inner face)
+      // Placed 10 cm from w-side (w-side inner face is at x = 7.5 cm, wardrobe left edge at x = 17.5 cm)
+      const wardrobe: FurnitureItem = {
+        id: 'wardrobe1',
+        name: 'Wandschrank',
+        visual: 'wardrobe',
+        category: 'storage',
+        color: '#ffffff',
+        widthCm: 150,
+        heightCm: 220,
+        depthCm: 60,
+        x: 92.5,
+        z: 37.5,
+        elevationCm: 0,
+        rotationYDeg: 0,
+        snappedWallId: 'w-back',
+      };
+      const report = evaluatePassageClearances({
+        furniture: [wardrobe],
+        walls: [wallBack, wallSide],
+        corners,
+      });
+      const sidePassage = report.passages.find(
+        (p) => p.entity1Id === 'wardrobe1' && p.entity2Id === 'w-side'
+      );
+      expect(sidePassage).toBeUndefined();
+    });
+
+    it('does not report passages between furniture separated by an interior partition wall', () => {
+      const corners: Corner[] = [
+        { id: 'c1', x: 0, z: 200 },
+        { id: 'c2', x: 300, z: 200 },
+      ];
+      const partition: Wall = {
+        id: 'w-partition',
+        startCornerId: 'c1',
+        endCornerId: 'c2',
+        thicknessCm: 15,
+        heightCm: 250,
+      };
+      const bed: FurnitureItem = {
+        id: 'bed1',
+        name: 'Bett',
+        visual: 'bed',
+        category: 'bedroom',
+        color: '#ffffff',
+        widthCm: 160,
+        heightCm: 90,
+        depthCm: 200,
+        x: 150,
+        z: 80,
+        elevationCm: 0,
+        rotationYDeg: 0,
+      };
+      const shower: FurnitureItem = {
+        id: 'shower1',
+        name: 'Duschkabine',
+        visual: 'shower',
+        category: 'bathroom',
+        color: '#ffffff',
+        widthCm: 90,
+        heightCm: 200,
+        depthCm: 90,
+        x: 150,
+        z: 280,
+        elevationCm: 0,
+        rotationYDeg: 0,
+      };
+      const report = evaluatePassageClearances({
+        furniture: [bed, shower],
+        walls: [partition],
+        corners,
+      });
+      const crossPassage = report.passages.find(
+        (p) =>
+          (p.entity1Id === 'bed1' && p.entity2Id === 'shower1') ||
+          (p.entity1Id === 'shower1' && p.entity2Id === 'bed1')
+      );
+      expect(crossPassage).toBeUndefined();
+    });
+  });
 });

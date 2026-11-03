@@ -8,6 +8,11 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: './',
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: true,
+  },
   plugins: [react(), planAutosavePlugin(root)],
   resolve: {
     dedupe: ['three'],

@@ -2,6 +2,7 @@ import { FurnitureItem, Wall, Corner, EPSILON_CM } from './types';
 import {
   computeFurnitureClearanceCm,
   computeFurnitureToWallClearance,
+  segmentsIntersect2D,
   Point2D,
 } from './measureMath';
 
@@ -62,6 +63,60 @@ export const DEFAULT_MAX_PASSAGE_DISTANCE_CM = 120;
 export const PASSAGE_CRITICAL_THRESHOLD_CM = 60;
 export const PASSAGE_OPTIMAL_THRESHOLD_CM = 90;
 export const WALL_FLUSHED_THRESHOLD_CM = 5;
+export const DEAD_END_PROBE_DIST_CM = 35;
+
+interface WallSegmentData {
+  id: string;
+  p1: Point2D;
+  p2: Point2D;
+}
+
+function segmentCrossesWall(
+  a: Point2D,
+  b: Point2D,
+  wallSegments: WallSegmentData[],
+  ignoreWallId?: string
+): boolean {
+  for (const w of wallSegments) {
+    if (ignoreWallId && w.id === ignoreWallId) continue;
+    if (segmentsIntersect2D(a, b, w.p1, w.p2)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isDeadEndGap(
+  p1: Point2D,
+  p2: Point2D,
+  clearanceCm: number,
+  wallSegments: WallSegmentData[],
+  ignoreWallId?: string
+): boolean {
+  if (clearanceCm >= PASSAGE_CRITICAL_THRESHOLD_CM) {
+    return false;
+  }
+  const dx = p2.x - p1.x;
+  const dz = p2.z - p1.z;
+  const len = Math.hypot(dx, dz);
+  if (len < EPSILON_CM) return false;
+
+  const midX = (p1.x + p2.x) / 2;
+  const midZ = (p1.z + p2.z) / 2;
+  const M: Point2D = { x: midX, z: midZ };
+
+  // Walking direction perpendicular to gap
+  const ux = -dz / len;
+  const uz = dx / len;
+
+  const fwd: Point2D = { x: midX + ux * DEAD_END_PROBE_DIST_CM, z: midZ + uz * DEAD_END_PROBE_DIST_CM };
+  const bwd: Point2D = { x: midX - ux * DEAD_END_PROBE_DIST_CM, z: midZ - uz * DEAD_END_PROBE_DIST_CM };
+
+  return (
+    segmentCrossesWall(M, fwd, wallSegments, ignoreWallId) ||
+    segmentCrossesWall(M, bwd, wallSegments, ignoreWallId)
+  );
+}
 
 /**
  * Validates a furniture item defensibly ensuring numerical coordinates and dimensions are finite and valid.
@@ -216,6 +271,19 @@ export function evaluatePassageClearances(
     cornerMap.set(c.id, c);
   }
 
+  const wallSegments: WallSegmentData[] = [];
+  for (const w of walls) {
+    const c1 = cornerMap.get(w.startCornerId);
+    const c2 = cornerMap.get(w.endCornerId);
+    if (c1 && c2) {
+      wallSegments.push({
+        id: w.id,
+        p1: { x: c1.x, z: c1.z },
+        p2: { x: c2.x, z: c2.z },
+      });
+    }
+  }
+
   const passages: PassageClearance[] = [];
 
   // 1. Furniture-to-furniture clearance evaluation
@@ -224,6 +292,11 @@ export function evaluatePassageClearances(
     const f1 = furniture[i];
     for (let j = i + 1; j < nFurniture; j++) {
       const f2 = furniture[j];
+
+      // Attached accessories (e.g. monitor on desk) do not form floor passages
+      if (f1.attachedToId || f2.attachedToId) {
+        continue;
+      }
 
       // Vertical stacking (e.g. monitor on desk) is ignored
       if (isVerticallySeparated(f1, f2)) {
@@ -240,8 +313,36 @@ export function evaluatePassageClearances(
         ? 0
         : Number(clearanceResult.clearanceCm.toFixed(1));
 
+      // Side-by-side furniture snapped to the exact same wall with gap < 60 cm is not a walkway into the wall
+      if (
+        f1.snappedWallId &&
+        f1.snappedWallId === f2.snappedWallId &&
+        clearanceCm < PASSAGE_CRITICAL_THRESHOLD_CM
+      ) {
+        continue;
+      }
+
       const severity = classifyPassageSeverity(clearanceCm, effectiveMaxDistanceCm);
       if (!severity) {
+        continue;
+      }
+
+      const pt1: Point2D = {
+        x: Number(clearanceResult.closestPoint1.x.toFixed(1)),
+        z: Number(clearanceResult.closestPoint1.z.toFixed(1)),
+      };
+      const pt2: Point2D = {
+        x: Number(clearanceResult.closestPoint2.x.toFixed(1)),
+        z: Number(clearanceResult.closestPoint2.z.toFixed(1)),
+      };
+
+      // Check if line of sight crosses any interior wall partition
+      if (segmentCrossesWall(pt1, pt2, wallSegments)) {
+        continue;
+      }
+
+      // Check if narrow gap dead-ends into a wall (e.g. shower & toilet against wall)
+      if (isDeadEndGap(pt1, pt2, clearanceCm, wallSegments)) {
         continue;
       }
 
@@ -255,20 +356,24 @@ export function evaluatePassageClearances(
         entity2Name: f2.name,
         clearanceCm,
         severity,
-        point1: {
-          x: Number(clearanceResult.closestPoint1.x.toFixed(1)),
-          z: Number(clearanceResult.closestPoint1.z.toFixed(1)),
-        },
-        point2: {
-          x: Number(clearanceResult.closestPoint2.x.toFixed(1)),
-          z: Number(clearanceResult.closestPoint2.z.toFixed(1)),
-        },
+        point1: pt1,
+        point2: pt2,
       });
     }
   }
 
   // 2. Furniture-to-wall clearance evaluation
   for (const item of furniture) {
+    // Attached accessories (e.g. monitor on desk) do not form floor passages
+    if (item.attachedToId) {
+      continue;
+    }
+
+    // Decor items (plants, wall pictures) placed by a wall don't need a passage behind them
+    if (item.category === 'decor' || item.visual === 'plant' || item.visual === 'wall-picture') {
+      continue;
+    }
+
     for (const wall of walls) {
       // Snapped to this wall -> flushed against wall, not a passage bottleneck
       if (item.snappedWallId === wall.id) {
@@ -288,6 +393,19 @@ export function evaluatePassageClearances(
         continue;
       }
 
+      const pt1 = wallRes.closestPointOnFurniture;
+      const pt2 = wallRes.closestPointOnWall;
+
+      // Check if line of sight crosses an intervening wall partition
+      if (segmentCrossesWall(pt1, pt2, wallSegments, wall.id)) {
+        continue;
+      }
+
+      // Check if narrow gap dead-ends into a perpendicular corner wall
+      if (!wallRes.isCrossing && isDeadEndGap(pt1, pt2, clearanceCm, wallSegments, wall.id)) {
+        continue;
+      }
+
       const wallName = (wall as { name?: string }).name ?? `Wand (${wall.id})`;
 
       passages.push({
@@ -300,8 +418,8 @@ export function evaluatePassageClearances(
         entity2Name: wallName,
         clearanceCm,
         severity,
-        point1: wallRes.closestPointOnFurniture,
-        point2: wallRes.closestPointOnWall,
+        point1: pt1,
+        point2: pt2,
       });
     }
   }

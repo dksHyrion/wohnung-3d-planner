@@ -72,4 +72,5 @@ npm run build
 * **TypeScript Strictness:** Strict types enabled. Avoid `any`. Prefer Discriminated Unions for visual types and tool modes.
 * **Preserve Integrity:** Keep all 495 automated tests passing when refactoring or adding features.
 * **Privacy by Design:** Never commit personal names, real addresses, private purchase receipts, or private floorplans to git. Keep private plans in `privat/` (ignored by `.gitignore`).
-* **Verification Before Completion:** Always execute `npm test` and `npm run build` before claiming completion.
+* **Verification Before Completion:** Always execute `npm test` and `npm run build` before claiming completion on code/feature changes.
+* **Operational Directness (Dev Server / Tunnel):** On purely operational requests (e.g. "mache den tunnel auf", "starte den server"), execute the action immediately: start the background dev server/tunnel without running test suites, without exploratory token consumption, and report the reachable URLs directly.

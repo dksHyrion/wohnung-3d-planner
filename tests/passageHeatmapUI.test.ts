@@ -248,9 +248,9 @@ describe('Task 5: 2D & 3D Ergonomie- & Laufwege-Heatmap Overlay', () => {
       expect(markup).toContain('color="#f59e0b"'); // warning
       expect(markup).toContain('color="#10b981"'); // optimal
 
-      // Drei Html element
+      // Drei Html element must not have distanceFactor (which blows up badges in OrthographicCamera)
       expect(markup).toContain('data-component="drei-html"');
-      expect(markup).toContain('data-distance-factor="140"');
+      expect(markup).not.toContain('data-distance-factor=');
 
       // Badge pill content
       expect(markup).toContain('⚠️ 45 cm');

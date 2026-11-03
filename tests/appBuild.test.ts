@@ -93,12 +93,18 @@ describe('Application UI Files & Component Integration', () => {
     expect(useFloorplanStore.getState().selectedId).toBe(newId);
     expect(useFloorplanStore.getState().selectedType).toBe('furniture');
 
-    // Regression check: FurnitureMesh3D must not set distanceFactor on <Html>,
+    // Regression check: FurnitureMesh3D and PassageClearance3D must not set distanceFactor on <Html>,
     // because @react-three/drei multiplies distanceFactor by camera.zoom in OrthographicCamera
     const furnitureMeshSrc = fs.readFileSync(
       path.join(ROOT, 'src/components/viewer3d/FurnitureMesh3D.tsx'),
       'utf-8'
     );
     expect(furnitureMeshSrc).not.toContain('distanceFactor=');
+
+    const passageClearanceSrc = fs.readFileSync(
+      path.join(ROOT, 'src/components/viewer3d/PassageClearance3D.tsx'),
+      'utf-8'
+    );
+    expect(passageClearanceSrc).not.toContain('distanceFactor=');
   });
 });
