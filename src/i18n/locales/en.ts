@@ -1,6 +1,7 @@
 import { TranslationSchema } from '../types';
 
 export const en: TranslationSchema = {
+  documentTitle: 'Apartment 3D Planner & Floorplan Editor (cm)',
   common: {
     cancel: 'Cancel',
     save: 'Save',
@@ -21,7 +22,7 @@ export const en: TranslationSchema = {
     none: 'None',
   },
   topbar: {
-    brand: 'Wohnung 3D Planner',
+    brand: 'Apartment 3D Planner',
     groups: {
       views: 'View Mode',
       tools: 'Editor Tools',
@@ -101,6 +102,33 @@ export const en: TranslationSchema = {
       de: 'German',
       en: 'English',
     },
+    presets: {
+      'standard-55': '55 m² Standard Apartment',
+      'luxury-villa': '110 m² 4-Room Apartment',
+      'studio-apartment': 'L-Shape Apartment + 22 m² Side Room',
+      'rectangular-room': 'Studio Apartment (500 × 400 cm)',
+      'empty-room': 'Empty Room (400 × 320 cm)',
+    },
+  },
+  editor2d: {
+    badge: '2D Floorplan Editor (Grid: {grid} cm{snap})',
+    orthoSnapSuffix: ' • 90° Ortho-Snap',
+    zoomIn: 'Zoom In',
+    zoomOut: 'Zoom Out',
+    centerView: 'Center View',
+    center: 'Center',
+    ariaLabel: '2D Floorplan Editor',
+    roomDefault: 'Room {index}',
+    calibrationTitle: 'Calibration Reference Length',
+    calibrationHeader: '📏 Calibration',
+    calibrationPrompt: 'Actual reference length in cm:',
+    calibrationApply: 'Apply',
+    calibrationCancel: 'Cancel',
+  },
+  viewer3d: {
+    perspectiveBadge: '3D Perspective (Orbit + Zoom | 1 Unit = 1 cm)',
+    isometricBadge: '3D Isometric / Cutaway View (1 Unit = 1 cm)',
+    roomDefault: 'Room {index}',
   },
   lighting: {
     title: 'Lighting & Atmosphere',

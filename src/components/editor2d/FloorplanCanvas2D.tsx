@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import {
   applyRoomLabels,
   computeFitViewBox,
@@ -14,6 +15,7 @@ import { BackgroundOverlayControls } from './BackgroundOverlayControls';
 import { CanvasDragState, FloorplanSvg2D } from './FloorplanSvg2D';
 
 export const FloorplanCanvas2D: React.FC = () => {
+  const { t } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
@@ -367,7 +369,12 @@ export const FloorplanCanvas2D: React.FC = () => {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div className="viewport-badge">
-        <span>2D Grundriss-Editor (Raster: {gridSizeCm} cm{orthoSnapEnabled ? ' • 90° Ortho-Snap' : ''})</span>
+        <span>
+          {t('editor2d.badge', {
+            grid: gridSizeCm,
+            snap: orthoSnapEnabled ? t('editor2d.orthoSnapSuffix') : '',
+          })}
+        </span>
       </div>
 
       <div className="viewport-controls">
@@ -382,8 +389,8 @@ export const FloorplanCanvas2D: React.FC = () => {
               h: v.h * 0.84,
             }))
           }
-          title="Vergrößern"
-          aria-label="Vergrößern"
+          title={t('editor2d.zoomIn')}
+          aria-label={t('editor2d.zoomIn')}
         >
           <ZoomIn size={14} />
         </button>
@@ -398,8 +405,8 @@ export const FloorplanCanvas2D: React.FC = () => {
               h: v.h * 1.2,
             }))
           }
-          title="Verkleinern"
-          aria-label="Verkleinern"
+          title={t('editor2d.zoomOut')}
+          aria-label={t('editor2d.zoomOut')}
         >
           <ZoomOut size={14} />
         </button>
@@ -407,18 +414,18 @@ export const FloorplanCanvas2D: React.FC = () => {
           type="button"
           className="btn btn-outline"
           onClick={handleResetView}
-          title="Ansicht zentrieren"
-          aria-label="Ansicht zentrieren"
+          title={t('editor2d.centerView')}
+          aria-label={t('editor2d.centerView')}
         >
           <Maximize2 size={14} />
-          <span>Zentrieren</span>
+          <span>{t('editor2d.center')}</span>
         </button>
       </div>
 
       <svg
         ref={svgRef}
         role="img"
-        aria-label="2D Grundriss-Editor"
+        aria-label={t('editor2d.ariaLabel')}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
         style={{
           width: '100%',
@@ -459,7 +466,7 @@ export const FloorplanCanvas2D: React.FC = () => {
           className="calibration-dialog"
           role="dialog"
           aria-modal="true"
-          aria-label="Kalibrierung Referenzlänge"
+          aria-label={t('editor2d.calibrationTitle')}
           style={{
             position: 'absolute',
             top: '50%',
@@ -480,10 +487,10 @@ export const FloorplanCanvas2D: React.FC = () => {
           }}
         >
           <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#38bdf8' }}>
-            📏 Kalibrierung
+            {t('editor2d.calibrationHeader')}
           </div>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.85rem' }}>
-            <span>Reale Referenzlänge in cm:</span>
+            <span>{t('editor2d.calibrationPrompt')}</span>
             <input
               type="number"
               min={1}
@@ -501,7 +508,7 @@ export const FloorplanCanvas2D: React.FC = () => {
                   cancelCalibration();
                 }
               }}
-              aria-label="Reale Referenzlänge in cm"
+              aria-label={t('editor2d.calibrationPrompt')}
               style={{
                 background: 'rgba(30, 41, 59, 0.8)',
                 border: '1px solid #475569',
@@ -520,7 +527,7 @@ export const FloorplanCanvas2D: React.FC = () => {
               onClick={() => cancelCalibration()}
               style={{ fontSize: '0.8rem', padding: '5px 12px' }}
             >
-              Abbrechen
+              {t('editor2d.calibrationCancel')}
             </button>
             <button
               type="button"
@@ -540,7 +547,7 @@ export const FloorplanCanvas2D: React.FC = () => {
                 cursor: !(parseFloat(calibrationInputCm) > 0) ? 'not-allowed' : 'pointer',
               }}
             >
-              Übernehmen
+              {t('editor2d.calibrationApply')}
             </button>
           </div>
         </div>

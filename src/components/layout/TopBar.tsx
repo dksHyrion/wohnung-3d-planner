@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import type { Language } from '../../i18n/types';
 import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
@@ -81,16 +82,18 @@ export async function handleOverlayImageFile(
   }
 }
 
-export function formatTimeOfDay(hour: number): string {
+export function formatTimeOfDay(hour: number, lang?: Language): string {
+  const activeLang = lang ?? 'de';
   if (!Number.isFinite(hour)) {
-    return '12:00 Uhr';
+    return activeLang === 'en' ? '12:00' : '12:00 Uhr';
   }
   const clamped = Math.max(0, Math.min(24, hour));
   const h = Math.floor(clamped);
   const m = Math.round((clamped - h) * 60);
   const normalizedH = m === 60 ? (h + 1) % 24 : h;
   const normalizedM = m === 60 ? 0 : m;
-  return `${String(normalizedH).padStart(2, '0')}:${String(normalizedM).padStart(2, '0')} Uhr`;
+  const time = `${String(normalizedH).padStart(2, '0')}:${String(normalizedM).padStart(2, '0')}`;
+  return activeLang === 'en' ? time : `${time} Uhr`;
 }
 
 export const MOOD_PRESET_BUTTONS: { key: MoodPresetKey; label: string }[] = [
@@ -128,7 +131,7 @@ export function capture3DCanvasSnapshot(
 }
 
 export const TopBar: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const cutawayEnabled = useFloorplanStore((s) => s.cutawayEnabled);
@@ -191,7 +194,8 @@ export const TopBar: React.FC = () => {
         orientation: planOrientation,
         includeFurniture: planIncludeFurniture,
         includeDimensions: planIncludeDimensions,
-        projectTitle: planTitle.trim() || 'Grundriss Plan',
+        projectTitle: planTitle.trim() || (language === 'en' ? 'Floorplan Plan' : 'Grundriss Plan'),
+        language,
       }
     );
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -496,11 +500,18 @@ export const TopBar: React.FC = () => {
               loadPreset(key);
             }}
           >
-            {Object.entries(PRESET_FLOORPLANS).map(([key, preset]) => (
-              <option key={key} value={key}>
-                {preset.label}
-              </option>
-            ))}
+            {Object.entries(PRESET_FLOORPLANS).map(([key, preset]) => {
+              const translatedLabel = t(`topbar.presets.${key}` as any);
+              const label =
+                translatedLabel && !translatedLabel.startsWith('topbar.presets.')
+                  ? translatedLabel
+                  : preset.label;
+              return (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              );
+            })}
           </select>
 
           <button

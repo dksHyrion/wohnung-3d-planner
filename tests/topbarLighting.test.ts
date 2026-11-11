@@ -33,6 +33,13 @@ describe('TopBar Atmosphere Controls', () => {
       expect(formatTimeOfDay(Infinity)).toBe('12:00 Uhr');
       expect(formatTimeOfDay(-Infinity)).toBe('12:00 Uhr');
     });
+
+    it('formats time in English without "Uhr" when lang is "en"', () => {
+      expect(formatTimeOfDay(8.0, 'en')).toBe('08:00');
+      expect(formatTimeOfDay(18.0, 'en')).toBe('18:00');
+      expect(formatTimeOfDay(12.5, 'en')).toBe('12:30');
+      expect(formatTimeOfDay(NaN, 'en')).toBe('12:00');
+    });
   });
 
   describe('Store synchronization on preset selection and quality toggles', () => {

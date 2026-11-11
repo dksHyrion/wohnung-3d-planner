@@ -10,6 +10,7 @@ import {
   Line,
 } from '@react-three/drei';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import { WallMesh3D } from './WallMesh3D';
 import { FurnitureMesh3D } from './FurnitureMesh3D';
 import { StudioStage3D } from './StudioStage3D';
@@ -537,6 +538,7 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
 });
 
 export const Scene3D: React.FC = () => {
+  const { t, language } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
@@ -749,8 +751,8 @@ export const Scene3D: React.FC = () => {
       <div className="viewport-badge">
         <span>
           {usePerspective
-            ? '3D Perspektive (Orbit + Zoom | 1 Unit = 1 cm)'
-            : '3D Isometrie / Cutaway-Ansicht (1 Unit = 1 cm)'}
+            ? t('viewer3d.perspectiveBadge')
+            : t('viewer3d.isometricBadge')}
         </span>
       </div>
 
@@ -873,8 +875,12 @@ export const Scene3D: React.FC = () => {
 
         {/* Floor-stamped architectural room text */}
         {roomFloorShapes.map(({ id, centroid, areaSqM, idx, name }) => {
-          const areaFormatted = areaSqM.toFixed(1).replace('.', ',');
-          const title = (name ?? `Raum ${idx + 1}`).toUpperCase();
+          const areaFormatted =
+            language === 'en'
+              ? areaSqM.toFixed(1)
+              : areaSqM.toFixed(1).replace('.', ',');
+          const defaultName = language === 'en' ? `Room ${idx + 1}` : `Raum ${idx + 1}`;
+          const title = (name ?? defaultName).toUpperCase();
           return (
             <Text
               key={`label-${id}`}

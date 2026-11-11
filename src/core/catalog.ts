@@ -47,6 +47,51 @@ export function getCatalogCategoryLabel(
   );
 }
 
+const CATALOG_ITEM_TRANSLATIONS_EN: Record<string, string> = {
+  '3-Sitzer Sofa': '3-Seater Sofa',
+  'Kleiderschrank PAX': 'PAX Wardrobe',
+  'Doppelbett (180×200)': 'Double Bed (180×200)',
+  'Esstisch (4–6 Pers.)': 'Dining Table (4–6 pers.)',
+  'Schreibtisch': 'Desk',
+  'Inwerk Masterlift 2': 'Inwerk Masterlift 2',
+  'Steelcase Gesture': 'Steelcase Gesture',
+  'Monitor 27 Zoll': '27-Inch Monitor',
+  'Regalraum LIUM L-1x4': 'Regalraum LIUM L-1x4',
+  'Neona Viva': 'Neona Viva',
+  'Sideboard / Kommode': 'Sideboard / Dresser',
+  'Küchenzeile': 'Kitchen Unit',
+  'Kochinsel mit Barhockern': 'Kitchen Island with Bar Stools',
+  'Freistehende Designer-Badewanne': 'Freestanding Designer Bathtub',
+  'Zimmerpflanze Monstera Deliciosa': 'Houseplant Monstera Deliciosa',
+  'Musterring Sorrent Schwebetürenschrank 200': 'Musterring Sorrent Sliding Door Wardrobe 200',
+  'BoConcept Osaka Schlafcouch': 'BoConcept Osaka Sofa Bed',
+  'Vitsœ 606 Regalsystem (5 Tablare)': 'Vitsœ 606 Shelving System (5 Shelves)',
+  'Artemide Tolomeo Decentrata': 'Artemide Tolomeo Decentrata',
+  'Küchenzeile Mattweiß mit Oberschränken': 'Matte White Kitchen Unit with Wall Cabinets',
+  'Esstisch Weiß (4–6 Pers.)': 'White Dining Table (4–6 pers.)',
+  'Skandinavisches Ecksofa mit Chaiselongue (L-Form)': 'Scandinavian Sectional Sofa with Chaise (L-Shape)',
+  'Designer-Esstisch Eiche Natur (8 Plätze)': 'Designer Dining Table Natural Oak (8 Seats)',
+  'Couchtisch': 'Coffee Table',
+  'Duschkabine 90×90': 'Shower Cabin 90×90',
+  'Wand-WC': 'Wall-Mounted Toilet',
+  'Waschmaschine': 'Washing Machine',
+  'Waschtisch 70': 'Vanity Sink 70',
+  'Zimmerpflanze': 'Houseplant',
+  'Wandbild': 'Wall Picture',
+  'Galerieschiene': 'Picture Rail',
+};
+
+export function getCatalogItemName(
+  tpl: { name: string },
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  if (activeLang === 'en' && CATALOG_ITEM_TRANSLATIONS_EN[tpl.name]) {
+    return CATALOG_ITEM_TRANSLATIONS_EN[tpl.name];
+  }
+  return tpl.name;
+}
+
 
 export const FURNITURE_CATALOG: CatalogFurnitureTemplate[] = [
   {

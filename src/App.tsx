@@ -7,12 +7,21 @@ import { FloorplanCanvas2D } from './components/editor2d/FloorplanCanvas2D';
 import { Scene3D } from './components/viewer3d/Scene3D';
 import { InspectorSidebar } from './components/sidebar/InspectorSidebar';
 import { MobileNoticeBanner } from './components/layout/MobileNoticeBanner';
+import { useTranslation } from './i18n/useTranslation';
 
 export const App: React.FC = () => {
+  const { t, language } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const undo = useFloorplanStore((s) => s.undo);
   const redo = useFloorplanStore((s) => s.redo);
   const saveToLocalStorage = useFloorplanStore((s) => s.saveToLocalStorage);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = t('documentTitle');
+      document.documentElement.lang = language;
+    }
+  }, [language, t]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

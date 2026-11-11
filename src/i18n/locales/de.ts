@@ -1,6 +1,7 @@
 import { TranslationSchema } from '../types';
 
 export const de: TranslationSchema = {
+  documentTitle: 'Wohnung 3D-Raumplaner & Grundriss-Editor (cm)',
   common: {
     cancel: 'Abbrechen',
     save: 'Speichern',
@@ -101,6 +102,33 @@ export const de: TranslationSchema = {
       de: 'Deutsch',
       en: 'English',
     },
+    presets: {
+      'standard-55': '55 m² Standard-Wohnung',
+      'luxury-villa': '110 m² 4-Zimmer-Wohnung',
+      'studio-apartment': 'L-Schnitt Wohnung + 22 m² Nebenraum',
+      'rectangular-room': 'Studio-Apartment (500 × 400 cm)',
+      'empty-room': 'Leerer Raum (400 × 320 cm)',
+    },
+  },
+  editor2d: {
+    badge: '2D Grundriss-Editor (Raster: {grid} cm{snap})',
+    orthoSnapSuffix: ' • 90° Ortho-Snap',
+    zoomIn: 'Vergrößern',
+    zoomOut: 'Verkleinern',
+    centerView: 'Ansicht zentrieren',
+    center: 'Zentrieren',
+    ariaLabel: '2D Grundriss-Editor',
+    roomDefault: 'Raum {index}',
+    calibrationTitle: 'Kalibrierung Referenzlänge',
+    calibrationHeader: '📏 Kalibrierung',
+    calibrationPrompt: 'Reale Referenzlänge in cm:',
+    calibrationApply: 'Übernehmen',
+    calibrationCancel: 'Abbrechen',
+  },
+  viewer3d: {
+    perspectiveBadge: '3D Perspektive (Orbit + Zoom | 1 Unit = 1 cm)',
+    isometricBadge: '3D Isometrie / Cutaway-Ansicht (1 Unit = 1 cm)',
+    roomDefault: 'Raum {index}',
   },
   lighting: {
     title: 'Licht & Atmosphäre',

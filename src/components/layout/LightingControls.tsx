@@ -9,7 +9,7 @@ export interface LightingControlsProps {
 }
 
 export function LightingControls({ isOpen }: LightingControlsProps = {}) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const activeMoodKey = useFloorplanStore((s) => s.activeMoodKey);
@@ -81,8 +81,8 @@ export function LightingControls({ isOpen }: LightingControlsProps = {}) {
             if (Number.isFinite(val)) setTimeOfDay(val);
           }}
           aria-label={t('lighting.timeOfDay')}
-          aria-valuetext={formatTimeOfDay(timeOfDay)}
-          title={`${t('lighting.timeOfDay')}: ${formatTimeOfDay(timeOfDay)}`}
+          aria-valuetext={formatTimeOfDay(timeOfDay, language)}
+          title={`${t('lighting.timeOfDay')}: ${formatTimeOfDay(timeOfDay, language)}`}
           style={{ width: '90px', cursor: 'pointer', accentColor: 'var(--accent)' }}
         />
         <span
@@ -93,7 +93,7 @@ export function LightingControls({ isOpen }: LightingControlsProps = {}) {
             minWidth: '64px',
           }}
         >
-          {formatTimeOfDay(timeOfDay)}
+          {formatTimeOfDay(timeOfDay, language)}
         </span>
       </div>
 

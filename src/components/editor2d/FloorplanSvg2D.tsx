@@ -71,6 +71,7 @@ export function FloorplanSvg2D({
   const showPassageHeatmap = useFloorplanStore((s) => s.showPassageHeatmap);
   const passageReport = useFloorplanStore((s) => s.passageReport);
   const activeAlignmentGuides = useFloorplanStore((s) => s.activeAlignmentGuides);
+  const language = useFloorplanStore((s) => s.language);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
   return (
@@ -185,11 +186,15 @@ export function FloorplanSvg2D({
               }}
             >
               {(() => {
-                const title = room.name ?? `Raum ${idx + 1}`;
-                const area = (room.netAreaSqM ?? room.areaSqM).toLocaleString('de-DE', {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                });
+                const defaultTitle = language === 'en' ? `Room ${idx + 1}` : `Raum ${idx + 1}`;
+                const title = room.name ?? defaultTitle;
+                const area = (room.netAreaSqM ?? room.areaSqM).toLocaleString(
+                  language === 'en' ? 'en-US' : 'de-DE',
+                  {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  }
+                );
                 const label = `${title} · ${area} m²`;
                 const width = Math.max(124, label.length * 6.6 + 18);
                 return (

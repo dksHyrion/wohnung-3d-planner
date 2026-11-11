@@ -3,6 +3,7 @@ import { getWallGeometry, computeFloorPolygons, applyRoomLabels } from '../wallM
 import { computeExteriorDimensionChains } from '../dimensionMath';
 import { layoutFurnitureParts } from '../furnitureShapes';
 import { resolveFurnitureVisual } from '../furnitureVisual';
+import type { Language } from '../../i18n/types';
 
 export interface PlanExportOptions {
   scale: '1:50' | '1:100' | '1:200';
@@ -15,6 +16,7 @@ export interface PlanExportOptions {
   authorName?: string;
   dateStr?: string;
   autoScale?: boolean;
+  language?: Language;
 }
 
 export interface PlanFitInfo {
@@ -193,6 +195,7 @@ export function exportScaledFloorplanSvg(
   const totalNetArea = rooms.reduce((sum, r) => sum + (r.netAreaSqM ?? r.areaSqM), 0);
 
   const cornerMap = new Map<string, Corner>(data.corners.map((c) => [c.id, c]));
+  const isEn = options.language === 'en';
 
   // SVG elements collector
   const parts: string[] = [];
@@ -438,20 +441,22 @@ export function exportScaledFloorplanSvg(
     rooms.forEach((r, idx) => {
       const cx = toPaperX(r.centroid.x);
       const cy = toPaperY(r.centroid.z);
-      const netArea = (r.netAreaSqM ?? r.areaSqM).toLocaleString('de-DE', {
+      const netArea = (r.netAreaSqM ?? r.areaSqM).toLocaleString(isEn ? 'en-US' : 'de-DE', {
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
       });
+      const roomTitle = r.name ?? (isEn ? `Room ${idx + 1}` : `Raum ${idx + 1}`);
+      const areaLabel = isEn ? 'Interior Area:' : 'Innenfläche:';
 
       parts.push(`  <g class="arch-room-stamp" transform="translate(${cx}, ${cy})">`);
       parts.push(
         `    <rect class="arch-room-badge" x="-18" y="-5.5" width="36" height="11" rx="1.5" />`
       );
       parts.push(
-        `    <text class="arch-room-text-title" x="0" y="-1.5">${escapeXml(r.name ?? `Raum ${idx + 1}`)}</text>`
+        `    <text class="arch-room-text-title" x="0" y="-1.5">${escapeXml(roomTitle)}</text>`
       );
       parts.push(
-        `    <text class="arch-room-text-sub" x="0" y="2.8">Innenfläche: ${netArea} m²</text>`
+        `    <text class="arch-room-text-sub" x="0" y="2.8">${areaLabel} ${netArea} m²</text>`
       );
       parts.push(`  </g>`);
     });
@@ -508,13 +513,17 @@ export function exportScaledFloorplanSvg(
   const tbHeight = 24;
   const tbX = paperW - 10 - tbWidth;
   const tbY = paperH - 10 - tbHeight;
-  const projectTitle = options.projectTitle || 'Grundriss-Stellprobe';
+  const projectTitle = options.projectTitle || (isEn ? 'Floorplan Layout' : 'Grundriss-Stellprobe');
   const scaleText = effectiveScale === '1:200' ? '1 : 200' : effectiveScale === '1:100' ? '1 : 100' : '1 : 50';
-  const dateStr = options.dateStr || new Date().toLocaleDateString('de-DE');
-  const areaTotalFormatted = totalNetArea.toLocaleString('de-DE', {
+  const dateStr = options.dateStr || new Date().toLocaleDateString(isEn ? 'en-US' : 'de-DE');
+  const areaTotalFormatted = totalNetArea.toLocaleString(isEn ? 'en-US' : 'de-DE', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+  const scaleLabel = isEn ? 'Scale:' : 'Maßstab:';
+  const dateLabel = isEn ? 'Date:' : 'Datum:';
+  const netAreaLabel = isEn ? 'Interior Net Area:' : 'Lichte Innenfläche:';
+  const scaleBarLabel = isEn ? `Scale Bar (${scaleText})` : `Maßstabsleiste (${scaleText})`;
 
   parts.push(`  <!-- Title Block (Plankopf) -->`);
   parts.push(`  <g class="arch-titleblock">`);
@@ -535,13 +544,13 @@ export function exportScaledFloorplanSvg(
     `    <text class="arch-titleblock-text-bold" x="${tbX + 3}" y="${tbY + 4.8}">${escapeXml(projectTitle)}</text>`
   );
   parts.push(
-    `    <text class="arch-titleblock-text" x="${tbX + 3}" y="${tbY + 11.2}">Maßstab: <tspan font-weight="700">${scaleText}</tspan></text>`
+    `    <text class="arch-titleblock-text" x="${tbX + 3}" y="${tbY + 11.2}">${scaleLabel} <tspan font-weight="700">${scaleText}</tspan></text>`
   );
   parts.push(
-    `    <text class="arch-titleblock-text" x="${tbX + 3}" y="${tbY + 20}">Datum: ${escapeXml(dateStr)}</text>`
+    `    <text class="arch-titleblock-text" x="${tbX + 3}" y="${tbY + 20}">${dateLabel} ${escapeXml(dateStr)}</text>`
   );
   parts.push(
-    `    <text class="arch-titleblock-text" x="${tbX + 51}" y="${tbY + 11.2}">Lichte Innenfläche:</text>`
+    `    <text class="arch-titleblock-text" x="${tbX + 51}" y="${tbY + 11.2}">${netAreaLabel}</text>`
   );
   parts.push(
     `    <text class="arch-titleblock-text-bold" x="${tbX + 51}" y="${tbY + 17}">${areaTotalFormatted} m²</text>`
@@ -556,7 +565,7 @@ export function exportScaledFloorplanSvg(
   parts.push(`  <!-- Graphical Scale Bar -->`);
   parts.push(`  <g class="arch-scale-bar" transform="translate(${barX}, ${barY})">`);
   parts.push(
-    `    <text class="arch-titleblock-text" x="${unitM_width}" y="-3" text-anchor="middle">Maßstabsleiste (${scaleText})</text>`
+    `    <text class="arch-titleblock-text" x="${unitM_width}" y="-3" text-anchor="middle">${scaleBarLabel}</text>`
   );
   // Bar segment 1 (black)
   parts.push(

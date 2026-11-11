@@ -18,6 +18,7 @@ import {
   CatalogFurnitureTemplate,
   FURNITURE_CATALOG,
   getCatalogCategoryLabel,
+  getCatalogItemName,
 } from '../../core/presets';
 import { FurnitureItem } from '../../core/types';
 import { applyRoomLabels, computeFloorPolygons } from '../../core/wallMath';
@@ -167,6 +168,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
     const center = getRoomCenter();
     addFurniture({
       ...template,
+      name: getCatalogItemName(template, language),
       x: center.x,
       z: center.z,
       rotationYDeg: 0,
@@ -439,7 +441,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                     }}
                   >
                     <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {tpl.name}
+                      {getCatalogItemName(tpl, language)}
                     </span>
                     <span
                       style={{

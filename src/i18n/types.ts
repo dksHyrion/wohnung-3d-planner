@@ -1,6 +1,7 @@
 export type Language = 'de' | 'en';
 
 export type TranslationSchema = {
+  documentTitle: string;
   common: {
     cancel: string;
     save: string;
@@ -101,6 +102,33 @@ export type TranslationSchema = {
       de: string;
       en: string;
     };
+    presets: {
+      'standard-55': string;
+      'luxury-villa': string;
+      'studio-apartment': string;
+      'rectangular-room': string;
+      'empty-room': string;
+    };
+  };
+  editor2d: {
+    badge: string;
+    orthoSnapSuffix: string;
+    zoomIn: string;
+    zoomOut: string;
+    centerView: string;
+    center: string;
+    ariaLabel: string;
+    roomDefault: string;
+    calibrationTitle: string;
+    calibrationHeader: string;
+    calibrationPrompt: string;
+    calibrationApply: string;
+    calibrationCancel: string;
+  };
+  viewer3d: {
+    perspectiveBadge: string;
+    isometricBadge: string;
+    roomDefault: string;
   };
   lighting: {
     title: string;
