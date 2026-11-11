@@ -6,7 +6,6 @@ import { MoodPresetKey } from '../../core/lighting/moodPresets';
 
 export interface LightingControlsProps {
   isOpen?: boolean;
-  onClose?: () => void;
 }
 
 export function LightingControls({ isOpen }: LightingControlsProps = {}) {

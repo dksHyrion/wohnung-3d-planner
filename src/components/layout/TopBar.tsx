@@ -268,9 +268,7 @@ export const TopBar: React.FC = () => {
   const handleConfirmImport = () => {
     const ok = importJson(jsonText);
     if (!ok) {
-      setImportError(
-        'Ungültiges JSON-Format. Erwartet werden corners, walls, openings und furniture (in cm).'
-      );
+      setImportError(t('dialogs.json.invalidJson'));
       return;
     }
     setJsonModalMode(null);

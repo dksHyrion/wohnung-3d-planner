@@ -28,8 +28,19 @@ export function JsonPlanDialog({
 }: JsonPlanDialogProps) {
   const { t } = useTranslation();
   const titleId = useId();
+  const [copied, setCopied] = React.useState(false);
 
   const activeMode = jsonModalMode ?? mode ?? (isOpen ? 'export' : null);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard?.writeText(jsonText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Ignore clipboard write failures in restricted sandboxes
+    }
+  };
 
   const handleClose = () => {
     if (onClose) onClose();
@@ -99,9 +110,9 @@ export function JsonPlanDialog({
                   <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={() => navigator.clipboard?.writeText(jsonText)}
+                    onClick={handleCopy}
                   >
-                    {t('dialogs.json.copy')}
+                    {copied ? t('dialogs.json.copied') : t('dialogs.json.copy')}
                   </button>
                   <button
                     type="button"
