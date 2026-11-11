@@ -27,6 +27,8 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
+import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
 import { PlanExportDialog } from './PlanExportDialog';
@@ -126,6 +128,7 @@ export function capture3DCanvasSnapshot(
 }
 
 export const TopBar: React.FC = () => {
+  const { t, language } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const cutawayEnabled = useFloorplanStore((s) => s.cutawayEnabled);
@@ -225,18 +228,18 @@ export const TopBar: React.FC = () => {
   ).length;
 
   const viewButtons: { mode: ViewMode; label: string; icon: React.ReactNode }[] = [
-    { mode: '2d', label: '2D Grundriss', icon: <Layers size={14} /> },
-    { mode: 'split', label: 'Split 2D+3D', icon: <Columns size={14} /> },
-    { mode: '3d-iso', label: '3D Isometrie', icon: <Box size={14} /> },
-    { mode: '3d-persp', label: '3D Perspektive', icon: <Eye size={14} /> },
+    { mode: '2d', label: t('topbar.views.mode2d'), icon: <Layers size={14} /> },
+    { mode: 'split', label: t('topbar.views.split'), icon: <Columns size={14} /> },
+    { mode: '3d-iso', label: `3D ${t('topbar.cameraPresets.isometric')}`, icon: <Box size={14} /> },
+    { mode: '3d-persp', label: `3D ${t('topbar.cameraPresets.perspective')}`, icon: <Eye size={14} /> },
   ];
 
   const toolButtons: { tool: EditorTool; label: string; icon: React.ReactNode }[] = [
-    { tool: 'select', label: 'Auswählen', icon: <MousePointer size={14} /> },
-    { tool: 'draw-wall', label: 'Wand zeichnen', icon: <PenTool size={14} /> },
-    { tool: 'add-door', label: 'Tür', icon: <DoorOpen size={14} /> },
-    { tool: 'add-window', label: 'Fenster', icon: <AppWindow size={14} /> },
-    { tool: 'measure', label: 'Maßband', icon: <Ruler size={14} /> },
+    { tool: 'select', label: t('topbar.tools.select'), icon: <MousePointer size={14} /> },
+    { tool: 'draw-wall', label: t('topbar.tools.wall'), icon: <PenTool size={14} /> },
+    { tool: 'add-door', label: t('topbar.tools.door'), icon: <DoorOpen size={14} /> },
+    { tool: 'add-window', label: t('topbar.tools.window'), icon: <AppWindow size={14} /> },
+    { tool: 'measure', label: t('topbar.tools.measure'), icon: <Ruler size={14} /> },
   ];
 
   const handleOpenExport = () => {
@@ -278,12 +281,12 @@ export const TopBar: React.FC = () => {
       <header className="topbar">
         <div className="topbar-brand">
           <Ruler size={18} color="#818cf8" />
-          <span>Wohnung 3D-Planer</span>
+          <span>{t('topbar.brand')}</span>
           <span className="topbar-brand-badge">1 Unit = 1 cm</span>
         </div>
 
         {/* View Mode Switcher */}
-        <div className="topbar-group" role="group" aria-label="Ansichtsmodus">
+        <div className="topbar-group" role="group" aria-label={t('topbar.views.mode2d')}>
           {viewButtons.map((btn) => (
             <button
               key={btn.mode}
@@ -298,7 +301,7 @@ export const TopBar: React.FC = () => {
         </div>
 
         {/* 2D Editor Tool Selector */}
-        <div className="topbar-group" role="group" aria-label="Editor-Werkzeuge">
+        <div className="topbar-group" role="group" aria-label={t('topbar.tools.select')}>
           {toolButtons.map((btn) => (
             <button
               key={btn.tool}
@@ -319,22 +322,22 @@ export const TopBar: React.FC = () => {
             className="btn btn-outline"
             onClick={undo}
             disabled={!canUndo}
-            title="Rückgängig (Strg+Z)"
+            title={`${t('topbar.actions.undo')} (Ctrl+Z)`}
             style={{ opacity: canUndo ? 1 : 0.45 }}
           >
             <Undo2 size={14} />
-            <span>Rückgängig</span>
+            <span>{t('topbar.actions.undo')}</span>
           </button>
           <button
             type="button"
             className="btn btn-outline"
             onClick={redo}
             disabled={!canRedo}
-            title="Wiederholen (Strg+Y)"
+            title={`${t('topbar.actions.redo')} (Ctrl+Y)`}
             style={{ opacity: canRedo ? 1 : 0.45 }}
           >
             <Redo2 size={14} />
-            <span>Wiederholen</span>
+            <span>{t('topbar.actions.redo')}</span>
           </button>
         </div>
 
@@ -344,19 +347,23 @@ export const TopBar: React.FC = () => {
             type="button"
             className={`btn ${cutawayEnabled ? 'active' : ''}`}
             onClick={() => setCutawayEnabled(!cutawayEnabled)}
-            title="Vordere Wände in 3D automatisch auf 30 cm absenken (Cutaway)"
+            title={
+              language === 'en'
+                ? 'Lower front walls to 30 cm in 3D automatically (Cutaway)'
+                : 'Vordere Wände in 3D automatisch auf 30 cm absenken (Cutaway)'
+            }
           >
             {cutawayEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
-            <span>Cutaway-Wände</span>
+            <span>{language === 'en' ? 'Cutaway Walls' : 'Cutaway-Wände'}</span>
           </button>
           <button
             type="button"
             className={`btn ${snapToWallEnabled ? 'active' : ''}`}
             onClick={() => setSnapToWallEnabled(!snapToWallEnabled)}
-            title="Möbel beim Verschieben automatisch bündig an Wänden ausrichten"
+            title={t('topbar.actions.wallSnapping')}
           >
             <Magnet size={14} />
-            <span>Wand-Snap</span>
+            <span>{language === 'en' ? 'Wall Snap' : 'Wand-Snap'}</span>
           </button>
           <button
             type="button"
@@ -366,8 +373,8 @@ export const TopBar: React.FC = () => {
             }
             title={
               renderTheme === 'studio'
-                ? 'Zu Blueprint Dark wechseln'
-                : 'Zu Studio Render wechseln'
+                ? (language === 'en' ? 'Switch to Blueprint Dark' : 'Zu Blueprint Dark wechseln')
+                : (language === 'en' ? 'Switch to Studio Render' : 'Zu Studio Render wechseln')
             }
           >
             {renderTheme === 'studio' ? <Sun size={14} /> : <Moon size={14} />}
@@ -377,44 +384,52 @@ export const TopBar: React.FC = () => {
             type="button"
             className={`btn ${showDimensions3D ? 'active' : ''}`}
             onClick={() => setShowDimensions3D(!showDimensions3D)}
-            title="Architektonische Bemaßungslinien in 3D ein-/ausblenden"
+            title={t('topbar.actions.dimensions')}
           >
             <Ruler size={14} />
-            <span>Maße 3D</span>
+            <span>{language === 'en' ? 'Dimensions 3D' : 'Maße 3D'}</span>
           </button>
           <button
             type="button"
             className={`btn ${showDecor ? 'active' : ''}`}
             onClick={() => setShowDecor(!showDecor)}
             title={
-              showDecor
-                ? "Dekoration eingeblendet (Klicken zum Ausblenden für ehrliche Stellprobe)"
-                : "Dekoration ausgeblendet (Ehrlicher Architektur-Modus)"
+              language === 'en'
+                ? showDecor
+                  ? 'Decorations enabled (Click to hide for honest test)'
+                  : 'Decorations hidden (Honest architectural mode)'
+                : showDecor
+                ? 'Dekoration eingeblendet (Klicken zum Ausblenden für ehrliche Stellprobe)'
+                : 'Dekoration ausgeblendet (Ehrlicher Architektur-Modus)'
             }
           >
-            <span>{showDecor ? '✨ Deko' : '📐 Clean'}</span>
+            <span>{showDecor ? (language === 'en' ? '✨ Decor' : '✨ Deko') : '📐 Clean'}</span>
           </button>
           <button
             type="button"
             className={`btn ${showPassageHeatmap ? 'active' : ''}`}
             aria-pressed={showPassageHeatmap}
             onClick={() => setShowPassageHeatmap(!showPassageHeatmap)}
-            title="Laufwege & Durchgangsbreiten nach DIN 18040 (Mindestbreite 90 cm / kritisch < 60 cm)"
+            title={
+              language === 'en'
+                ? 'Passages & Clearances according to DIN 18040 (Min width 90 cm / critical < 60 cm)'
+                : 'Laufwege & Durchgangsbreiten nach DIN 18040 (Mindestbreite 90 cm / kritisch < 60 cm)'
+            }
           >
             <Footprints size={14} />
             <span>
               {passageReport && passageReport.criticalCount > 0
-                ? `Laufwege (${passageReport.criticalCount} ⚠️)`
-                : 'Laufwege'}
+                ? `${language === 'en' ? 'Passages' : 'Laufwege'} (${passageReport.criticalCount} ⚠️)`
+                : language === 'en' ? 'Passages' : 'Laufwege'}
             </span>
           </button>
         </div>
 
         {/* Architectural Camera Presets */}
-        <div className="topbar-group" role="group" aria-label="Kamera-Perspektive">
+        <div className="topbar-group" role="group" aria-label={t('topbar.cameraPresets.perspective')}>
           <Camera size={14} color="#818cf8" />
           <select
-            aria-label="Kamera-Perspektive"
+            aria-label={t('topbar.cameraPresets.perspective')}
             className="select-input"
             style={{ width: '210px' }}
             value={cameraPreset}
@@ -426,10 +441,18 @@ export const TopBar: React.FC = () => {
               }
             }}
           >
-            <option value="axonometric">Axonometrie 65°</option>
-            <option value="isometric">Isometrie 45°</option>
-            <option value="top-down">Draufsicht (Top-Down)</option>
-            <option value="first-person">👤 Augenhöhe ({cameraEyeLevelCm} cm)</option>
+            <option value="axonometric">
+              {language === 'en' ? 'Axonometric 65°' : 'Axonometrie 65°'}
+            </option>
+            <option value="isometric">
+              {t('topbar.cameraPresets.isometric')} 45°
+            </option>
+            <option value="top-down">
+              {t('topbar.cameraPresets.topDown')} (Top-Down)
+            </option>
+            <option value="first-person">
+              👤 {language === 'en' ? 'First-Person' : 'Augenhöhe'} ({cameraEyeLevelCm} cm)
+            </option>
           </select>
           {cameraPreset === 'first-person' && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -437,7 +460,7 @@ export const TopBar: React.FC = () => {
                 type="button"
                 className={`btn ${cameraEyeLevelCm === 170 ? 'active' : ''}`}
                 onClick={() => setCameraEyeLevelCm(170)}
-                title="Augenhöhe: 170 cm (Erwachsener)"
+                title={language === 'en' ? 'Eye level: 170 cm (Adult)' : 'Augenhöhe: 170 cm (Erwachsener)'}
               >
                 <span>170 cm</span>
               </button>
@@ -445,7 +468,7 @@ export const TopBar: React.FC = () => {
                 type="button"
                 className={`btn ${cameraEyeLevelCm === 115 ? 'active' : ''}`}
                 onClick={() => setCameraEyeLevelCm(115)}
-                title="Augenhöhe: 115 cm (Kind / Sitzend)"
+                title={language === 'en' ? 'Eye level: 115 cm (Child / Seated)' : 'Augenhöhe: 115 cm (Kind / Sitzend)'}
               >
                 <span>115 cm</span>
               </button>
@@ -456,8 +479,8 @@ export const TopBar: React.FC = () => {
                 step={5}
                 value={cameraEyeLevelCm}
                 onChange={(e) => setCameraEyeLevelCm(Number(e.target.value) || 170)}
-                aria-label="Augenhöhe in cm"
-                title="Augenhöhe manuell anpassen (50–250 cm)"
+                aria-label={language === 'en' ? 'Eye level in cm' : 'Augenhöhe in cm'}
+                title={language === 'en' ? 'Adjust eye level manually (50–250 cm)' : 'Augenhöhe manuell anpassen (50–250 cm)'}
                 className="select-input"
                 style={{ width: '60px', padding: '2px 4px', textAlign: 'center' }}
               />
@@ -468,21 +491,24 @@ export const TopBar: React.FC = () => {
         {/* Atmosphere & Lighting Controls (only when 3D is active) */}
         <LightingControls />
 
-
         {/* Render PNG Snapshot Export */}
         <button
           type="button"
           className="btn btn-outline"
           onClick={handleExportSnapshot}
-          title="3D-Rendering als hochauflösendes PNG-Bild exportieren"
+          title={
+            language === 'en'
+              ? 'Export 3D rendering as high-resolution PNG image'
+              : '3D-Rendering als hochauflösendes PNG-Bild exportieren'
+          }
         >
-          <span>📸 Render exportieren</span>
+          <span>📸 {language === 'en' ? 'Export Render' : 'Render exportieren'}</span>
         </button>
 
         {/* Preset Selector & JSON Export/Import */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
-            aria-label="Grundriss-Vorlage"
+            aria-label={language === 'en' ? 'Floorplan Preset' : 'Grundriss-Vorlage'}
             className="select-input"
             style={{ width: '215px' }}
             value={selectedPreset}
@@ -506,20 +532,20 @@ export const TopBar: React.FC = () => {
               setSelectedPreset('standard-55');
               loadPreset('standard-55');
             }}
-            title="Standardwohnung 55 m² neu laden"
+            title={t('topbar.actions.resetPlan')}
           >
             <RotateCcw size={14} />
-            <span>Neu</span>
+            <span>{language === 'en' ? 'Reset' : 'Neu'}</span>
           </button>
 
           <button
             type="button"
             className="btn btn-outline"
             onClick={() => overlayFileInputRef.current?.click()}
-            title="Grundriss-Unterleger (Bild) laden"
+            title={t('topbar.actions.overlay')}
           >
             <FileUp size={14} />
-            <span>Unterleger</span>
+            <span>{language === 'en' ? 'Underlay' : 'Unterleger'}</span>
           </button>
           {overlayError && <span className="form-label">{overlayError}</span>}
           <input
@@ -544,7 +570,7 @@ export const TopBar: React.FC = () => {
             type="button"
             className="btn btn-outline"
             onClick={() => setPlanExportModalOpen(true)}
-            title="Maßstabsgetreuen 2D-Architekturplan druckfertig als SVG exportieren (1:50 / 1:100)"
+            title={t('topbar.actions.export')}
           >
             <FileText size={14} />
             <span>Plan (SVG)</span>
@@ -554,7 +580,7 @@ export const TopBar: React.FC = () => {
             type="button"
             className="btn btn-outline"
             onClick={handleOpenExport}
-            title="Grundriss als JSON exportieren"
+            title={t('topbar.actions.json')}
           >
             <Download size={14} />
             <span>Export</span>
@@ -564,7 +590,7 @@ export const TopBar: React.FC = () => {
             type="button"
             className="btn btn-outline"
             onClick={handleOpenImport}
-            title="Grundriss aus JSON importieren"
+            title={language === 'en' ? 'Import floorplan from JSON' : 'Grundriss aus JSON importieren'}
           >
             <Upload size={14} />
             <span>Import</span>
@@ -574,28 +600,36 @@ export const TopBar: React.FC = () => {
             type="button"
             className="btn btn-outline"
             onClick={toggleKeyboardShortcuts}
-            title="Tastaturkürzel & Hilfe anzeigen (?)"
-            aria-label="Tastaturkürzel anzeigen"
+            title={t('topbar.actions.shortcuts')}
+            aria-label={t('topbar.actions.shortcuts')}
           >
             <HelpCircle size={14} />
           </button>
 
+          <LanguageSwitch />
+
           {/* Global Collision Status Badge */}
           <div
             className={`status-badge ${collisionCount === 0 ? 'ok' : 'conflict'}`}
-            title="Live-Kollisionsprüfung (1D Wandprojektion & 3D OBB)"
+            title={
+              language === 'en'
+                ? 'Live collision check (1D wall projection & 3D OBB)'
+                : 'Live-Kollisionsprüfung (1D Wandprojektion & 3D OBB)'
+            }
           >
             {collisionCount === 0 ? (
               <>
                 <CheckCircle2 size={14} />
-                <span>0 Konflikte</span>
+                <span>{language === 'en' ? '0 Conflicts' : '0 Konflikte'}</span>
               </>
             ) : (
               <>
                 <AlertTriangle size={14} />
                 <span>
                   {collisionCount}{' '}
-                  {collisionCount === 1 ? 'Kollision' : 'Kollisionen'}
+                  {collisionCount === 1
+                    ? (language === 'en' ? 'Conflict' : 'Kollision')
+                    : (language === 'en' ? 'Conflicts' : 'Kollisionen')}
                 </span>
               </>
             )}

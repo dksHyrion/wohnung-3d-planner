@@ -1,8 +1,10 @@
 import React from 'react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import { formatTimeOfDay, MOOD_PRESET_BUTTONS } from './TopBar';
 
 export function LightingControls() {
+  const { t } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const activeMoodKey = useFloorplanStore((s) => s.activeMoodKey);
@@ -18,7 +20,7 @@ export function LightingControls() {
   return (
     <>
         {viewMode !== '2d' && (
-          <div className="topbar-group" role="group" aria-label="Licht & Atmosphäre">
+          <div className="topbar-group" role="group" aria-label={t('topbar.actions.lighting')}>
             {MOOD_PRESET_BUTTONS.map((preset) => (
               <button
                 key={preset.key}
