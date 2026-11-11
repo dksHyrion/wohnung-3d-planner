@@ -128,7 +128,7 @@ export function capture3DCanvasSnapshot(
 }
 
 export const TopBar: React.FC = () => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const cutawayEnabled = useFloorplanStore((s) => s.cutawayEnabled);
@@ -286,7 +286,7 @@ export const TopBar: React.FC = () => {
         </div>
 
         {/* View Mode Switcher */}
-        <div className="topbar-group" role="group" aria-label={t('topbar.views.mode2d')}>
+        <div className="topbar-group" role="group" aria-label={t('topbar.groups.views')}>
           {viewButtons.map((btn) => (
             <button
               key={btn.mode}
@@ -301,7 +301,7 @@ export const TopBar: React.FC = () => {
         </div>
 
         {/* 2D Editor Tool Selector */}
-        <div className="topbar-group" role="group" aria-label={t('topbar.tools.select')}>
+        <div className="topbar-group" role="group" aria-label={t('topbar.groups.tools')}>
           {toolButtons.map((btn) => (
             <button
               key={btn.tool}
@@ -316,13 +316,13 @@ export const TopBar: React.FC = () => {
         </div>
 
         {/* Undo / Redo History */}
-        <div className="topbar-group" role="group" aria-label="Verlauf">
+        <div className="topbar-group" role="group" aria-label={t('topbar.groups.history')}>
           <button
             type="button"
             className="btn btn-outline"
             onClick={undo}
             disabled={!canUndo}
-            title={`${t('topbar.actions.undo')} (Ctrl+Z)`}
+            title={t('topbar.actions.undoTooltip')}
             style={{ opacity: canUndo ? 1 : 0.45 }}
           >
             <Undo2 size={14} />
@@ -333,7 +333,7 @@ export const TopBar: React.FC = () => {
             className="btn btn-outline"
             onClick={redo}
             disabled={!canRedo}
-            title={`${t('topbar.actions.redo')} (Ctrl+Y)`}
+            title={t('topbar.actions.redoTooltip')}
             style={{ opacity: canRedo ? 1 : 0.45 }}
           >
             <Redo2 size={14} />
@@ -347,14 +347,10 @@ export const TopBar: React.FC = () => {
             type="button"
             className={`btn ${cutawayEnabled ? 'active' : ''}`}
             onClick={() => setCutawayEnabled(!cutawayEnabled)}
-            title={
-              language === 'en'
-                ? 'Lower front walls to 30 cm in 3D automatically (Cutaway)'
-                : 'Vordere Wände in 3D automatisch auf 30 cm absenken (Cutaway)'
-            }
+            title={t('topbar.actions.cutawayTitle')}
           >
             {cutawayEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
-            <span>{language === 'en' ? 'Cutaway Walls' : 'Cutaway-Wände'}</span>
+            <span>{t('topbar.actions.cutawayLabel')}</span>
           </button>
           <button
             type="button"
@@ -363,7 +359,7 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.wallSnapping')}
           >
             <Magnet size={14} />
-            <span>{language === 'en' ? 'Wall Snap' : 'Wand-Snap'}</span>
+            <span>{t('topbar.actions.wallSnapLabel')}</span>
           </button>
           <button
             type="button"
@@ -373,8 +369,8 @@ export const TopBar: React.FC = () => {
             }
             title={
               renderTheme === 'studio'
-                ? (language === 'en' ? 'Switch to Blueprint Dark' : 'Zu Blueprint Dark wechseln')
-                : (language === 'en' ? 'Switch to Studio Render' : 'Zu Studio Render wechseln')
+                ? t('topbar.actions.themeBlueprintTitle')
+                : t('topbar.actions.themeStudioTitle')
             }
           >
             {renderTheme === 'studio' ? <Sun size={14} /> : <Moon size={14} />}
@@ -387,49 +383,37 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.dimensions')}
           >
             <Ruler size={14} />
-            <span>{language === 'en' ? 'Dimensions 3D' : 'Maße 3D'}</span>
+            <span>{t('topbar.actions.dimensionsLabel')}</span>
           </button>
           <button
             type="button"
             className={`btn ${showDecor ? 'active' : ''}`}
             onClick={() => setShowDecor(!showDecor)}
-            title={
-              language === 'en'
-                ? showDecor
-                  ? 'Decorations enabled (Click to hide for honest test)'
-                  : 'Decorations hidden (Honest architectural mode)'
-                : showDecor
-                ? 'Dekoration eingeblendet (Klicken zum Ausblenden für ehrliche Stellprobe)'
-                : 'Dekoration ausgeblendet (Ehrlicher Architektur-Modus)'
-            }
+            title={showDecor ? t('topbar.actions.decorTitleActive') : t('topbar.actions.decorTitleInactive')}
           >
-            <span>{showDecor ? (language === 'en' ? '✨ Decor' : '✨ Deko') : '📐 Clean'}</span>
+            <span>{showDecor ? t('topbar.actions.decorLabelActive') : t('topbar.actions.decorLabelInactive')}</span>
           </button>
           <button
             type="button"
             className={`btn ${showPassageHeatmap ? 'active' : ''}`}
             aria-pressed={showPassageHeatmap}
             onClick={() => setShowPassageHeatmap(!showPassageHeatmap)}
-            title={
-              language === 'en'
-                ? 'Passages & Clearances according to DIN 18040 (Min width 90 cm / critical < 60 cm)'
-                : 'Laufwege & Durchgangsbreiten nach DIN 18040 (Mindestbreite 90 cm / kritisch < 60 cm)'
-            }
+            title={t('topbar.actions.passagesTitle')}
           >
             <Footprints size={14} />
             <span>
               {passageReport && passageReport.criticalCount > 0
-                ? `${language === 'en' ? 'Passages' : 'Laufwege'} (${passageReport.criticalCount} ⚠️)`
-                : language === 'en' ? 'Passages' : 'Laufwege'}
+                ? `${t('topbar.actions.passagesLabel')} (${passageReport.criticalCount} ⚠️)`
+                : t('topbar.actions.passagesLabel')}
             </span>
           </button>
         </div>
 
         {/* Architectural Camera Presets */}
-        <div className="topbar-group" role="group" aria-label={t('topbar.cameraPresets.perspective')}>
+        <div className="topbar-group" role="group" aria-label={t('topbar.groups.camera')}>
           <Camera size={14} color="#818cf8" />
           <select
-            aria-label={t('topbar.cameraPresets.perspective')}
+            aria-label={t('topbar.groups.camera')}
             className="select-input"
             style={{ width: '210px' }}
             value={cameraPreset}
@@ -442,7 +426,7 @@ export const TopBar: React.FC = () => {
             }}
           >
             <option value="axonometric">
-              {language === 'en' ? 'Axonometric 65°' : 'Axonometrie 65°'}
+              {t('topbar.cameraPresets.axonometric')}
             </option>
             <option value="isometric">
               {t('topbar.cameraPresets.isometric')} 45°
@@ -451,7 +435,7 @@ export const TopBar: React.FC = () => {
               {t('topbar.cameraPresets.topDown')} (Top-Down)
             </option>
             <option value="first-person">
-              👤 {language === 'en' ? 'First-Person' : 'Augenhöhe'} ({cameraEyeLevelCm} cm)
+              {t('topbar.cameraPresets.eyeLevelOption', { cm: cameraEyeLevelCm })}
             </option>
           </select>
           {cameraPreset === 'first-person' && (
@@ -460,7 +444,7 @@ export const TopBar: React.FC = () => {
                 type="button"
                 className={`btn ${cameraEyeLevelCm === 170 ? 'active' : ''}`}
                 onClick={() => setCameraEyeLevelCm(170)}
-                title={language === 'en' ? 'Eye level: 170 cm (Adult)' : 'Augenhöhe: 170 cm (Erwachsener)'}
+                title={t('topbar.cameraPresets.adultTitle')}
               >
                 <span>170 cm</span>
               </button>
@@ -468,7 +452,7 @@ export const TopBar: React.FC = () => {
                 type="button"
                 className={`btn ${cameraEyeLevelCm === 115 ? 'active' : ''}`}
                 onClick={() => setCameraEyeLevelCm(115)}
-                title={language === 'en' ? 'Eye level: 115 cm (Child / Seated)' : 'Augenhöhe: 115 cm (Kind / Sitzend)'}
+                title={t('topbar.cameraPresets.childTitle')}
               >
                 <span>115 cm</span>
               </button>
@@ -479,8 +463,8 @@ export const TopBar: React.FC = () => {
                 step={5}
                 value={cameraEyeLevelCm}
                 onChange={(e) => setCameraEyeLevelCm(Number(e.target.value) || 170)}
-                aria-label={language === 'en' ? 'Eye level in cm' : 'Augenhöhe in cm'}
-                title={language === 'en' ? 'Adjust eye level manually (50–250 cm)' : 'Augenhöhe manuell anpassen (50–250 cm)'}
+                aria-label={t('topbar.cameraPresets.eyeLevelAria')}
+                title={t('topbar.cameraPresets.eyeLevelTitle')}
                 className="select-input"
                 style={{ width: '60px', padding: '2px 4px', textAlign: 'center' }}
               />
@@ -496,19 +480,15 @@ export const TopBar: React.FC = () => {
           type="button"
           className="btn btn-outline"
           onClick={handleExportSnapshot}
-          title={
-            language === 'en'
-              ? 'Export 3D rendering as high-resolution PNG image'
-              : '3D-Rendering als hochauflösendes PNG-Bild exportieren'
-          }
+          title={t('topbar.actions.exportRenderTitle')}
         >
-          <span>📸 {language === 'en' ? 'Export Render' : 'Render exportieren'}</span>
+          <span>{t('topbar.actions.exportRenderLabel')}</span>
         </button>
 
         {/* Preset Selector & JSON Export/Import */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
-            aria-label={language === 'en' ? 'Floorplan Preset' : 'Grundriss-Vorlage'}
+            aria-label={t('topbar.actions.presetAria')}
             className="select-input"
             style={{ width: '215px' }}
             value={selectedPreset}
@@ -535,7 +515,7 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.resetPlan')}
           >
             <RotateCcw size={14} />
-            <span>{language === 'en' ? 'Reset' : 'Neu'}</span>
+            <span>{t('topbar.actions.resetLabel')}</span>
           </button>
 
           <button
@@ -545,7 +525,7 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.overlay')}
           >
             <FileUp size={14} />
-            <span>{language === 'en' ? 'Underlay' : 'Unterleger'}</span>
+            <span>{t('topbar.actions.underlayLabel')}</span>
           </button>
           {overlayError && <span className="form-label">{overlayError}</span>}
           <input
@@ -559,7 +539,7 @@ export const TopBar: React.FC = () => {
                 handleOverlayImageFile(file).catch(() =>
                   useFloorplanStore
                     .getState()
-                    .setOverlayError('Das Grundrissbild konnte nicht gespeichert werden.')
+                    .setOverlayError(t('topbar.actions.underlayError'))
                 );
               }
               e.target.value = '';
@@ -573,27 +553,27 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.export')}
           >
             <FileText size={14} />
-            <span>Plan (SVG)</span>
+            <span>{t('topbar.actions.planSvgLabel')}</span>
           </button>
 
           <button
             type="button"
             className="btn btn-outline"
             onClick={handleOpenExport}
-            title={t('topbar.actions.json')}
+            title={t('topbar.actions.jsonExportTitle')}
           >
             <Download size={14} />
-            <span>Export</span>
+            <span>{t('topbar.actions.jsonExportLabel')}</span>
           </button>
 
           <button
             type="button"
             className="btn btn-outline"
             onClick={handleOpenImport}
-            title={language === 'en' ? 'Import floorplan from JSON' : 'Grundriss aus JSON importieren'}
+            title={t('topbar.actions.jsonImportTitle')}
           >
             <Upload size={14} />
-            <span>Import</span>
+            <span>{t('topbar.actions.jsonImportLabel')}</span>
           </button>
 
           <button
@@ -611,25 +591,20 @@ export const TopBar: React.FC = () => {
           {/* Global Collision Status Badge */}
           <div
             className={`status-badge ${collisionCount === 0 ? 'ok' : 'conflict'}`}
-            title={
-              language === 'en'
-                ? 'Live collision check (1D wall projection & 3D OBB)'
-                : 'Live-Kollisionsprüfung (1D Wandprojektion & 3D OBB)'
-            }
+            title={t('topbar.actions.collisionTitle')}
           >
             {collisionCount === 0 ? (
               <>
                 <CheckCircle2 size={14} />
-                <span>{language === 'en' ? '0 Conflicts' : '0 Konflikte'}</span>
+                <span>{t('topbar.actions.collisionStatusZero')}</span>
               </>
             ) : (
               <>
                 <AlertTriangle size={14} />
                 <span>
-                  {collisionCount}{' '}
                   {collisionCount === 1
-                    ? (language === 'en' ? 'Conflict' : 'Kollision')
-                    : (language === 'en' ? 'Conflicts' : 'Kollisionen')}
+                    ? t('topbar.actions.collisionStatusSingular')
+                    : t('topbar.actions.collisionStatusPlural', { count: collisionCount })}
                 </span>
               </>
             )}

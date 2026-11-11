@@ -63,6 +63,14 @@ describe('LanguageSwitch and TopBar localization', () => {
       // Actions
       expect(html).toContain('Rückgängig');
       expect(html).toContain('Wiederholen');
+      expect(html).toContain('Cutaway-Wände');
+      expect(html).toContain('0 Konflikte');
+
+      // Groups
+      expect(html).toContain('aria-label="Ansichtsmodus"');
+      expect(html).toContain('aria-label="Editor-Werkzeuge"');
+      expect(html).toContain('aria-label="Verlauf (Undo/Redo)"');
+      expect(html).toContain('aria-label="Kamera-Perspektive"');
     });
 
     it('renders localized tools, views, and actions in English when language is "en"', () => {
@@ -84,6 +92,14 @@ describe('LanguageSwitch and TopBar localization', () => {
       // Actions
       expect(html).toContain('Undo');
       expect(html).toContain('Redo');
+      expect(html).toContain('Cutaway Walls');
+      expect(html).toContain('0 Conflicts');
+
+      // Groups
+      expect(html).toContain('aria-label="View Mode"');
+      expect(html).toContain('aria-label="Editor Tools"');
+      expect(html).toContain('aria-label="History (Undo/Redo)"');
+      expect(html).toContain('aria-label="Camera Perspective"');
     });
   });
 });

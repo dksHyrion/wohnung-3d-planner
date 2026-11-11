@@ -22,6 +22,12 @@ export type TranslationSchema = {
   };
   topbar: {
     brand: string;
+    groups: {
+      views: string;
+      tools: string;
+      history: string;
+      camera: string;
+    };
     tools: {
       select: string;
       wall: string;
@@ -39,10 +45,18 @@ export type TranslationSchema = {
       isometric: string;
       topDown: string;
       firstPerson: string;
+      axonometric: string;
+      eyeLevelOption: string;
+      eyeLevelAria: string;
+      eyeLevelTitle: string;
+      adultTitle: string;
+      childTitle: string;
     };
     actions: {
       undo: string;
+      undoTooltip: string;
       redo: string;
+      redoTooltip: string;
       resetPlan: string;
       resetConfirm: string;
       lighting: string;
@@ -54,6 +68,33 @@ export type TranslationSchema = {
       dimensions: string;
       clearances: string;
       decor: string;
+      cutawayLabel: string;
+      cutawayTitle: string;
+      wallSnapLabel: string;
+      themeStudioTitle: string;
+      themeBlueprintTitle: string;
+      dimensionsLabel: string;
+      decorLabelActive: string;
+      decorLabelInactive: string;
+      decorTitleActive: string;
+      decorTitleInactive: string;
+      passagesLabel: string;
+      passagesTitle: string;
+      exportRenderLabel: string;
+      exportRenderTitle: string;
+      presetAria: string;
+      resetLabel: string;
+      underlayLabel: string;
+      underlayError: string;
+      planSvgLabel: string;
+      jsonExportLabel: string;
+      jsonExportTitle: string;
+      jsonImportLabel: string;
+      jsonImportTitle: string;
+      collisionStatusZero: string;
+      collisionStatusSingular: string;
+      collisionStatusPlural: string;
+      collisionTitle: string;
     };
     language: {
       switchLanguage: string;
