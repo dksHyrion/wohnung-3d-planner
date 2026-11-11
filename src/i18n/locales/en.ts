@@ -422,7 +422,7 @@ export const en: TranslationSchema = {
       collisionDetected: 'Collision & clearance conflict detected!',
       fitsWithoutConflict: 'Fits without conflict in position',
       wallClearance: 'Remaining wall clearance Left: {left} cm | Right: {right} cm',
-      clearanceDistances: 'Clearances & Passages',
+      clearanceDistances: '📏 Clearances & Passages',
       noOtherObjects: 'No other objects in room.',
       distanceTo: 'to {name}:',
       collisionZero: 'Collision (0 cm)',
