@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { getCatalogCategoryLabel } from '../src/core/catalog';
@@ -16,6 +16,11 @@ import { FurnitureInspector } from '../src/components/sidebar/FurnitureInspector
 
 describe('Catalog Categories & Ergonomics Messages Localization (Task 6)', () => {
   beforeEach(() => {
+    setGlobalLanguage('de');
+    useFloorplanStore.getState().setLanguage?.('de');
+  });
+
+  afterAll(() => {
     setGlobalLanguage('de');
     useFloorplanStore.getState().setLanguage?.('de');
   });

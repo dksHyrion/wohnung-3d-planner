@@ -129,7 +129,7 @@ export function getFurnitureVisualLabel(
 ): string {
   const activeLang = lang ?? getGlobalLanguage();
   const key = `catalog.visuals.${visual}` as const;
-  const translated = getTranslation(activeLang, key as any);
+  const translated = getTranslation(activeLang, key);
   if (translated && translated !== key) {
     return translated;
   }

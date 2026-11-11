@@ -34,7 +34,7 @@ export function getPassageSeverityLabel(
 ): string {
   const activeLang = lang ?? getGlobalLanguage();
   const key = `ergonomics.severities.${severity}` as const;
-  const translated = getTranslation(activeLang, key as any);
+  const translated = getTranslation(activeLang, key);
   if (translated && translated !== key) {
     return translated;
   }
