@@ -2,35 +2,42 @@ import React, { useEffect, useState } from 'react';
 import { Home } from 'lucide-react';
 import { FlooringType, RoomPolygon } from '../../core/types';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 
 export interface RoomInspectorProps {
   selectedRoom: RoomPolygon;
   roomIndex: number;
 }
 
-const FLOORING_OPTIONS: { value: FlooringType; label: string }[] = [
-  { value: 'parquet', label: 'Eichenparkett (Warmholz)' },
-  { value: 'microcement', label: 'Mikrozement / Sichtestrich' },
-  { value: 'tile', label: 'Feinsteinzeug-Fliese' },
+const FLOORING_OPTION_KEYS: {
+  value: FlooringType;
+  key: 'parquet' | 'microcement' | 'tile';
+}[] = [
+  { value: 'parquet', key: 'parquet' },
+  { value: 'microcement', key: 'microcement' },
+  { value: 'tile', key: 'tile' },
 ];
 
 export const RoomInspector: React.FC<RoomInspectorProps> = ({
   selectedRoom,
   roomIndex,
 }) => {
+  const { t, language } = useTranslation();
   const updateRoom = useFloorplanStore((s) => s.updateRoom);
 
-  const displayName = selectedRoom.name ?? `Raum ${roomIndex + 1}`;
+  const fallbackName = `${t('inspector.room.defaultName')} ${roomIndex + 1}`;
+  const displayName = selectedRoom.name ?? fallbackName;
   const [nameDraft, setNameDraft] = useState(displayName);
 
   useEffect(() => {
-    setNameDraft(selectedRoom.name ?? `Raum ${roomIndex + 1}`);
-  }, [selectedRoom.id, selectedRoom.name, roomIndex]);
+    setNameDraft(selectedRoom.name ?? fallbackName);
+  }, [selectedRoom.id, selectedRoom.name, fallbackName]);
 
   const currentFlooring: FlooringType =
     selectedRoom.flooringType ?? 'microcement';
+  const locale = language === 'de' ? 'de-DE' : 'en-US';
   const netArea = (selectedRoom.netAreaSqM ?? selectedRoom.areaSqM).toLocaleString(
-    'de-DE',
+    locale,
     {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -48,7 +55,7 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
     const b = pts[(i + 1) % pts.length];
     perimeterCm += Math.hypot(b.x - a.x, b.z - a.z);
   }
-  const perimeterM = (perimeterCm / 100).toLocaleString('de-DE', {
+  const perimeterM = (perimeterCm / 100).toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -56,14 +63,14 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
   return (
     <section className="sidebar-section" data-testid="room-inspector">
       <div className="sidebar-title">
-        <span>Raum ({displayName})</span>
+        <span>{t('inspector.room.titleWithName', { name: displayName })}</span>
         <Home size={14} />
       </div>
 
       <div className="form-grid">
         <div className="form-field full">
           <label className="form-label" htmlFor="room-name-input">
-            Raumbezeichnung
+            {t('inspector.room.name')}
           </label>
           <input
             id="room-name-input"
@@ -91,7 +98,7 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
 
         <div className="form-field full">
           <label className="form-label" htmlFor="room-flooring-select">
-            Bodenbelag (3D-Material)
+            {t('inspector.room.flooring')}
           </label>
           <select
             id="room-flooring-select"
@@ -103,16 +110,16 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
               })
             }
           >
-            {FLOORING_OPTIONS.map((opt) => (
+            {FLOORING_OPTION_KEYS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(`inspector.room.flooringOptions.${opt.key}`)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="form-field">
-          <label className="form-label">Netto-Wohnfläche</label>
+          <label className="form-label">{t('inspector.room.netArea')}</label>
           <div
             style={{
               fontSize: '0.84rem',
@@ -129,7 +136,7 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">Innenumfang</label>
+          <label className="form-label">{t('inspector.room.perimeter')}</label>
           <div
             style={{
               fontSize: '0.84rem',

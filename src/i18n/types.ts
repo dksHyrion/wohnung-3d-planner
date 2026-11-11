@@ -231,6 +231,16 @@ export type TranslationSchema = {
       show: string;
       remove: string;
       uploadNew: string;
+      toolbarAria: string;
+      opacityAria: string;
+      opacityTooltip: string;
+      calibrateTooltip: string;
+      lockAria: string;
+      unlockAria: string;
+      hideAria: string;
+      showAria: string;
+      calibrateAria: string;
+      removeAria: string;
     };
     mobile: {
       title: string;
@@ -243,21 +253,83 @@ export type TranslationSchema = {
   inspector: {
     noSelection: string;
     noSelectionHint: string;
+    selectionHintTitle: string;
     catalogTitle: string;
+    catalogTabs: {
+      all: string;
+      real: string;
+      placeholder: string;
+    };
+    catalogEmpty: string;
+    catalogRealBadge: string;
+    catalogPlaceholderBadge: string;
+    catalogDimensions: string;
+    customFurniture: {
+      title: string;
+      defaultName: string;
+      fallbackName: string;
+      name: string;
+      width: string;
+      height: string;
+      depth: string;
+      color: string;
+      add: string;
+    };
+    placedFurniture: {
+      title: string;
+    };
+    placedRugs: {
+      title: string;
+      add: string;
+    };
+    stacking: {
+      title: string;
+      attachedTo: string;
+      none: string;
+      heightUnit: string;
+      attachedChildrenCount: string;
+      attachedChildrenHint: string;
+    };
+    corner: {
+      title: string;
+      posX: string;
+      posZ: string;
+      deleteCorner: string;
+    };
     wall: {
       title: string;
+      titleWithId: string;
       length: string;
+      lengthLabel: string;
       thickness: string;
+      thicknessLabel: string;
       height: string;
+      heightLabel: string;
+      endpointInfo: string;
+      addDoor: string;
+      addWindow: string;
+      openingsOnWall: string;
+      openingOffset: string;
+      deleteOpening: string;
       deleteWall: string;
+      none: string;
     };
     room: {
       title: string;
+      titleWithName: string;
+      defaultName: string;
       name: string;
       flooring: string;
       area: string;
+      netArea: string;
+      perimeter: string;
       ceilingHeight: string;
       deleteRoom: string;
+      flooringOptions: {
+        parquet: string;
+        microcement: string;
+        tile: string;
+      };
       flooringTypes: {
         parquet: string;
         tile: string;
@@ -278,32 +350,107 @@ export type TranslationSchema = {
     opening: {
       doorTitle: string;
       windowTitle: string;
+      passageTitle: string;
+      typeLabel: string;
+      offsetFromCorner: string;
       width: string;
       height: string;
       sillHeight: string;
       flipSwing: string;
       flipHinge: string;
+      slidingDirection: string;
+      swingDirection: string;
+      swingOptions: {
+        inLeft: string;
+        inRight: string;
+        outLeft: string;
+        outRight: string;
+      };
+      types: {
+        door: string;
+        'sliding-door': string;
+        passage: string;
+        'balcony-door': string;
+        window: string;
+      };
       deleteOpening: string;
+      delete: string;
     };
     furniture: {
       title: string;
+      titleWithUnit: string;
       dimensions: string;
       elevation: string;
+      elevationHint: string;
       rotation: string;
       color: string;
       alignToWall: string;
       hasNightstands: string;
+      hasNightstandsLabel: string;
       sofaBedUnfolded: string;
       wardrobeDoorsOpen: string;
       monitorsCount: string;
       deleteFurniture: string;
       duplicate: string;
       collisionAlert: string;
+      realBadge: string;
+      placeholderBadge: string;
+      markAsReal: string;
+      brand: string;
+      brandPlaceholder: string;
+      model: string;
+      modelPlaceholder: string;
+      name: string;
+      visualRepresentation: string;
+      visualAuto: string;
+      width: string;
+      height: string;
+      depth: string;
+      posX: string;
+      posZ: string;
+      osakaClosed: string;
+      osakaOpen: string;
+      osakaHint: string;
+      masterliftHeight: string;
+      masterliftOutOfRange: string;
+      catalogDeviation: string;
+      resetToCatalog: string;
+      clearanceZone: string;
+      checkClearanceZone: string;
+      rotate45: string;
+      rotate90: string;
+      collisionDetected: string;
+      fitsWithoutConflict: string;
+      wallClearance: string;
+      clearanceDistances: string;
+      noOtherObjects: string;
+      distanceTo: string;
+      collisionZero: string;
+      distanceToWall: string;
     };
     rug: {
       title: string;
+      defaultName: string;
+      name: string;
+      width: string;
+      depth: string;
+      posX: string;
+      posZ: string;
+      rotation: string;
+      rotate90: string;
+      color: string;
+      colorPresets: string;
       pattern: string;
       deleteRug: string;
+      delete: string;
+      presets: {
+        linen: string;
+        warmGray: string;
+        anthracite: string;
+        sage: string;
+        terracotta: string;
+        midnightBlue: string;
+      };
     };
   };
   catalog: {

@@ -1,18 +1,24 @@
 import React from 'react';
 import { Trash2, RotateCw } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import type { AreaRug } from '../../core/types';
 
-export const RUG_COLOR_PRESETS: Array<{ label: string; color: string }> = [
-  { label: 'Naturleinen', color: '#edece8' },
-  { label: 'Warmgrau', color: '#d6d3cd' },
-  { label: 'Anthrazit', color: '#475569' },
-  { label: 'Salbei', color: '#cbd5c0' },
-  { label: 'Terrakotta', color: '#d4a383' },
-  { label: 'Mitternachtsblau', color: '#334155' },
+export const RUG_COLOR_PRESETS: Array<{
+  label: string;
+  color: string;
+  presetKey: 'linen' | 'warmGray' | 'anthracite' | 'sage' | 'terracotta' | 'midnightBlue';
+}> = [
+  { label: 'Naturleinen', color: '#edece8', presetKey: 'linen' },
+  { label: 'Warmgrau', color: '#d6d3cd', presetKey: 'warmGray' },
+  { label: 'Anthrazit', color: '#475569', presetKey: 'anthracite' },
+  { label: 'Salbei', color: '#cbd5c0', presetKey: 'sage' },
+  { label: 'Terrakotta', color: '#d4a383', presetKey: 'terracotta' },
+  { label: 'Mitternachtsblau', color: '#334155', presetKey: 'midnightBlue' },
 ];
 
 export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
+  const { t } = useTranslation();
   const updateRug = useFloorplanStore((s) => s.updateRug);
   const removeRug = useFloorplanStore((s) => s.removeRug);
 
@@ -27,26 +33,26 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
   return (
     <section className="sidebar-section" data-testid="rug-inspector">
       <div className="sidebar-title">
-        <span>Teppich-Inspektor</span>
+        <span>{t('inspector.rug.title')}</span>
         <button
           type="button"
           className="btn btn-danger"
           onClick={() => removeRug(selectedRug.id)}
-          title="Teppich entfernen"
+          title={t('inspector.rug.deleteRug')}
         >
           <Trash2 size={13} />
-          <span>Löschen</span>
+          <span>{t('inspector.rug.delete')}</span>
         </button>
       </div>
 
       <div className="form-grid">
         <div className="form-field full">
-          <label htmlFor={idName} className="form-label">Bezeichnung</label>
+          <label htmlFor={idName} className="form-label">{t('inspector.rug.name')}</label>
           <input
             id={idName}
             type="text"
             className="text-input"
-            value={selectedRug.name ?? 'Teppich'}
+            value={selectedRug.name ?? t('inspector.rug.defaultName')}
             onChange={(e) =>
               updateRug(selectedRug.id, { name: e.target.value })
             }
@@ -54,7 +60,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idWidth} className="form-label">Breite (cm)</label>
+          <label htmlFor={idWidth} className="form-label">{t('inspector.rug.width')}</label>
           <input
             id={idWidth}
             type="number"
@@ -69,7 +75,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idDepth} className="form-label">Tiefe (cm)</label>
+          <label htmlFor={idDepth} className="form-label">{t('inspector.rug.depth')}</label>
           <input
             id={idDepth}
             type="number"
@@ -84,7 +90,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idX} className="form-label">Position X (cm)</label>
+          <label htmlFor={idX} className="form-label">{t('inspector.rug.posX')}</label>
           <input
             id={idX}
             type="number"
@@ -98,7 +104,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idZ} className="form-label">Position Z (cm)</label>
+          <label htmlFor={idZ} className="form-label">{t('inspector.rug.posZ')}</label>
           <input
             id={idZ}
             type="number"
@@ -112,7 +118,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idRotation} className="form-label">Drehung (°)</label>
+          <label htmlFor={idRotation} className="form-label">{t('inspector.rug.rotation')}</label>
           <div style={{ display: 'flex', gap: '4px' }}>
             <input
               id={idRotation}
@@ -135,7 +141,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
                   rotationYDeg: ((selectedRug.rotationYDeg ?? 0) + 90) % 360,
                 })
               }
-              title="Um 90° drehen"
+              title={t('inspector.rug.rotate90')}
             >
               <RotateCw size={13} />
             </button>
@@ -143,7 +149,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field">
-          <label htmlFor={idColor} className="form-label">Farbton</label>
+          <label htmlFor={idColor} className="form-label">{t('inspector.rug.color')}</label>
           <input
             id={idColor}
             type="color"
@@ -157,7 +163,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field full">
-          <label className="form-label">Architektur-Farbvorlagen</label>
+          <label className="form-label">{t('inspector.rug.colorPresets')}</label>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {RUG_COLOR_PRESETS.map((preset) => (
               <button
@@ -166,7 +172,7 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
                 onClick={() =>
                   updateRug(selectedRug.id, { color: preset.color })
                 }
-                title={preset.label}
+                title={t(`inspector.rug.presets.${preset.presetKey}`)}
                 style={{
                   width: 24,
                   height: 24,

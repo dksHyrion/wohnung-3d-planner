@@ -1,8 +1,10 @@
 import React from 'react';
 import { Eye, EyeOff, Lock, Unlock, Trash2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 
 export const BackgroundOverlayControls: React.FC = () => {
+  const { t } = useTranslation();
   const backgroundImage = useFloorplanStore((s) => s.backgroundImage);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const updateBackgroundImage = useFloorplanStore((s) => s.updateBackgroundImage);
@@ -15,12 +17,13 @@ export const BackgroundOverlayControls: React.FC = () => {
   }
 
   const { filename, opacity, locked, visible } = backgroundImage;
+  const opacityPercent = Math.round(opacity * 100);
 
   return (
     <div
       className="background-overlay-controls"
       role="toolbar"
-      aria-label="Unterleger-Steuerung"
+      aria-label={t('dialogs.overlay.toolbarAria')}
       style={{
         position: 'absolute',
         top: 12,
@@ -66,9 +69,9 @@ export const BackgroundOverlayControls: React.FC = () => {
           onChange={(e) =>
             updateBackgroundImage({ opacity: parseFloat(e.target.value) })
           }
-          aria-label="Unterleger Deckkraft"
-          aria-valuetext={`${Math.round(opacity * 100)}%`}
-          title={`Deckkraft: ${Math.round(opacity * 100)}%`}
+          aria-label={t('dialogs.overlay.opacityAria')}
+          aria-valuetext={`${opacityPercent}%`}
+          title={t('dialogs.overlay.opacityTooltip', { percent: opacityPercent })}
           style={{ width: 65, cursor: 'pointer' }}
         />
         <span
@@ -79,7 +82,7 @@ export const BackgroundOverlayControls: React.FC = () => {
             textAlign: 'right',
           }}
         >
-          {Math.round(opacity * 100)}%
+          {opacityPercent}%
         </span>
       </div>
 
@@ -88,8 +91,8 @@ export const BackgroundOverlayControls: React.FC = () => {
         type="button"
         className={`btn btn-outline ${locked ? 'active' : ''}`}
         onClick={() => updateBackgroundImage({ locked: !locked })}
-        aria-label={locked ? 'Unterleger entsperren' : 'Unterleger sperren'}
-        title={locked ? 'Unterleger entsperren' : 'Unterleger sperren'}
+        aria-label={locked ? t('dialogs.overlay.unlockAria') : t('dialogs.overlay.lockAria')}
+        title={locked ? t('dialogs.overlay.unlockAria') : t('dialogs.overlay.lockAria')}
         style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}
       >
         {locked ? <Lock size={13} color="#f59e0b" /> : <Unlock size={13} />}
@@ -100,8 +103,8 @@ export const BackgroundOverlayControls: React.FC = () => {
         type="button"
         className={`btn btn-outline ${!visible ? 'active' : ''}`}
         onClick={() => updateBackgroundImage({ visible: !visible })}
-        aria-label={visible ? 'Unterleger ausblenden' : 'Unterleger einblenden'}
-        title={visible ? 'Unterleger ausblenden' : 'Unterleger einblenden'}
+        aria-label={visible ? t('dialogs.overlay.hideAria') : t('dialogs.overlay.showAria')}
+        title={visible ? t('dialogs.overlay.hideAria') : t('dialogs.overlay.showAria')}
         style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}
       >
         {visible ? <Eye size={13} /> : <EyeOff size={13} color="#94a3b8" />}
@@ -116,8 +119,8 @@ export const BackgroundOverlayControls: React.FC = () => {
             ? cancelCalibration()
             : startCalibration()
         }
-        aria-label="Unterleger kalibrieren"
-        title="Unterleger maßstabsgetreu kalibrieren (2 Punkte auf Plan anklicken)"
+        aria-label={t('dialogs.overlay.calibrateAria')}
+        title={t('dialogs.overlay.calibrateTooltip')}
         style={{
           padding: '4px 8px',
           display: 'flex',
@@ -126,7 +129,7 @@ export const BackgroundOverlayControls: React.FC = () => {
           fontSize: '0.75rem',
         }}
       >
-        <span>📏 Kalibrieren</span>
+        <span>📏 {t('dialogs.overlay.calibrate')}</span>
       </button>
 
       {/* Delete button */}
@@ -134,8 +137,8 @@ export const BackgroundOverlayControls: React.FC = () => {
         type="button"
         className="btn btn-outline"
         onClick={removeBackgroundImage}
-        aria-label="Unterleger entfernen"
-        title="Unterleger entfernen"
+        aria-label={t('dialogs.overlay.removeAria')}
+        title={t('dialogs.overlay.removeAria')}
         style={{ padding: '4px 6px', display: 'flex', alignItems: 'center', color: '#ef4444' }}
       >
         <Trash2 size={13} />

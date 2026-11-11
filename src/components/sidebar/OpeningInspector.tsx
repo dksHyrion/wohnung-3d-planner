@@ -1,10 +1,12 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 import { OPENING_TYPE_LABELS, openingHasSwingArc } from '../../core/doorLeaf';
 import type { OpeningType, WallOpening } from '../../core/types';
 
 export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpening }) {
+  const { t } = useTranslation();
   const updateOpening = useFloorplanStore((s) => s.updateOpening);
   const removeOpening = useFloorplanStore((s) => s.removeOpening);
 
@@ -32,10 +34,10 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
 
   const titleLabel =
     selectedOpening.type === 'window'
-      ? 'Fenster-Inspektor'
+      ? t('inspector.opening.windowTitle')
       : selectedOpening.type === 'passage'
-      ? 'Durchbruch-Inspektor'
-      : 'Tür-Inspektor';
+      ? t('inspector.opening.passageTitle')
+      : t('inspector.opening.doorTitle');
 
   return (
     <section className="sidebar-section">
@@ -45,33 +47,33 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
           type="button"
           className="btn btn-danger"
           onClick={() => removeOpening(selectedOpening.id)}
-          title="Öffnung entfernen"
+          title={t('inspector.opening.deleteOpening')}
         >
           <Trash2 size={13} />
-          <span>Löschen</span>
+          <span>{t('inspector.opening.delete')}</span>
         </button>
       </div>
 
       <div className="form-grid">
         <div className="form-field full">
-          <label htmlFor={idType} className="form-label">Bauart / Öffnungstyp</label>
+          <label htmlFor={idType} className="form-label">{t('inspector.opening.typeLabel')}</label>
           <select
             id={idType}
             className="select-input"
-            aria-label="Bauart / Öffnungstyp"
+            aria-label={t('inspector.opening.typeLabel')}
             value={selectedOpening.type}
             onChange={(e) => handleTypeChange(e.target.value as OpeningType)}
           >
-            {(Object.keys(OPENING_TYPE_LABELS) as OpeningType[]).map((t) => (
-              <option key={t} value={t}>
-                {OPENING_TYPE_LABELS[t]}
+            {(Object.keys(OPENING_TYPE_LABELS) as OpeningType[]).map((typeKey) => (
+              <option key={typeKey} value={typeKey}>
+                {t(`inspector.opening.types.${typeKey}`)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="form-field">
-          <label htmlFor={idOffset} className="form-label">Abstand ab Ecke (cm)</label>
+          <label htmlFor={idOffset} className="form-label">{t('inspector.opening.offsetFromCorner')}</label>
           <input
             id={idOffset}
             type="number"
@@ -88,7 +90,7 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label htmlFor={idWidth} className="form-label">Breite (cm)</label>
+          <label htmlFor={idWidth} className="form-label">{t('inspector.opening.width')}</label>
           <input
             id={idWidth}
             type="number"
@@ -105,7 +107,7 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label htmlFor={idHeight} className="form-label">Höhe (cm)</label>
+          <label htmlFor={idHeight} className="form-label">{t('inspector.opening.height')}</label>
           <input
             id={idHeight}
             type="number"
@@ -122,7 +124,7 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
         </div>
 
         <div className="form-field">
-          <label htmlFor={idSill} className="form-label">Brüstungshöhe (cm)</label>
+          <label htmlFor={idSill} className="form-label">{t('inspector.opening.sillHeight')}</label>
           <input
             id={idSill}
             type="number"
@@ -143,8 +145,8 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
           <div className="form-field full">
             <label htmlFor={idSwing} className="form-label">
               {selectedOpening.type === 'sliding-door'
-                ? 'Laufrichtung / Wandseite'
-                : 'Anschlagrichtung'}
+                ? t('inspector.opening.slidingDirection')
+                : t('inspector.opening.swingDirection')}
             </label>
             <select
               id={idSwing}
@@ -157,10 +159,10 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
                 })
               }
             >
-              <option value="in-left">Innen Links</option>
-              <option value="in-right">Innen Rechts</option>
-              <option value="out-left">Außen Links</option>
-              <option value="out-right">Außen Rechts</option>
+              <option value="in-left">{t('inspector.opening.swingOptions.inLeft')}</option>
+              <option value="in-right">{t('inspector.opening.swingOptions.inRight')}</option>
+              <option value="out-left">{t('inspector.opening.swingOptions.outLeft')}</option>
+              <option value="out-right">{t('inspector.opening.swingOptions.outRight')}</option>
             </select>
           </div>
         )}

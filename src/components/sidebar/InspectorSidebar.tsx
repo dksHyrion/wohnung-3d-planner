@@ -17,6 +17,7 @@ import { RugInspector } from './RugInspector';
 import { CatalogFurnitureTemplate, FURNITURE_CATALOG } from '../../core/presets';
 import { FurnitureItem } from '../../core/types';
 import { applyRoomLabels, computeFloorPolygons } from '../../core/wallMath';
+import { useTranslation } from '../../i18n/useTranslation';
 
 export type CatalogFilterTab = 'all' | 'real' | 'placeholder';
 
@@ -44,6 +45,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   selectedFurniture: propSelectedFurniture,
   catalog = FURNITURE_CATALOG,
 }) => {
+  const { t } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
@@ -77,7 +79,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   );
 
   // Custom furniture generator state
-  const [customName, setCustomName] = useState('Eigenes Möbelstück');
+  const defaultCustomName = t('inspector.customFurniture.defaultName');
+  const [customName, setCustomName] = useState<string | null>(null);
+  const effectiveCustomName = customName ?? defaultCustomName;
   const [customWidthCm, setCustomWidthCm] = useState(180);
   const [customHeightCm, setCustomHeightCm] = useState(85);
   const [customDepthCm, setCustomDepthCm] = useState(60);
@@ -170,7 +174,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
     e.preventDefault();
     const center = getRoomCenter();
     addFurniture({
-      name: customName.trim() || 'Wunschmöbel',
+      name:
+        (customName !== null ? customName.trim() : '') ||
+        t('inspector.customFurniture.fallbackName'),
       category: 'custom',
       widthCm: Math.max(1, Number(customWidthCm)),
       heightCm: Math.max(1, Number(customHeightCm)),
@@ -198,7 +204,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
               onClick={() => removeWall(selectedWall.id)}
             >
               <Trash2 size={14} />
-              <span>Wand entfernen</span>
+              <span>{t('inspector.wall.deleteWall')}</span>
             </button>
           </section>
         </>
@@ -208,12 +214,12 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {selectedCorner && (
         <section className="sidebar-section">
           <div className="sidebar-title">
-            <span>Wandecke ({selectedCorner.id})</span>
+            <span>{t('inspector.corner.title', { id: selectedCorner.id })}</span>
             <Sliders size={14} />
           </div>
           <div className="form-grid">
             <div className="form-field">
-              <label className="form-label">Position X (cm)</label>
+              <label className="form-label">{t('inspector.corner.posX')}</label>
               <input
                 type="number"
                 step={5}
@@ -229,7 +235,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
               />
             </div>
             <div className="form-field">
-              <label className="form-label">Position Z (cm)</label>
+              <label className="form-label">{t('inspector.corner.posZ')}</label>
               <input
                 type="number"
                 step={5}
@@ -252,7 +258,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                 onClick={() => removeCorner(selectedCorner.id)}
               >
                 <Trash2 size={14} />
-                <span>Wandecke entfernen</span>
+                <span>{t('inspector.corner.deleteCorner')}</span>
               </button>
             </div>
           </div>
@@ -282,13 +288,13 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             data-testid="surface-stacking-section"
           >
             <div className="sidebar-title">
-              <span>Objekt-Kopplung (Trägerfläche)</span>
+              <span>{t('inspector.stacking.title')}</span>
               <Link2 size={14} />
             </div>
             <div className="form-grid">
               <div className="form-field full">
                 <label className="form-label" htmlFor="attached-to-select">
-                  Steht auf / Gekoppelt mit
+                  {t('inspector.stacking.attachedTo')}
                 </label>
                 <select
                   id="attached-to-select"
@@ -301,10 +307,10 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                     });
                   }}
                 >
-                  <option value="">— Frei im Raum (keine Kopplung) —</option>
+                  <option value="">{t('inspector.stacking.none')}</option>
                   {candidateParents.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} (H {p.heightCm} cm)
+                      {p.name} ({t('inspector.stacking.heightUnit', { height: p.heightCm })})
                     </option>
                   ))}
                 </select>
@@ -321,9 +327,13 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                       padding: '6px 8px',
                     }}
                   >
-                    🔗 <b>Gekoppelte Objekte ({attachedChildren.length}):</b>{' '}
-                    {attachedChildren.map((c) => c.name).join(', ')} wandern bei
-                    Verschiebung, Drehung und Höhenänderung automatisch mit.
+                    <b>
+                      {t('inspector.stacking.attachedChildrenCount', {
+                        count: attachedChildren.length,
+                      })}
+                    </b>{' '}
+                    {attachedChildren.map((c) => c.name).join(', ')}{' '}
+                    {t('inspector.stacking.attachedChildrenHint')}
                   </div>
                 </div>
               )}
@@ -336,12 +346,10 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {!selectedId && (
         <section className="sidebar-section">
           <div className="sidebar-title">
-            <span>Auswahl-Hinweis</span>
+            <span>{t('inspector.selectionHintTitle')}</span>
           </div>
           <p style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.45 }}>
-            Klicke im 2D-Grundriss oder in der 3D-Ansicht auf eine{' '}
-            <b>Wand</b>, <b>Tür/Fenster</b> oder ein <b>Möbelstück</b>, um die
-            exakten Zentimeter-Maße zu bearbeiten.
+            {t('inspector.noSelectionHint')}
           </p>
         </section>
       )}
@@ -349,7 +357,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {/* 5. Standard Furniture Catalog (DIN / Neufert & Designer Inventory) */}
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>Möbel-Katalog (cm)</span>
+          <span>{t('inspector.catalogTitle')}</span>
           <Plus size={14} />
         </div>
 
@@ -373,7 +381,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             style={{ flex: 1, padding: '4px 6px', fontSize: '0.72rem' }}
             onClick={() => setCatalogFilter('all')}
           >
-            Alle
+            {t('inspector.catalogTabs.all')}
           </button>
           <button
             type="button"
@@ -383,7 +391,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             style={{ flex: 1.6, padding: '4px 6px', fontSize: '0.72rem' }}
             onClick={() => setCatalogFilter('real')}
           >
-            Mein Inventar (Echte Möbel)
+            {t('inspector.catalogTabs.real')}
           </button>
           <button
             type="button"
@@ -393,7 +401,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             style={{ flex: 1, padding: '4px 6px', fontSize: '0.72rem' }}
             onClick={() => setCatalogFilter('placeholder')}
           >
-            Platzhalter
+            {t('inspector.catalogTabs.placeholder')}
           </button>
         </div>
 
@@ -407,7 +415,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                 textAlign: 'center',
               }}
             >
-              Keine Einträge in dieser Kategorie.
+              {t('inspector.catalogEmpty')}
             </div>
           ) : (
             filteredCatalog.map((tpl) => (
@@ -448,13 +456,14 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                     >
                       {tpl.isRealFurniture
                         ? tpl.brand
-                          ? `🟢 ${tpl.brand} · Echtes Möbel`
-                          : '🟢 Echtes Möbel'
-                        : '⚪ Platzhalter'}
+                          ? `🟢 ${tpl.brand} · ${t('inspector.catalogRealBadge')}`
+                          : `🟢 ${t('inspector.catalogRealBadge')}`
+                        : `⚪ ${t('inspector.catalogPlaceholderBadge')}`}
                     </span>
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                    {tpl.widthCm} × {tpl.heightCm} × {tpl.depthCm} cm (B×H×T)
+                    {tpl.widthCm} × {tpl.heightCm} × {tpl.depthCm} cm{' '}
+                    {t('inspector.catalogDimensions')}
                   </div>
                 </div>
                 <span
@@ -476,21 +485,21 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {/* 6. Custom Furniture Generator ("Eigenes Wunschmöbel nach Maß") */}
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>Eigenes Wunschmöbel (cm)</span>
+          <span>{t('inspector.customFurniture.title')}</span>
           <PackagePlus size={14} />
         </div>
         <form onSubmit={handleAddCustomFurniture} className="form-grid">
           <div className="form-field full">
-            <label className="form-label">Name</label>
+            <label className="form-label">{t('inspector.customFurniture.name')}</label>
             <input
               type="text"
               className="text-input"
-              value={customName}
+              value={effectiveCustomName}
               onChange={(e) => setCustomName(e.target.value)}
             />
           </div>
           <div className="form-field">
-            <label className="form-label">Breite (cm)</label>
+            <label className="form-label">{t('inspector.customFurniture.width')}</label>
             <input
               type="number"
               min={1}
@@ -500,7 +509,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             />
           </div>
           <div className="form-field">
-            <label className="form-label">Höhe (cm)</label>
+            <label className="form-label">{t('inspector.customFurniture.height')}</label>
             <input
               type="number"
               min={1}
@@ -510,7 +519,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             />
           </div>
           <div className="form-field">
-            <label className="form-label">Tiefe (cm)</label>
+            <label className="form-label">{t('inspector.customFurniture.depth')}</label>
             <input
               type="number"
               min={1}
@@ -520,7 +529,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             />
           </div>
           <div className="form-field">
-            <label className="form-label">Farbe</label>
+            <label className="form-label">{t('inspector.customFurniture.color')}</label>
             <input
               type="color"
               className="number-input"
@@ -536,7 +545,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
               style={{ width: '100%', padding: '8px' }}
             >
               <Plus size={14} />
-              <span>Möbelstück in Raum einfügen</span>
+              <span>{t('inspector.customFurniture.add')}</span>
             </button>
           </div>
         </form>
@@ -546,7 +555,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {furniture.length > 0 && (
         <section className="sidebar-section">
           <div className="sidebar-title">
-            <span>Platzierte Möbel ({furniture.length})</span>
+            <span>{t('inspector.placedFurniture.title', { count: furniture.length })}</span>
           </div>
           <div className="catalog-grid">
             {furniture.map((f) => {
@@ -589,7 +598,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {/* Quick Rugs & Textile Zones Section */}
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>Teppiche & Textilzonen ({rugs.length})</span>
+          <span>{t('inspector.placedRugs.title', { count: rugs.length })}</span>
           <button
             type="button"
             className="btn btn-outline"
@@ -597,7 +606,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             onClick={() => {
               const center = getRoomCenter();
               addRug({
-                name: `Teppich ${rugs.length + 1}`,
+                name: `${t('inspector.rug.defaultName')} ${rugs.length + 1}`,
                 widthCm: 220,
                 depthCm: 160,
                 x: center.x,
@@ -608,7 +617,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             }}
           >
             <Plus size={12} />
-            <span>+ Teppich</span>
+            <span>{t('inspector.placedRugs.add')}</span>
           </button>
         </div>
         {rugs.length > 0 && (
@@ -627,7 +636,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                 >
                   <div>
                     <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>
-                      {r.name ?? 'Teppich'}
+                      {r.name ?? t('inspector.rug.defaultName')}
                     </div>
                     <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
                       {r.widthCm} × {r.depthCm} cm
