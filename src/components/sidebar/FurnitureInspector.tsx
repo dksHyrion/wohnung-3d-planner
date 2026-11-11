@@ -4,7 +4,10 @@ import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import type { FurnitureItem } from '../../core/types';
 import { isFurnitureVisualType, resolveFurnitureVisual } from '../../core/furnitureVisual';
-import { FURNITURE_VISUAL_OPTIONS } from '../../core/furnitureVisualCatalog';
+import {
+  FURNITURE_VISUAL_OPTIONS,
+  getFurnitureVisualLabel,
+} from '../../core/furnitureVisualCatalog';
 import {
   OSAKA_POSES,
   MASTERLIFT_HEIGHT,
@@ -21,7 +24,7 @@ export function FurnitureInspector({
 }: {
   selectedFurniture: FurnitureItem;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const furniture = useFloorplanStore((s) => s.furniture);
@@ -206,7 +209,7 @@ export function FurnitureInspector({
             <option value="">{t('inspector.furniture.visualAuto')}</option>
             {FURNITURE_VISUAL_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {getFurnitureVisualLabel(option.value, language)}
               </option>
             ))}
           </select>

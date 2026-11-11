@@ -14,7 +14,11 @@ import { OpeningInspector } from './OpeningInspector';
 import { FurnitureInspector } from './FurnitureInspector';
 import { RoomInspector } from './RoomInspector';
 import { RugInspector } from './RugInspector';
-import { CatalogFurnitureTemplate, FURNITURE_CATALOG } from '../../core/presets';
+import {
+  CatalogFurnitureTemplate,
+  FURNITURE_CATALOG,
+  getCatalogCategoryLabel,
+} from '../../core/presets';
 import { FurnitureItem } from '../../core/types';
 import { applyRoomLabels, computeFloorPolygons } from '../../core/wallMath';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -45,7 +49,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   selectedFurniture: propSelectedFurniture,
   catalog = FURNITURE_CATALOG,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
@@ -463,7 +467,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
                     {tpl.widthCm} × {tpl.heightCm} × {tpl.depthCm} cm{' '}
-                    {t('inspector.catalogDimensions')}
+                    {t('inspector.catalogDimensions')} · {getCatalogCategoryLabel(tpl.category, language)}
                   </div>
                 </div>
                 <span

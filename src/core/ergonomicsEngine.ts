@@ -5,6 +5,7 @@ import {
   segmentsIntersect2D,
   Point2D,
 } from './measureMath';
+import { Language, getGlobalLanguage, getTranslation } from '../i18n/i18n';
 
 export type PassageSeverity = 'critical' | 'warning' | 'optimal';
 
@@ -13,6 +14,61 @@ export const PASSAGE_SEVERITY_COLORS: Record<PassageSeverity, string> = {
   warning: '#f59e0b',
   optimal: '#10b981',
 };
+
+const FALLBACK_SEVERITY_LABELS: Record<Language, Record<PassageSeverity, string>> = {
+  de: {
+    critical: 'Kritisch',
+    warning: 'Warnung',
+    optimal: 'Optimal',
+  },
+  en: {
+    critical: 'Critical',
+    warning: 'Warning',
+    optimal: 'Optimal',
+  },
+};
+
+export function getPassageSeverityLabel(
+  severity: PassageSeverity,
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  const key = `ergonomics.severities.${severity}` as const;
+  const translated = getTranslation(activeLang, key as any);
+  if (translated && translated !== key) {
+    return translated;
+  }
+  return (
+    FALLBACK_SEVERITY_LABELS[activeLang]?.[severity] ??
+    FALLBACK_SEVERITY_LABELS.de[severity] ??
+    severity
+  );
+}
+
+export function formatPassageDescription(
+  passage: PassageClearance,
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  const rounded = Math.round(passage.clearanceCm);
+  return getTranslation(activeLang, 'ergonomics.passageDescription', {
+    item1: passage.entity1Name,
+    item2: passage.entity2Name,
+    clearance: rounded,
+  });
+}
+
+export function formatClearanceWarning(
+  actualCm: number,
+  minCm: number,
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  return getTranslation(activeLang, 'ergonomics.passageWarning', {
+    actual: Math.round(actualCm),
+    min: Math.round(minCm),
+  });
+}
 
 export function formatPassageBadgeLabel(severity: PassageSeverity, clearanceCm: number): string {
   const rounded = Math.round(clearanceCm);

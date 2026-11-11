@@ -3,6 +3,7 @@ import type {
   ArchitecturalModelType,
   GenericFurnitureSubType,
 } from '../components/viewer3d/furniture/ArchitecturalFurniture3D';
+import { Language, getGlobalLanguage, getTranslation } from '../i18n/i18n';
 
 export interface FurnitureVisualCatalogEntry {
   label: string;
@@ -121,3 +122,17 @@ export const VALID_FURNITURE_VISUAL_TYPES: ReadonlySet<string> = new Set(
 export const FURNITURE_VISUAL_OPTIONS: { value: FurnitureVisualType; label: string }[] = (
   Object.entries(FURNITURE_VISUAL_CATALOG) as [FurnitureVisualType, FurnitureVisualCatalogEntry][]
 ).map(([value, entry]) => ({ value, label: entry.label }));
+
+export function getFurnitureVisualLabel(
+  visual: FurnitureVisualType,
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  const key = `catalog.visuals.${visual}` as const;
+  const translated = getTranslation(activeLang, key as any);
+  if (translated && translated !== key) {
+    return translated;
+  }
+  return FURNITURE_VISUAL_CATALOG[visual]?.label ?? visual;
+}
+

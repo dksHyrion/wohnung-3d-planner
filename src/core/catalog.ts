@@ -1,10 +1,52 @@
-import { FurnitureItem } from './types';
+import { FurnitureCategory, FurnitureItem } from './types';
 import { OSAKA_POSES } from './knownFurniture';
+import { Language, getGlobalLanguage, getTranslation } from '../i18n/i18n';
 
 export type CatalogFurnitureTemplate = Omit<
   FurnitureItem,
   'id' | 'x' | 'z' | 'rotationYDeg' | 'snappedWallId'
 >;
+
+const FALLBACK_CATEGORY_LABELS: Record<Language, Record<FurnitureCategory, string>> = {
+  de: {
+    living: 'Wohnen',
+    bedroom: 'Schlafen',
+    kitchen: 'Küche',
+    office: 'Büro',
+    storage: 'Aufbewahrung',
+    bathroom: 'Bad',
+    decor: 'Deko',
+    custom: 'Individuell',
+  },
+  en: {
+    living: 'Living',
+    bedroom: 'Bedroom',
+    kitchen: 'Kitchen',
+    office: 'Office',
+    storage: 'Storage',
+    bathroom: 'Bathroom',
+    decor: 'Decor',
+    custom: 'Custom',
+  },
+};
+
+export function getCatalogCategoryLabel(
+  category: FurnitureCategory,
+  lang?: Language
+): string {
+  const activeLang = lang ?? getGlobalLanguage();
+  const key = `catalog.categories.${category}` as const;
+  const translated = getTranslation(activeLang, key as any);
+  if (translated && translated !== key) {
+    return translated;
+  }
+  return (
+    FALLBACK_CATEGORY_LABELS[activeLang]?.[category] ??
+    FALLBACK_CATEGORY_LABELS.de[category] ??
+    category
+  );
+}
+
 
 export const FURNITURE_CATALOG: CatalogFurnitureTemplate[] = [
   {

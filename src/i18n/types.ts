@@ -463,6 +463,42 @@ export type TranslationSchema = {
       office: string;
       lighting: string;
       decor: string;
+      custom: string;
+    };
+    visuals: {
+      sofa: string;
+      'sectional-sofa': string;
+      'dining-table': string;
+      bed: string;
+      wardrobe: string;
+      desk: string;
+      'coffee-table': string;
+      sideboard: string;
+      bookcase: string;
+      'kitchen-unit': string;
+      'kitchen-island': string;
+      'boconcept-osaka': string;
+      'vitsoe-606': string;
+      'artemide-tolomeo': string;
+      'musterring-sorrent': string;
+      'inwerk-masterlift': string;
+      'steelcase-gesture': string;
+      'desk-monitor': string;
+      'regalraum-lium': string;
+      'neona-viva': string;
+      bathtub: string;
+      shower: string;
+      toilet: string;
+      'washing-machine': string;
+      plant: string;
+      'wall-picture': string;
+      'picture-rail': string;
+      'generic-table': string;
+      'generic-seating': string;
+      'generic-storage': string;
+      'generic-bed': string;
+      vanity: string;
+      box: string;
     };
     searchPlaceholder: string;
     itemsCount: string;
@@ -472,6 +508,12 @@ export type TranslationSchema = {
     passageWarning: string;
     passageOk: string;
     wheelchairCircleNotice: string;
+    severities: {
+      critical: string;
+      warning: string;
+      optimal: string;
+    };
+    passageDescription: string;
   };
 };
 
