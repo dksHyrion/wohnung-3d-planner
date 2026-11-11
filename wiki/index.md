@@ -14,6 +14,7 @@ Zentrales Inhaltsverzeichnis der vom Agenten gepflegten Wissensdatenbank nach de
 ## 2. Anwendungsarchitektur (`wiki/architecture/`)
 
 - [app-state-and-views.md](architecture/app-state-and-views.md) — Store, Möbeltabelle, Wandkappen, Raum-Inspektor, Teppich-Editor (`RugInspector`), Öffnungs-Inspektor (5 Bauarten), Objekt-Kopplung und die zerlegten Oberflächen. Der Hook heißt weiter `useFloorplanStore`.
+- [i18n-subsystem.md](architecture/i18n-subsystem.md) — Zero-Dependency Internationalisierung (DE / EN) mit 100 % Key-Parität, robuster Offline-Synchronisation (Zustand & `useSyncExternalStore`), Sprachschalter in der TopBar und strikter Einhaltung von Invariante 3B.
 - [github-reference-comparison.md](architecture/github-reference-comparison.md) — Architektur-Benchmark gegen vergleichbare Open-Source-Projekte auf GitHub (`openPlan3D`, `blueprint3d-modern`, `react-planner`, `threejs-sims-house-builder`, `SweetHome3D`), Alleinstellungsmerkmale, umgesetzte Pakete 3C/3D und Backlog 3A/3B/3E/3F.
 
 ## 3. Unveränderliche Rohquellen (`raw/`)

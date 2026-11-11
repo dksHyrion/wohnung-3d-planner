@@ -4,6 +4,40 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-11] UI-Mehrsprachigkeit (DE / EN), Zero-Dependency i18n-Architektur & GitHub Issue #1
+
+- **Action:** `FEATURE`, `I18N`, `A11Y`, `ACCESSIBILITY`, `ARCHITECTURE`, `COMMUNITY` & `ISSUE_RESOLUTION`
+- **Kontext (GitHub Issue #1):**
+  - Adressierung von GitHub Issue #1 (`dksHyrion/wohnung-3d-planner#1`) durch `@blender3darchitect`: Vollständige Lokalisierung der Benutzeroberfläche auf Englisch inklusive eines intuitiven Sprachschalters (`DE | EN`) in der Navigationsleiste.
+- **Type-Safe i18n Subsystem (`src/i18n/`):**
+  - Implementierung eines leichtgewichtigen, autarken i18n-Systems ohne externe Framework-Abhängigkeiten (`types.ts`, `locales/de.ts`, `locales/en.ts`, `i18n.ts`, `useTranslation.ts`).
+  - Statische Typprüfung via TypeScript: `TranslationSchema` erzwingt 100 % Key-Parität zwischen `de.ts` und `en.ts` zur Compile-Zeit.
+  - Sichere `localStorage`-Persistenz (`'wohnung-3d-planner-lang'`) mit fehlertolerantem Fallback auf Deutsch (`'de'`).
+  - Parameter-Interpolation (`{count}`, `{cm}`, `{name}`) und flackerfreie Reaktivität via `React.useSyncExternalStore`.
+- **Zustand-Store Synchronisation (`src/store/`):**
+  - Erweiterung des Zustand-Stores um `language: Language` und `setLanguage(lang)`.
+  - Bidirektionale Kopplung zwischen globalem i18n-Emitter und Store-Zustand.
+- **UI-Lokalisierung & `<LanguageSwitch />`:**
+  - Neuer barrierefreier Segment-Button `<LanguageSwitch />` in der TopBar (`role="group"`, `aria-label`, `aria-pressed`).
+  - Vollständige Übersetzung aller UI-Komponenten:
+    - TopBar (Werkzeuge, Ansichtsmodi, Kamera-Presets, Cutaway, Wandsnapping, 3D-Maße, Deko, Konfliktbadge, SVG-/JSON-Aktionen).
+    - Atmosphäre & Beleuchtung (`LightingControls.tsx`: Lichtstimmungen, Sonnenstand, Tageszeitslider, Grafikqualität).
+    - Alle Dialoge (`KeyboardShortcutsDialog.tsx`, `PlanExportDialog.tsx`, `JsonPlanDialog.tsx`, `MobileNoticeBanner.tsx`).
+    - Alle Inspektoren (`InspectorSidebar.tsx`, `WallInspector.tsx`, `RoomInspector.tsx`, `FurnitureInspector.tsx`, `OpeningInspector.tsx`, `RugInspector.tsx`).
+    - 2D Hintergrund-Vorlage (`BackgroundOverlayControls.tsx`).
+    - Möbelkatalog-Kategorien (`getCatalogCategoryLabel`) und 3D-Modellbezeichnungen (`getFurnitureVisualLabel`).
+    - DIN 18040 & Neufert Ergonomie- und Durchgangsbreiten-Diagnosen (`getPassageSeverityLabel`, `formatPassageDescription`).
+- **Architektonische Invariante 3B:**
+  - Strikt gewahrt: 3D-Modellierung und OBB/SAT-Kollisionsgeometrien hängen ausschließlich von `item.visual` ab, niemals von lokalisierten Benennungen.
+- **Dokumentation:**
+  - Neues Architektur-Dokument: [`wiki/architecture/i18n-subsystem.md`](architecture/i18n-subsystem.md) angelegt und im Index [`wiki/index.md`](index.md) verlinkt.
+- **Test-Integrität & Verifikation:**
+  - Neue Testsuiten: `tests/i18n.test.ts`, `tests/storeI18n.test.ts`, `tests/languageSwitch.test.tsx`, `tests/dialogsI18n.test.tsx`, `tests/inspectorsI18n.test.tsx`, `tests/catalogErgonomicsI18n.test.ts`.
+  - Gesamtergebnis: **580 Tests in 60 Testdateien** erfolgreich (100 % grün).
+  - TypeScript Strictness (`tsc -b`) und Production Build (`npm run build`) fehlerfrei.
+
+---
+
 ## [2026-11-03] DX, Test-Hygiene & Zustand-Store Modularisierung (Domain Slices)
 
 - **Action:** `DX`, `TEST_HYGIENE`, `REFACTOR`, `STORE_MODULARIZATION`
