@@ -84,16 +84,6 @@ function captureFloorplanSnapshot(state: {
 }
 
 function getInitialStoreLanguage(): Language {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem('wohnung-3d-planner-lang');
-      if (stored === 'de' || stored === 'en') {
-        return stored;
-      }
-    }
-  } catch {
-    // Ignore storage errors in restricted contexts
-  }
   return getGlobalLanguage() || 'de';
 }
 

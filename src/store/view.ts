@@ -116,13 +116,6 @@ export function createViewActions(deps: StoreDeps): ViewActions {
     }),
 
   setLanguage: (lang: Language) => {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('wohnung-3d-planner-lang', lang);
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
     setGlobalLanguage(lang);
     set({ language: lang });
   },
