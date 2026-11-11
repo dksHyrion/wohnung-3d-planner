@@ -25,13 +25,15 @@ import {
   memoryOverlayIds,
   runtimeUrlForOverlay,
 } from '../core/overlayImageStore';
+import { getGlobalLanguage, subscribeLanguage } from '../i18n/i18n';
 import type {
   CameraPreset,
   FloorplanState,
+  Language,
   SelectableEntityType,
 } from './state';
 
-export type { CameraPreset, FloorplanState, SelectableEntityType };
+export type { CameraPreset, FloorplanState, Language, SelectableEntityType };
 
 let idCounter = 1;
 function generateId(prefix: string): string {
@@ -79,6 +81,20 @@ function captureFloorplanSnapshot(state: {
     roomLabels: state.roomLabels ?? [],
     backgroundImage: backgroundImageForExport(state.backgroundImage),
   });
+}
+
+function getInitialStoreLanguage(): Language {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('wohnung-3d-planner-lang');
+      if (stored === 'de' || stored === 'en') {
+        return stored;
+      }
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  return getGlobalLanguage() || 'de';
 }
 
 const initialData = getInitialData();
@@ -173,6 +189,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
   };
 
   return {
+    language: getInitialStoreLanguage(),
     corners: initialData.corners,
     walls: initialData.walls,
     openings: initialData.openings,
@@ -224,8 +241,14 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
 
 // renderToStaticMarkup liest getInitialState, nicht getState. Die Funktion sitzt
 // auf dem Store-Objekt, das useStore schließt. Eine spätere Zuweisung an den Hook
-// trifft sie nicht.
 floorplanStoreApi.getInitialState = () => floorplanStoreApi.getState();
+
+subscribeLanguage(() => {
+  const current = getGlobalLanguage();
+  if (floorplanStoreApi.getState().language !== current) {
+    floorplanStoreApi.setState({ language: current });
+  }
+});
 
 function useFloorplanStoreHook(): FloorplanState;
 function useFloorplanStoreHook<T>(selector: (state: FloorplanState) => T): T;

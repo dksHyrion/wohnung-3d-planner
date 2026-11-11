@@ -1,4 +1,6 @@
 import { MOOD_PRESETS, presetToHour } from '../core/lighting/moodPresets';
+import { setGlobalLanguage } from '../i18n/i18n';
+import type { Language } from '../i18n/types';
 import type { StoreDeps } from './deps';
 import type { FloorplanState } from './state';
 
@@ -28,6 +30,7 @@ type ViewActions = Pick<
   | 'setCameraPreset'
   | 'selectEntity'
   | 'selectRoom'
+  | 'setLanguage'
 >;
 
 export function createViewActions(deps: StoreDeps): ViewActions {
@@ -111,5 +114,17 @@ export function createViewActions(deps: StoreDeps): ViewActions {
       selectedType: roomId ? 'room' : null,
       selectedRoomId: roomId,
     }),
+
+  setLanguage: (lang: Language) => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('wohnung-3d-planner-lang', lang);
+      }
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+    setGlobalLanguage(lang);
+    set({ language: lang });
+  },
   };
 }

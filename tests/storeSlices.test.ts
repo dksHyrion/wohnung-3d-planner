@@ -17,6 +17,7 @@ import type { FurnitureItem, Wall, Corner } from '../src/core/types';
 
 function createMockDeps(initialPatch: Partial<FloorplanState> = {}) {
   let state: FloorplanState = {
+    language: 'de',
     corners: [],
     walls: [],
     openings: [],
@@ -88,6 +89,7 @@ function createMockDeps(initialPatch: Partial<FloorplanState> = {}) {
     setGlowingWallCaps: vi.fn(),
     selectEntity: vi.fn(),
     selectRoom: vi.fn(),
+    setLanguage: vi.fn(),
     updateWallLengthCm: vi.fn(),
     updateWallProps: vi.fn(),
     addWallWithCorners: vi.fn(),

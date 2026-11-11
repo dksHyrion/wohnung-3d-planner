@@ -16,6 +16,9 @@ import {
 } from '../core/types';
 import { MoodPresetKey, QualityMode } from '../core/lighting/moodPresets';
 import { PassageClearanceReport } from '../core/ergonomicsEngine';
+import type { Language } from '../i18n/types';
+
+export type { Language };
 
 export type SelectableEntityType =
   | 'wall'
@@ -28,6 +31,7 @@ export type SelectableEntityType =
 export type CameraPreset = 'axonometric' | 'isometric' | 'top-down' | 'first-person';
 
 export interface FloorplanState {
+  language: Language;
   corners: Corner[];
   walls: Wall[];
   openings: WallOpening[];
@@ -175,4 +179,5 @@ export interface FloorplanState {
   cancelCalibration: () => void;
   exportJson: () => string;
   importJson: (jsonStr: string) => boolean;
+  setLanguage: (lang: Language) => void;
 }
