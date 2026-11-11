@@ -105,9 +105,11 @@ export type TranslationSchema = {
   lighting: {
     title: string;
     timeOfDay: string;
+    presetMoodTitle: string;
     presets: {
       morning: string;
       midday: string;
+      noon: string;
       goldenHour: string;
       blueHour: string;
       night: string;
@@ -119,16 +121,54 @@ export type TranslationSchema = {
       fast: string;
       beautiful: string;
       hint: string;
+      ariaLabelBeauty: string;
+      ariaLabelPerformance: string;
+      titleBeauty: string;
+      titlePerformance: string;
     };
     options: {
       wallCaps: string;
       windowSun: string;
+      windowSunHint: string;
       roomLights: string;
+      roomLightsHint: string;
     };
   };
   dialogs: {
     shortcuts: {
       title: string;
+      closeAriaLabel: string;
+      sections: {
+        editHistory: string;
+        generalHelp: string;
+        navigation2D: string;
+        navigation3D: string;
+      };
+      keys: {
+        ctrlOrCmd: string;
+        shift: string;
+        deleteOrBackspace: string;
+        esc: string;
+        questionMark: string;
+        mouseWheel: string;
+        middleClick: string;
+        drag: string;
+        leftClick: string;
+        rightClick: string;
+      };
+      items: {
+        undo: string;
+        redo: string;
+        redoAlt: string;
+        deleteSelected: string;
+        cancelOrDeselect: string;
+        toggleShortcuts: string;
+        zoom2D: string;
+        pan2D: string;
+        orbit3D: string;
+        pan3D: string;
+        zoom3D: string;
+      };
       toolsGroup: string;
       viewsGroup: string;
       actionsGroup: string;
@@ -141,8 +181,19 @@ export type TranslationSchema = {
     };
     export: {
       title: string;
+      description: string;
       scale: string;
       format: string;
+      paperFormat: string;
+      orientation: string;
+      projectName: string;
+      projectPlaceholder: string;
+      scale50: string;
+      scale100: string;
+      paperA4: string;
+      paperA3: string;
+      orientationLandscape: string;
+      orientationPortrait: string;
       scaleValue: string;
       includeFurniture: string;
       includeDimensions: string;
@@ -151,15 +202,22 @@ export type TranslationSchema = {
       downloadSvg: string;
       downloadPng: string;
       close: string;
+      cancel: string;
     };
     json: {
       title: string;
+      exportTitle: string;
+      importTitle: string;
+      exportAriaLabel: string;
+      importAriaLabel: string;
+      placeholder: string;
       description: string;
       copy: string;
       copied: string;
       download: string;
       load: string;
       invalidJson: string;
+      close: string;
     };
     overlay: {
       title: string;
@@ -175,8 +233,11 @@ export type TranslationSchema = {
       uploadNew: string;
     };
     mobile: {
+      title: string;
+      description: string;
       bannerText: string;
       dismiss: string;
+      closeAriaLabel: string;
     };
   };
   inspector: {

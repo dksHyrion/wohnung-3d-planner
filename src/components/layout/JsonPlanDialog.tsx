@@ -1,42 +1,59 @@
 import React, { useEffect, useId } from 'react';
+import { useTranslation } from '../../i18n/useTranslation';
+
+export interface JsonPlanDialogProps {
+  jsonModalMode?: 'export' | 'import' | null;
+  setJsonModalMode?: (mode: 'export' | 'import' | null) => void;
+  jsonText?: string;
+  setJsonText?: (text: string) => void;
+  importError?: string | null;
+  handleDownloadJson?: () => void;
+  handleConfirmImport?: () => void;
+  isOpen?: boolean;
+  mode?: 'export' | 'import' | null;
+  onClose?: () => void;
+}
 
 export function JsonPlanDialog({
   jsonModalMode,
   setJsonModalMode,
-  jsonText,
+  jsonText = '',
   setJsonText,
-  importError,
+  importError = null,
   handleDownloadJson,
   handleConfirmImport,
-}: {
-  jsonModalMode: 'export' | 'import' | null;
-  setJsonModalMode: (mode: 'export' | 'import' | null) => void;
-  jsonText: string;
-  setJsonText: (text: string) => void;
-  importError: string | null;
-  handleDownloadJson: () => void;
-  handleConfirmImport: () => void;
-}) {
+  isOpen,
+  mode,
+  onClose,
+}: JsonPlanDialogProps) {
+  const { t } = useTranslation();
   const titleId = useId();
 
+  const activeMode = jsonModalMode ?? mode ?? (isOpen ? 'export' : null);
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (setJsonModalMode) setJsonModalMode(null);
+  };
+
   useEffect(() => {
-    if (!jsonModalMode) return;
+    if (!activeMode) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setJsonModalMode(null);
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [jsonModalMode, setJsonModalMode]);
+  }, [activeMode, onClose, setJsonModalMode]);
 
   return (
     <>
-      {jsonModalMode && (
+      {activeMode && (
         <div
           className="modal-backdrop"
-          onClick={() => setJsonModalMode(null)}
+          onClick={handleClose}
         >
           <div
             className="modal-card"
@@ -47,23 +64,23 @@ export function JsonPlanDialog({
           >
             <div className="sidebar-title" id={titleId}>
               <span>
-                {jsonModalMode === 'export'
-                  ? 'Grundriss JSON exportieren (alle Maße in cm)'
-                  : 'Grundriss JSON importieren (alle Maße in cm)'}
+                {activeMode === 'export'
+                  ? t('dialogs.json.exportTitle')
+                  : t('dialogs.json.importTitle')}
               </span>
             </div>
 
             <textarea
               className="modal-textarea"
               aria-label={
-                jsonModalMode === 'export'
-                  ? 'Grundriss JSON Export'
-                  : 'Grundriss JSON Import'
+                activeMode === 'export'
+                  ? t('dialogs.json.exportAriaLabel')
+                  : t('dialogs.json.importAriaLabel')
               }
               value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-              readOnly={jsonModalMode === 'export'}
-              placeholder="JSON-Grundriss hier einfügen..."
+              onChange={(e) => setJsonText?.(e.target.value)}
+              readOnly={activeMode === 'export'}
+              placeholder={t('dialogs.json.placeholder')}
             />
 
             {importError && (
@@ -77,39 +94,39 @@ export function JsonPlanDialog({
                 gap: '8px',
               }}
             >
-              {jsonModalMode === 'export' && (
+              {activeMode === 'export' && (
                 <>
                   <button
                     type="button"
                     className="btn btn-outline"
                     onClick={() => navigator.clipboard?.writeText(jsonText)}
                   >
-                    In Zwischenablage kopieren
+                    {t('dialogs.json.copy')}
                   </button>
                   <button
                     type="button"
                     className="btn active"
                     onClick={handleDownloadJson}
                   >
-                    Als .json herunterladen
+                    {t('dialogs.json.download')}
                   </button>
                 </>
               )}
-              {jsonModalMode === 'import' && (
+              {activeMode === 'import' && (
                 <button
                   type="button"
                   className="btn active"
                   onClick={handleConfirmImport}
                 >
-                  JSON laden
+                  {t('dialogs.json.load')}
                 </button>
               )}
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => setJsonModalMode(null)}
+                onClick={handleClose}
               >
-                Schließen
+                {t('dialogs.json.close')}
               </button>
             </div>
           </div>

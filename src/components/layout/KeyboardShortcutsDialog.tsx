@@ -1,6 +1,7 @@
 import React, { useEffect, useId } from 'react';
 import { Keyboard, X } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface ShortcutRow {
   keys: string[];
@@ -12,41 +13,8 @@ interface ShortcutSection {
   items: ShortcutRow[];
 }
 
-const SHORTCUT_SECTIONS: ShortcutSection[] = [
-  {
-    title: 'Bearbeiten & Verlauf',
-    items: [
-      { keys: ['Ctrl / ⌘', 'Z'], description: 'Rückgängig (Undo)' },
-      { keys: ['Ctrl / ⌘', 'Y'], description: 'Wiederholen (Redo)' },
-      { keys: ['Ctrl / ⌘', 'Shift', 'Z'], description: 'Wiederholen (Alternative)' },
-      { keys: ['Entf / Backspace'], description: 'Ausgewähltes Element löschen' },
-      { keys: ['Esc'], description: 'Auswahl aufheben / Werkzeug abbrechen' },
-    ],
-  },
-  {
-    title: 'Allgemein & Hilfe',
-    items: [
-      { keys: ['?'], description: 'Tastaturkürzel ein-/ausblenden' },
-    ],
-  },
-  {
-    title: '2D-Grundriss-Navigation',
-    items: [
-      { keys: ['Mausrad'], description: 'Vergrößern / Verkleinern (Zoom)' },
-      { keys: ['Mittlere Maustaste', 'Ziehen'], description: 'Arbeitsfläche verschieben (Pan)' },
-    ],
-  },
-  {
-    title: '3D-Kamera-Navigation',
-    items: [
-      { keys: ['Linksklick', 'Ziehen'], description: 'Kamera rotieren (Orbit)' },
-      { keys: ['Rechtsklick', 'Ziehen'], description: 'Kamera verschieben (Pan)' },
-      { keys: ['Mausrad'], description: 'Heranzoomen / Wegzoomen' },
-    ],
-  },
-];
-
 export const KeyboardShortcutsDialog: React.FC = () => {
+  const { t } = useTranslation();
   const showKeyboardShortcuts = useFloorplanStore((s) => s.showKeyboardShortcuts);
   const setShowKeyboardShortcuts = useFloorplanStore((s) => s.setShowKeyboardShortcuts);
   const titleId = useId();
@@ -66,6 +34,40 @@ export const KeyboardShortcutsDialog: React.FC = () => {
   }, [showKeyboardShortcuts, setShowKeyboardShortcuts]);
 
   if (!showKeyboardShortcuts) return null;
+
+  const shortcutSections: ShortcutSection[] = [
+    {
+      title: t('dialogs.shortcuts.sections.editHistory'),
+      items: [
+        { keys: [t('dialogs.shortcuts.keys.ctrlOrCmd'), 'Z'], description: t('dialogs.shortcuts.items.undo') },
+        { keys: [t('dialogs.shortcuts.keys.ctrlOrCmd'), 'Y'], description: t('dialogs.shortcuts.items.redo') },
+        { keys: [t('dialogs.shortcuts.keys.ctrlOrCmd'), t('dialogs.shortcuts.keys.shift'), 'Z'], description: t('dialogs.shortcuts.items.redoAlt') },
+        { keys: [t('dialogs.shortcuts.keys.deleteOrBackspace')], description: t('dialogs.shortcuts.items.deleteSelected') },
+        { keys: [t('dialogs.shortcuts.keys.esc')], description: t('dialogs.shortcuts.items.cancelOrDeselect') },
+      ],
+    },
+    {
+      title: t('dialogs.shortcuts.sections.generalHelp'),
+      items: [
+        { keys: [t('dialogs.shortcuts.keys.questionMark')], description: t('dialogs.shortcuts.items.toggleShortcuts') },
+      ],
+    },
+    {
+      title: t('dialogs.shortcuts.sections.navigation2D'),
+      items: [
+        { keys: [t('dialogs.shortcuts.keys.mouseWheel')], description: t('dialogs.shortcuts.items.zoom2D') },
+        { keys: [t('dialogs.shortcuts.keys.middleClick'), t('dialogs.shortcuts.keys.drag')], description: t('dialogs.shortcuts.items.pan2D') },
+      ],
+    },
+    {
+      title: t('dialogs.shortcuts.sections.navigation3D'),
+      items: [
+        { keys: [t('dialogs.shortcuts.keys.leftClick'), t('dialogs.shortcuts.keys.drag')], description: t('dialogs.shortcuts.items.orbit3D') },
+        { keys: [t('dialogs.shortcuts.keys.rightClick'), t('dialogs.shortcuts.keys.drag')], description: t('dialogs.shortcuts.items.pan3D') },
+        { keys: [t('dialogs.shortcuts.keys.mouseWheel')], description: t('dialogs.shortcuts.items.zoom3D') },
+      ],
+    },
+  ];
 
   return (
     <div
@@ -101,21 +103,21 @@ export const KeyboardShortcutsDialog: React.FC = () => {
             }}
           >
             <Keyboard size={18} color="#818cf8" />
-            <span>Tastaturkürzel &amp; Steuerung</span>
+            <span>{t('dialogs.shortcuts.title')}</span>
           </div>
           <button
             type="button"
             className="btn btn-outline"
             style={{ padding: '4px', minWidth: 'auto', borderRadius: '4px' }}
             onClick={() => setShowKeyboardShortcuts(false)}
-            aria-label="Schließen"
+            aria-label={t('dialogs.shortcuts.closeAriaLabel')}
           >
             <X size={15} />
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', margin: '4px 0' }}>
-          {SHORTCUT_SECTIONS.map((section) => (
+          {shortcutSections.map((section) => (
             <div key={section.title}>
               <div
                 style={{
@@ -184,7 +186,7 @@ export const KeyboardShortcutsDialog: React.FC = () => {
             className="btn active"
             onClick={() => setShowKeyboardShortcuts(false)}
           >
-            Schließen
+            {t('common.close')}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, X } from 'lucide-react';
+import { useTranslation } from '../../i18n/useTranslation';
 
 export const MOBILE_NOTICE_STORAGE_KEY = 'wohnung_mobile_notice_dismissed';
 
@@ -26,6 +27,7 @@ export const MobileNoticeBanner: React.FC<MobileNoticeBannerProps> = ({
   forceVisible = false,
   initialDismissed,
 }) => {
+  const { t } = useTranslation();
   const [isDismissed, setIsDismissed] = useState<boolean>(() => {
     if (initialDismissed !== undefined) return initialDismissed;
     if (typeof window === 'undefined' || !window.sessionStorage) return false;
@@ -93,7 +95,7 @@ export const MobileNoticeBanner: React.FC<MobileNoticeBannerProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.9rem', color: '#c7d2fe' }}>
           <Monitor size={18} color="#818cf8" />
-          <span>Großer Bildschirm empfohlen</span>
+          <span>{t('dialogs.mobile.title')}</span>
         </div>
         <button
           type="button"
@@ -107,14 +109,14 @@ export const MobileNoticeBanner: React.FC<MobileNoticeBannerProps> = ({
             display: 'flex',
             alignItems: 'center',
           }}
-          aria-label="Hinweis schließen"
+          aria-label={t('dialogs.mobile.closeAriaLabel')}
         >
           <X size={16} />
         </button>
       </div>
 
       <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: '1.35', color: '#cbd5e1' }}>
-        Wohnung-3D-Planner ist für präzise 2D/3D-Raumplanung mit Maus und Tastatur an Desktop-Monitoren konzipiert. Auf Smartphones und kleinen Bildschirmen ist die Bedienung nur sehr eingeschränkt möglich.
+        {t('dialogs.mobile.description')}
       </p>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
@@ -133,7 +135,7 @@ export const MobileNoticeBanner: React.FC<MobileNoticeBannerProps> = ({
             fontWeight: 500,
           }}
         >
-          Verstanden
+          {t('dialogs.mobile.dismiss')}
         </button>
       </div>
     </div>
