@@ -58,6 +58,18 @@ describe('i18n core subsystem', () => {
     expect(getTranslation('de', 'nonexistent.key.path')).toBe('nonexistent.key.path');
   });
 
+  it('falls back to German when a key exists in German but is missing in English', () => {
+    (de as any).temporaryFallbackTestKey = 'Temporärer deutscher Text';
+    try {
+      expect(getTranslation('en', 'temporaryFallbackTestKey')).toBe('Temporärer deutscher Text');
+      setGlobalLanguage('en');
+      expect(t('temporaryFallbackTestKey')).toBe('Temporärer deutscher Text');
+    } finally {
+      delete (de as any).temporaryFallbackTestKey;
+    }
+  });
+
+
   it('guarantees 100% dictionary key parity between German and English', () => {
     function getKeys(obj: any, prefix = ''): string[] {
       return Object.keys(obj).flatMap((key) => {
@@ -128,15 +140,23 @@ describe('i18n core subsystem', () => {
     expect(en.ergonomics.wheelchairCircleNotice).toBe('Wheelchair turning circle (Ø 150 cm)');
   });
 
-  it('notifies subscribers when language changes', () => {
+  it('notifies subscribers when language changes and ignores identical assignments', () => {
     let callCount = 0;
     const unsubscribe = subscribeLanguage(() => {
       callCount++;
     });
 
+    // Setting same language (currently 'de') should not fire
+    setGlobalLanguage('de');
+    expect(callCount).toBe(0);
+
     setGlobalLanguage('en');
     expect(callCount).toBe(1);
     expect(getGlobalLanguage()).toBe('en');
+
+    // Setting 'en' again should not fire
+    setGlobalLanguage('en');
+    expect(callCount).toBe(1);
 
     setGlobalLanguage('de');
     expect(callCount).toBe(2);

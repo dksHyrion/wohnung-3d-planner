@@ -1,8 +1,8 @@
-import { Language, TranslationSchema } from './types';
+import { Language, TranslationSchema, TranslationKey } from './types';
 import { de } from './locales/de';
 import { en } from './locales/en';
 
-export type { Language, TranslationSchema };
+export type { Language, TranslationSchema, TranslationKey };
 
 const dictionaries: Record<Language, TranslationSchema> = { de, en };
 
@@ -33,6 +33,7 @@ export function subscribeLanguage(listener: () => void): () => void {
 }
 
 export function setGlobalLanguage(lang: Language): void {
+  if (currentLanguage === lang) return;
   currentLanguage = lang;
   try {
     if (typeof localStorage !== 'undefined') {
@@ -59,7 +60,7 @@ function resolvePathInObject(dict: any, keyPath: string): any {
   const parts = keyPath.split('.');
   let current = dict;
   for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
+    if (current && typeof current === 'object' && Object.hasOwn(current, part)) {
       current = current[part];
     } else {
       current = undefined;
@@ -73,11 +74,11 @@ function resolvePathInObject(dict: any, keyPath: string): any {
     parts.length > 0 &&
     dict.dialogs &&
     typeof dict.dialogs === 'object' &&
-    parts[0] in dict.dialogs
+    Object.hasOwn(dict.dialogs, parts[0])
   ) {
     let sub = dict.dialogs;
     for (const part of parts) {
-      if (sub && typeof sub === 'object' && part in sub) {
+      if (sub && typeof sub === 'object' && Object.hasOwn(sub, part)) {
         sub = sub[part];
       } else {
         return undefined;
@@ -91,7 +92,7 @@ function resolvePathInObject(dict: any, keyPath: string): any {
 
 export function getTranslation(
   lang: Language,
-  keyPath: string,
+  keyPath: TranslationKey | (string & {}),
   params?: Record<string, string | number>
 ): string {
   const dict = dictionaries[lang] || dictionaries.de;
@@ -108,7 +109,7 @@ export function getTranslation(
 
   if (params) {
     return Object.entries(params).reduce(
-      (str, [k, v]) => str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v)),
+      (str, [k, v]) => str.replaceAll(`{${k}}`, String(v)),
       value
     );
   }
@@ -116,6 +117,9 @@ export function getTranslation(
   return value;
 }
 
-export function t(keyPath: string, params?: Record<string, string | number>): string {
+export function t(
+  keyPath: TranslationKey | (string & {}),
+  params?: Record<string, string | number>
+): string {
   return getTranslation(currentLanguage, keyPath, params);
 }
