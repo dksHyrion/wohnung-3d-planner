@@ -1,6 +1,4 @@
-import { TranslationSchema } from '../types';
-
-export const de: TranslationSchema = {
+export const de = {
   documentTitle: 'Wohnung 3D-Raumplaner & Grundriss-Editor (cm)',
   common: {
     cancel: 'Abbrechen',

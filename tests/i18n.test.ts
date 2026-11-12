@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { t, getTranslation, setGlobalLanguage, getGlobalLanguage, subscribeLanguage } from '../src/i18n/i18n';
+import type { TranslationKey } from '../src/i18n/types';
 import { useTranslation } from '../src/i18n/useTranslation';
 import { de } from '../src/i18n/locales/de';
 import { en } from '../src/i18n/locales/en';
@@ -36,7 +37,7 @@ describe('i18n core subsystem', () => {
 
   it('interpolates dynamic parameters correctly', () => {
     setGlobalLanguage('de');
-    expect(t('export.scaleValue', { scale: '1:50' })).toBe('Maßstab 1:50');
+    expect(t('export.scaleValue' as TranslationKey, { scale: '1:50' }) /* dialogs alias */).toBe('Maßstab 1:50');
     expect(t('dialogs.export.scaleValue', { scale: '1:50' })).toBe('Maßstab 1:50');
     expect(t('catalog.itemsCount', { count: 42 })).toBe('42 Objekte');
     expect(
@@ -44,7 +45,7 @@ describe('i18n core subsystem', () => {
     ).toBe('Hauptdurchgang zu schmal (75 cm < 90 cm)');
 
     setGlobalLanguage('en');
-    expect(t('export.scaleValue', { scale: '1:50' })).toBe('Scale 1:50');
+    expect(t('export.scaleValue' as TranslationKey, { scale: '1:50' }) /* dialogs alias */).toBe('Scale 1:50');
     expect(t('dialogs.export.scaleValue', { scale: '1:50' })).toBe('Scale 1:50');
     expect(t('catalog.itemsCount', { count: 42 })).toBe('42 items');
     expect(
@@ -54,16 +55,16 @@ describe('i18n core subsystem', () => {
 
   it('falls back gracefully to key or German if key is missing in English', () => {
     expect(getTranslation('en', 'common.save')).toBe('Save');
-    expect(getTranslation('en', 'nonexistent.key.path')).toBe('nonexistent.key.path');
-    expect(getTranslation('de', 'nonexistent.key.path')).toBe('nonexistent.key.path');
+    expect(getTranslation('en', 'nonexistent.key.path' as TranslationKey)).toBe('nonexistent.key.path');
+    expect(getTranslation('de', 'nonexistent.key.path' as TranslationKey)).toBe('nonexistent.key.path');
   });
 
   it('falls back to German when a key exists in German but is missing in English', () => {
     (de as any).temporaryFallbackTestKey = 'Temporärer deutscher Text';
     try {
-      expect(getTranslation('en', 'temporaryFallbackTestKey')).toBe('Temporärer deutscher Text');
+      expect(getTranslation('en', 'temporaryFallbackTestKey' as TranslationKey)).toBe('Temporärer deutscher Text');
       setGlobalLanguage('en');
-      expect(t('temporaryFallbackTestKey')).toBe('Temporärer deutscher Text');
+      expect(t('temporaryFallbackTestKey' as TranslationKey)).toBe('Temporärer deutscher Text');
     } finally {
       delete (de as any).temporaryFallbackTestKey;
     }

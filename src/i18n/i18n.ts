@@ -92,7 +92,7 @@ function resolvePathInObject(dict: any, keyPath: string): any {
 
 export function getTranslation(
   lang: Language,
-  keyPath: TranslationKey | (string & {}),
+  keyPath: TranslationKey,
   params?: Record<string, string | number>
 ): string {
   const dict = dictionaries[lang] || dictionaries.de;
@@ -118,7 +118,7 @@ export function getTranslation(
 }
 
 export function t(
-  keyPath: TranslationKey | (string & {}),
+  keyPath: TranslationKey,
   params?: Record<string, string | number>
 ): string {
   return getTranslation(currentLanguage, keyPath, params);

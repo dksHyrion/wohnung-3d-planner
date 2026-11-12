@@ -3,7 +3,7 @@ import { getGlobalLanguage, getTranslation, setGlobalLanguage, subscribeLanguage
 import type { Language, TranslationKey } from './types';
 
 export function useTranslation(): {
-  t: (keyPath: TranslationKey | (string & {}), params?: Record<string, string | number>) => string;
+  t: (keyPath: TranslationKey, params?: Record<string, string | number>) => string;
   language: Language;
   setLanguage: (lang: Language) => void;
 } {
@@ -14,7 +14,7 @@ export function useTranslation(): {
   );
 
   const translate = useCallback(
-    (keyPath: TranslationKey | (string & {}), params?: Record<string, string | number>) => {
+    (keyPath: TranslationKey, params?: Record<string, string | number>) => {
       return getTranslation(language, keyPath, params);
     },
     [language]

@@ -17,7 +17,7 @@ Der **wohnung-3d-planner** ist als centimeter-genauer 2D/3D-Architektur- und Ein
 
 ```mermaid
 flowchart TD
-    Schema["types.ts\n(TranslationSchema & TranslationKey)"] --> DeDict["locales/de.ts\n(Kanonisches Deutsch)"]
+    DeDict["locales/de.ts\n(Kanonisches Deutsch)"] --> Schema["types.ts\n(TranslationSchema = typeof de, TranslationKey)"]
     Schema --> EnDict["locales/en.ts\n(Compile-Time Key-Parity)"]
     DeDict --> Core["i18n.ts\n(t(), getTranslation(), setGlobalLanguage())"]
     EnDict --> Core
@@ -32,11 +32,12 @@ flowchart TD
 
 1. **`src/i18n/types.ts`:**
    - Definiert `Language = 'de' | 'en'`.
-   - Definiert `TranslationSchema` als tief verschachteltes Objektinterface mit strikten Strings.
+   - Leitet `TranslationSchema` aus `typeof de` ab. Ein neuer Key wird nur in `de.ts` angelegt, nicht ein zweites Mal im Typ.
    - Bildet via TypeScript Mapped Type `NestedKeyOf<TranslationSchema>` den Hilfstyp `TranslationKey` (z. B. `'topbar.views.mode2d'`).
+   - `t()` und `getTranslation()` nehmen nur `TranslationKey`. Ein Tippfehler im Key bricht `tsc -b` ab. Dynamisch gebaute Keys brauchen einen bewussten Cast auf `TranslationKey`.
 
 2. **`src/i18n/locales/de.ts` & `src/i18n/locales/en.ts`:**
-   - Beide Dictionaries implementieren `TranslationSchema`. Fehlt in einer Sprache auch nur ein einziger Key oder weicht ein Typ ab, schlägt der TypeScript-Compiler (`tsc -b`) fehl.
+   - `de.ts` ist die Quelle des Schemas, `en.ts` implementiert `TranslationSchema`. Fehlt in einer Sprache auch nur ein einziger Key oder weicht ein Typ ab, schlägt der TypeScript-Compiler (`tsc -b`) fehl.
    - `tests/i18n.test.ts` führt zudem automatisierte bidirektionale Key-Paritätsprüfungen zur Laufzeit aus.
 
 3. **`src/i18n/i18n.ts`:**
@@ -85,7 +86,7 @@ In der oberen Navigationsleiste (`TopBar.tsx`) wurde ein kompakter Schalter (`sr
 
 Um in Zukunft eine weitere Sprache (z. B. Französisch `'fr'`) hinzuzufügen:
 1. In `src/i18n/types.ts`: `Language = 'de' | 'en' | 'fr'`.
-2. Datei `src/i18n/locales/fr.ts` erstellen und `TranslationSchema` implementieren (TypeScript erzwingt 100 % aller Keys).
+2. Datei `src/i18n/locales/fr.ts` erstellen und als `TranslationSchema` typisieren (TypeScript erzwingt 100 % aller Keys).
 3. In `src/i18n/i18n.ts`: `dictionaries: Record<Language, TranslationSchema> = { de, en, fr }`.
 4. In `src/components/layout/LanguageSwitch.tsx`: Button für `'fr'` ergänzen.
 5. `npm test` ausführen — alle Tests prüfen automatisch die Vollständigkeit.

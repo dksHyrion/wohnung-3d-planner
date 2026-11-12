@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import type { Language } from '../../i18n/types';
+import type { Language, TranslationKey } from '../../i18n/types';
 import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
@@ -486,7 +486,7 @@ export const TopBar: React.FC = () => {
             }}
           >
             {Object.entries(PRESET_FLOORPLANS).map(([key, preset]) => {
-              const translatedLabel = t(`topbar.presets.${key}` as any);
+              const translatedLabel = t(`topbar.presets.${key}` as TranslationKey);
               const label =
                 translatedLabel && !translatedLabel.startsWith('topbar.presets.')
                   ? translatedLabel

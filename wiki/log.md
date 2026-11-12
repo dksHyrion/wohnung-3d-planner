@@ -4,6 +4,15 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-12] Refactoring nach Code-Review: Typen, Osaka, Drag, Kollision
+
+- **Action:** `REFACTOR`, `PERFORMANCE`, `I18N`
+- `TranslationSchema` wird aus `locales/de.ts` abgeleitet; die von Hand gepflegte Kopie in `types.ts` entfällt. `t()` akzeptiert nur noch gültige `TranslationKey`s (siehe [i18n-subsystem.md](architecture/i18n-subsystem.md)).
+- Osaka-Schlafsofa: 2D, 3D und Kollision lesen `osakaSofaBedLayout` und `isOsakaOpen` aus `furnitureShapes.ts`.
+- Drag in 2D und 3D schreibt höchstens einmal pro Animation Frame in den Store (`src/core/frameThrottle.ts`).
+- Kollision: AABB-Grobprüfung vor OBB/SAT; Ergebnisse unverändert.
+- `setWithCollisions` rechnet nur bei geänderten Wänden, Ecken, Öffnungen oder Möbeln neu.
+
 ## [2026-11-11] UI-Mehrsprachigkeit (DE / EN), Zero-Dependency i18n-Architektur & GitHub Issue #1
 
 - **Action:** `FEATURE`, `I18N`, `A11Y`, `ACCESSIBILITY`, `ARCHITECTURE`, `COMMUNITY` & `ISSUE_RESOLUTION`
