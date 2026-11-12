@@ -363,6 +363,21 @@ export function obbIntersectsDoorSector(
   return false;
 }
 
+/** Axis-aligned box that encloses the OBBs. Broad phase: disjoint boxes cannot intersect. */
+function enclosingBox(obbs: OBB[]): THREE.Box3 {
+  const box = new THREE.Box3();
+  for (const obb of obbs) {
+    const e = obb.rotation.elements;
+    const h = obb.halfSize;
+    const ex = Math.abs(e[0]) * h.x + Math.abs(e[3]) * h.y + Math.abs(e[6]) * h.z;
+    const ey = Math.abs(e[1]) * h.x + Math.abs(e[4]) * h.y + Math.abs(e[7]) * h.z;
+    const ez = Math.abs(e[2]) * h.x + Math.abs(e[5]) * h.y + Math.abs(e[8]) * h.z;
+    box.expandByPoint(new THREE.Vector3(obb.center.x - ex, obb.center.y - ey, obb.center.z - ez));
+    box.expandByPoint(new THREE.Vector3(obb.center.x + ex, obb.center.y + ey, obb.center.z + ez));
+  }
+  return box.expandByScalar(0.01);
+}
+
 export function evaluateFloorplanCollisions(
   data: FloorplanData
 ): Record<string, FurnitureCollisionReport> {
@@ -370,23 +385,22 @@ export function evaluateFloorplanCollisions(
   const wallMap = new Map(data.walls.map((w) => [w.id, w]));
 
   const furnitureOBBs = new Map<string, OBB[]>();
+  const furnitureBoxes = new Map<string, THREE.Box3>();
   for (const item of data.furniture) {
-    furnitureOBBs.set(item.id, computeFurnitureOBBs(item, EPSILON_CM));
+    const obbs = computeFurnitureOBBs(item, EPSILON_CM);
+    furnitureOBBs.set(item.id, obbs);
+    furnitureBoxes.set(item.id, enclosingBox(obbs));
   }
 
-  const wallEntries: Array<{ wall: Wall; start: Corner; end: Corner; obb: OBB }> = [];
+  const wallEntries: Array<{ wall: Wall; start: Corner; end: Corner; obb: OBB; box: THREE.Box3 }> = [];
   for (const wall of data.walls) {
     const start = cornerMap.get(wall.startCornerId);
     const end = cornerMap.get(wall.endCornerId);
     if (!start || !end) continue;
     const geom = getWallGeometry(start, end);
     if (geom.lengthCm < 1) continue;
-    wallEntries.push({
-      wall,
-      start,
-      end,
-      obb: computeWallOBB(start, end, wall, EPSILON_CM),
-    });
+    const obb = computeWallOBB(start, end, wall, EPSILON_CM);
+    wallEntries.push({ wall, start, end, obb, box: enclosingBox([obb]) });
   }
 
   const doorSwingEntries: Array<{
@@ -408,6 +422,7 @@ export function evaluateFloorplanCollisions(
 
   for (const item of data.furniture) {
     const itemOBBs = furnitureOBBs.get(item.id)!;
+    const itemBox = furnitureBoxes.get(item.id)!;
     const report: FurnitureCollisionReport = {
       furnitureId: item.id,
       hasCollision: false,
@@ -438,6 +453,7 @@ export function evaluateFloorplanCollisions(
 
     // 2. Check 3D OBB intersections against all walls
     for (const entry of wallEntries) {
+      if (!itemBox.intersectsBox(entry.box)) continue;
       if (itemOBBs.some((obb) => obb.intersectsOBB(entry.obb))) {
         // Avoid duplicate message if already reported via snappedWallId
         const alreadyReported = report.issues.some(
@@ -472,11 +488,12 @@ export function evaluateFloorplanCollisions(
     // 4. Check clearance zone intersections
     const clearanceOBB = computeFurnitureClearanceOBB(item, EPSILON_CM);
     if (clearanceOBB) {
+      const clearanceBox = enclosingBox([clearanceOBB]);
       // 4a. Check intersection against all OTHER furniture items' OBBs
       for (const other of data.furniture) {
         if (other.id === item.id) continue;
         const otherOBBs = furnitureOBBs.get(other.id);
-        if (!otherOBBs) continue;
+        if (!otherOBBs || !clearanceBox.intersectsBox(furnitureBoxes.get(other.id)!)) continue;
         if (otherOBBs.some((obb) => clearanceOBB.intersectsOBB(obb))) {
           const alreadyReported = report.issues.some(
             (i) => i.type === 'clearance-blocked' && i.targetId === other.id
@@ -511,6 +528,7 @@ export function evaluateFloorplanCollisions(
 
       // 4c. Check intersection against walls
       for (const entry of wallEntries) {
+        if (!clearanceBox.intersectsBox(entry.box)) continue;
         if (clearanceOBB.intersectsOBB(entry.obb)) {
           const alreadyReported = report.issues.some(
             (i) => i.type === 'clearance-blocked' && i.targetId === entry.wall.id
@@ -535,8 +553,10 @@ export function evaluateFloorplanCollisions(
   for (let i = 0; i < nFurniture; i++) {
     const itemA = data.furniture[i];
     const obbsA = furnitureOBBs.get(itemA.id)!;
+    const boxA = furnitureBoxes.get(itemA.id)!;
     for (let j = i + 1; j < nFurniture; j++) {
       const itemB = data.furniture[j];
+      if (!boxA.intersectsBox(furnitureBoxes.get(itemB.id)!)) continue;
       const obbsB = furnitureOBBs.get(itemB.id)!;
       const intersects = obbsA.some((obbA) =>
         obbsB.some((obbB) => obbA.intersectsOBB(obbB))
