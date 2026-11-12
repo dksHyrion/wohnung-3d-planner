@@ -4,7 +4,7 @@ import { getWallGeometry, snapAngleToOrthogonal } from '../../core/wallMath';
 import { computePointDistanceCm } from '../../core/measureMath';
 import { Corner, RoomPolygon, Wall } from '../../core/types';
 import { doorHingeOnRight, doorLeafPlanPoints, doorSwingsInward } from '../../core/doorLeaf';
-import { bedHeadboardDepthCm, layoutFurnitureParts } from '../../core/furnitureShapes';
+import { bedHeadboardDepthCm, isOsakaOpen, layoutFurnitureParts } from '../../core/furnitureShapes';
 import { resolveFurnitureVisual } from '../../core/furnitureVisual';
 import {
   PASSAGE_SEVERITY_COLORS,
@@ -683,33 +683,26 @@ export function FloorplanSvg2D({
             )}
 
             {/* Compound or specialized 2D furniture footprint */}
-            {visual === 'boconcept-osaka' &&
-            (item.pose === 'open' || item.depthCm > 140) ? (
+            {visual === 'boconcept-osaka' && isOsakaOpen(item) ? (
               <>
-                <rect
-                  data-part="sofa-body"
-                  x={-item.widthCm / 2}
-                  y={-item.depthCm / 2}
-                  width={item.widthCm}
-                  height={Math.min(item.depthCm, 95)}
-                  rx={4}
-                  fill={fillCol}
-                  fillOpacity={hasCollision ? 0.9 : 0.85}
-                  stroke={strokeCol}
-                  strokeWidth={strokeW}
-                />
-                <rect
-                  data-part="mattress-open"
-                  x={-item.widthCm / 2 + 16}
-                  y={-item.depthCm / 2 + 18}
-                  width={Math.max(40, item.widthCm - 32)}
-                  height={Math.max(40, item.depthCm - 18)}
-                  rx={3}
-                  fill={hasCollision ? 'rgba(239, 68, 68, 0.38)' : '#e2ded5'}
-                  fillOpacity={0.82}
-                  stroke={strokeCol}
-                  strokeWidth={1.2}
-                />
+                {parts.map((part) => {
+                  const isMattress = part.id === 'mattress-open';
+                  return (
+                    <rect
+                      key={part.id}
+                      data-part={part.id}
+                      x={part.cx - part.widthCm / 2}
+                      y={part.cz - part.depthCm / 2}
+                      width={part.widthCm}
+                      height={part.depthCm}
+                      rx={isMattress ? 3 : 4}
+                      fill={isMattress ? (hasCollision ? 'rgba(239, 68, 68, 0.38)' : '#e2ded5') : fillCol}
+                      fillOpacity={isMattress ? 0.82 : hasCollision ? 0.9 : 0.85}
+                      stroke={strokeCol}
+                      strokeWidth={isMattress ? 1.2 : strokeW}
+                    />
+                  );
+                })}
                 <line
                   x1={-item.widthCm / 2 + 18}
                   y1={0}

@@ -156,9 +156,17 @@ export function bedLayout(item: FurnitureItem): {
   };
 }
 
+export const OSAKA_CLOSED_DEPTH_CM = 95;
+export const OSAKA_BACK_THICKNESS_CM = 18;
+
+/** Ausgeklappt: ausdrücklich gesetzt, oder alte Pläne, die nur die Tiefe über 140 cm tragen. */
+export function isOsakaOpen(item: FurnitureItem): boolean {
+  return item.pose === 'open' || item.depthCm > 140;
+}
+
 export function osakaSofaBedLayout(item: FurnitureItem): { body: LocalPart; mattress: LocalPart } {
-  const bodyDepth = Math.min(item.depthCm, 95);
-  const backThickness = 18;
+  const bodyDepth = Math.min(item.depthCm, OSAKA_CLOSED_DEPTH_CM);
+  const backThickness = OSAKA_BACK_THICKNESS_CM;
   const mattressDepth = Math.max(40, item.depthCm - backThickness);
   const mattressWidth = Math.max(40, item.widthCm - 32);
 
@@ -193,7 +201,7 @@ export function osakaSofaBedLayout(item: FurnitureItem): { body: LocalPart; matt
 /** Tragende Kästen, aus denen Bild und Kollision dieselbe Mitte lesen. */
 export function layoutFurnitureParts(item: FurnitureItem): LocalPart[] {
   const visual = resolveFurnitureVisual(item);
-  if (visual === 'boconcept-osaka' && (item.pose === 'open' || item.depthCm > 140)) {
+  if (visual === 'boconcept-osaka' && isOsakaOpen(item)) {
     const layout = osakaSofaBedLayout(item);
     return [layout.body, layout.mattress];
   }

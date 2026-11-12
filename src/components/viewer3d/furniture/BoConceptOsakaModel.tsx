@@ -2,6 +2,7 @@ import React from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { FurnitureModelProps } from './SofaModel';
+import { isOsakaOpen, osakaSofaBedLayout } from '../../../core/furnitureShapes';
 
 export const OSAKA_DIMENSIONS = {
   defaultWidthCm: 190,
@@ -42,15 +43,18 @@ export const BoConceptOsakaModel = React.memo<FurnitureModelProps>(
   const cushionW = seatingW / 2; // 73 cm each
 
   const backThickness = Math.max(12, Math.min(20, Math.min(depth, OSAKA_DIMENSIONS.defaultDepthCm) * 0.22)); // ~18 cm
-  const isOpen = item.pose === 'open' || depth > 140;
-  const sofaBodyDepth = isOpen ? Math.min(depth, OSAKA_DIMENSIONS.defaultDepthCm) : depth;
+  const isOpen = isOsakaOpen(item);
+  // Ausgeklappt lesen Körper und Matratze dieselben Kästen wie 2D und Kollision.
+  const openLayout = isOpen ? osakaSofaBedLayout({ ...item, widthCm: width, heightCm: height, depthCm: depth }) : null;
+  const sofaBodyDepth = openLayout ? openLayout.body.depthCm : depth;
   const sofaCenterZ = -depth / 2 + sofaBodyDepth / 2;
   const seatingD = Math.max(10, sofaBodyDepth - backThickness);
   const cushionThickness = seatH - (legH + chassisH); // 45 - 30 = 15 cm
   const armBodyH = armH - legH; // 65 - 15 = 50 cm
   const backrestH = height - seatH; // 77 - 45 = 32 cm
-  const openMattressDepth = Math.max(40, depth - backThickness - 4);
-  const openMattressCenterZ = -depth / 2 + backThickness + openMattressDepth / 2;
+  const openMattressDepth = openLayout ? openLayout.mattress.depthCm : 0;
+  const openMattressCenterZ = openLayout ? openLayout.mattress.cz : 0;
+  const openMattressWidth = openLayout ? openLayout.mattress.widthCm : 0;
 
   // Splay angle for legs: ~5 degrees (~0.087 rad)
   const splayRad = 0.087;
@@ -168,7 +172,7 @@ export const BoConceptOsakaModel = React.memo<FurnitureModelProps>(
         <group name="osaka-unfolded-bed">
           {/* Metal fold-out bed frame */}
           <RoundedBox
-            args={[seatingW - 4, 4, openMattressDepth]}
+            args={[openMattressWidth, 4, openMattressDepth]}
             radius={0.8}
             smoothness={2}
             position={[0, -height / 2 + legH + chassisH - 2, openMattressCenterZ]}
@@ -194,7 +198,7 @@ export const BoConceptOsakaModel = React.memo<FurnitureModelProps>(
           </mesh>
           {/* Unfolded sleeping mattress */}
           <RoundedBox
-            args={[seatingW - 4, cushionThickness, openMattressDepth]}
+            args={[openMattressWidth, cushionThickness, openMattressDepth]}
             radius={2.2}
             smoothness={2}
             position={[

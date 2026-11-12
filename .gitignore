@@ -4,5 +4,4 @@ dist/
 .superpowers/
 *.tsbuildinfo
 *.bak/
-.reviews.bak/
 privat/
