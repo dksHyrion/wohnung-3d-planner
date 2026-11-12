@@ -10,7 +10,7 @@ import {
   EPSILON_CM,
 } from './types';
 import { getWallGeometry, checkWallFitCm } from './wallMath';
-import { openingHasSwingArc } from './doorLeaf';
+import { doorHingeOnRight, doorSwingsInward, openingHasSwingArc } from './doorLeaf';
 import { layoutFurnitureParts } from './furnitureShapes';
 
 export function computeFurnitureClearanceOBB(
@@ -99,10 +99,7 @@ export function computeDoorSwingOBB(
   const geom = getWallGeometry(start, end);
   if (geom.lengthCm < 1) return null;
 
-  const swingSign =
-    opening.swingDirection === 'out-left' || opening.swingDirection === 'out-right'
-      ? -1
-      : 1;
+  const swingSign = doorSwingsInward(opening.swingDirection) ? 1 : -1;
 
   const centerAlong = opening.offsetFromStartCm + opening.widthCm / 2;
   const normalOffset =
@@ -197,13 +194,9 @@ export function computeDoorSwingSector(
   const geom = getWallGeometry(start, end);
   if (geom.lengthCm < 1 || opening.widthCm < 1) return null;
 
-  const swingSign =
-    opening.swingDirection === 'out-left' || opening.swingDirection === 'out-right'
-      ? -1
-      : 1;
+  const swingSign = doorSwingsInward(opening.swingDirection) ? 1 : -1;
 
-  const hingeOnRight =
-    opening.swingDirection === 'in-right' || opening.swingDirection === 'out-right';
+  const hingeOnRight = doorHingeOnRight(opening.swingDirection);
 
   const hingeOffset = hingeOnRight
     ? opening.offsetFromStartCm + opening.widthCm

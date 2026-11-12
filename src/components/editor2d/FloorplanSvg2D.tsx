@@ -3,7 +3,7 @@ import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { getWallGeometry, snapAngleToOrthogonal } from '../../core/wallMath';
 import { computePointDistanceCm } from '../../core/measureMath';
 import { Corner, RoomPolygon, Wall } from '../../core/types';
-import { doorLeafPlanPoints } from '../../core/doorLeaf';
+import { doorHingeOnRight, doorLeafPlanPoints, doorSwingsInward } from '../../core/doorLeaf';
 import { bedHeadboardDepthCm, layoutFurnitureParts } from '../../core/furnitureShapes';
 import { resolveFurnitureVisual } from '../../core/furnitureVisual';
 import {
@@ -463,12 +463,8 @@ export function FloorplanSvg2D({
         }
 
         if (op.type === 'sliding-door') {
-          const swingSign =
-            op.swingDirection === 'out-left' || op.swingDirection === 'out-right'
-              ? -1
-              : 1;
-          const slideRight =
-            op.swingDirection === 'in-right' || op.swingDirection === 'out-right';
+          const swingSign = doorSwingsInward(op.swingDirection) ? 1 : -1;
+          const slideRight = doorHingeOnRight(op.swingDirection);
           const trackOffset = (wall.thicknessCm * 0.42) * swingSign;
           const nx = geom.normal.x * trackOffset;
           const nz = geom.normal.z * trackOffset;
@@ -529,12 +525,8 @@ export function FloorplanSvg2D({
           );
         }
 
-        const swingSign =
-          op.swingDirection === 'out-left' || op.swingDirection === 'out-right'
-            ? -1
-            : 1;
-        const hingeOnRight =
-          op.swingDirection === 'in-right' || op.swingDirection === 'out-right';
+        const swingSign = doorSwingsInward(op.swingDirection) ? 1 : -1;
+        const hingeOnRight = doorHingeOnRight(op.swingDirection);
 
         const hingeX = hingeOnRight ? opEndX : opStartX;
         const hingeZ = hingeOnRight ? opEndZ : opStartZ;

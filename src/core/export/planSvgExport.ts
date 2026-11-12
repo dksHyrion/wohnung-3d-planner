@@ -2,6 +2,7 @@ import { FloorplanData, Corner, Wall, WallOpening, FurnitureItem } from '../type
 import { getWallGeometry, computeFloorPolygons, applyRoomLabels } from '../wallMath';
 import { computeExteriorDimensionChains } from '../dimensionMath';
 import { layoutFurnitureParts } from '../furnitureShapes';
+import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { resolveFurnitureVisual } from '../furnitureVisual';
 import type { Language } from '../../i18n/types';
 
@@ -322,8 +323,7 @@ export function exportScaledFloorplanSvg(
       );
       parts.push(`  </g>`);
     } else if (op.type === 'sliding-door') {
-      const swingSign =
-        op.swingDirection === 'out-left' || op.swingDirection === 'out-right' ? -1 : 1;
+      const swingSign = doorSwingsInward(op.swingDirection) ? 1 : -1;
       const offsetMm = (wallThickMm * 0.45) * swingSign;
       const nx = geom.normal.x * offsetMm;
       const ny = geom.normal.z * offsetMm;
@@ -352,10 +352,8 @@ export function exportScaledFloorplanSvg(
         );
       }
 
-      const swingSign =
-        op.swingDirection === 'out-left' || op.swingDirection === 'out-right' ? -1 : 1;
-      const hingeOnRight =
-        op.swingDirection === 'in-right' || op.swingDirection === 'out-right';
+      const swingSign = doorSwingsInward(op.swingDirection) ? 1 : -1;
+      const hingeOnRight = doorHingeOnRight(op.swingDirection);
 
       const hingeX = hingeOnRight ? pEndX : pStartX;
       const hingeY = hingeOnRight ? pEndY : pStartY;

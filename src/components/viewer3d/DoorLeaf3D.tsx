@@ -3,7 +3,9 @@ import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { WallOpening } from '../../core/types';
 import {
   DOOR_LEAF_THICKNESS_CM,
+  doorHingeOnRight,
   doorLeafPose,
+  doorSwingsInward,
   doorSwingFloorSegments,
 } from '../../core/doorLeaf';
 
@@ -75,14 +77,8 @@ export const DoorLeaf3D: React.FC<{
 
       {opening.type === 'passage' ? null : opening.type === 'sliding-door' ? (
         (() => {
-          const swingSign =
-            opening.swingDirection === 'out-left' ||
-            opening.swingDirection === 'out-right'
-              ? -1
-              : 1;
-          const slideRight =
-            opening.swingDirection === 'in-right' ||
-            opening.swingDirection === 'out-right';
+          const swingSign = doorSwingsInward(opening.swingDirection) ? 1 : -1;
+          const slideRight = doorHingeOnRight(opening.swingDirection);
           const trackZ = swingSign * (wallThicknessCm / 2 + DOOR_LEAF_THICKNESS_CM);
           const leafShiftX =
             (slideRight ? 1 : -1) * Math.max(12, opening.widthCm * 0.35);
