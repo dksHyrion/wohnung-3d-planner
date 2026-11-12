@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas, ThreeEvent, useThree, useFrame } from '@react-three/fiber';
 import {
@@ -50,6 +50,7 @@ declare global {
 }
 
 const EMPTY_ARRAY: readonly never[] = Object.freeze([]);
+const EMPTY_OPENINGS: WallOpening[] = [];
 
 /** Minimal structural view of drei's OrbitControls instance (exposed as an EventDispatcher by useThree). */
 interface OrbitControlsLike {
@@ -688,6 +689,26 @@ export const Scene3D: React.FC = () => {
     [corners, walls, rooms]
   );
 
+  // Stable per-wall opening arrays and handlers keep WallGroup3D's memo effective
+  // while furniture is dragged.
+  const openingsByWall = useMemo(() => {
+    const map = new Map<string, WallOpening[]>();
+    for (const o of openings) {
+      const list = map.get(o.wallId);
+      if (list) list.push(o);
+      else map.set(o.wallId, [o]);
+    }
+    return map;
+  }, [openings]);
+  const handleSelectWall = useCallback(
+    (wallId: string) => selectEntity(wallId, 'wall'),
+    [selectEntity]
+  );
+  const handleSelectOpening = useCallback(
+    (openingId: string) => selectEntity(openingId, 'opening'),
+    [selectEntity]
+  );
+
   const usePerspective =
     viewMode === '3d-persp' || cameraPreset === 'first-person';
 
@@ -916,7 +937,6 @@ export const Scene3D: React.FC = () => {
           const start = cornerMap.get(wall.startCornerId);
           const end = cornerMap.get(wall.endCornerId);
           if (!start || !end) return null;
-          const wallOpenings = openings.filter((o) => o.wallId === wall.id);
 
           return (
             <WallGroup3D
@@ -924,13 +944,13 @@ export const Scene3D: React.FC = () => {
               wall={wall}
               start={start}
               end={end}
-              openings={wallOpenings}
+              openings={openingsByWall.get(wall.id) ?? EMPTY_OPENINGS}
               roomCenter={roomCenter}
               cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
               isSelected={selectedType === 'wall' && selectedId === wall.id}
               showDecor={showDecor}
-              onSelectWall={(wId) => selectEntity(wId, 'wall')}
-              onSelectOpening={(opId) => selectEntity(opId, 'opening')}
+              onSelectWall={handleSelectWall}
+              onSelectOpening={handleSelectOpening}
             />
           );
         })}

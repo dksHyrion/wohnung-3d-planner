@@ -196,6 +196,15 @@ describe('Store Slices & Geometry Orchestration', () => {
       expect(typeof actions.loadPreset).toBe('function');
       expect(typeof actions.setShowPassageHeatmap).toBe('function');
     });
+
+    it('keeps the collision report reference when only rugs change', () => {
+      const store = useFloorplanStore.getState();
+      const rugId = store.addRug({ widthCm: 160, depthCm: 230, x: 100, z: 100 });
+      const before = useFloorplanStore.getState().collisionReports;
+      useFloorplanStore.getState().moveRug(rugId, 140, 120, { recordHistory: false });
+      expect(useFloorplanStore.getState().collisionReports).toBe(before);
+      useFloorplanStore.getState().removeRug(rugId);
+    });
   });
 
   describe('2. Complete Action Exposure on useFloorplanStore.getState()', () => {

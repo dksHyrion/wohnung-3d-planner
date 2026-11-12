@@ -122,16 +122,20 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     const openings = patch.openings ?? state.openings;
     const furniture = patch.furniture ?? state.furniture;
 
-    const collisionReports = evaluateFloorplanCollisions({
-      corners,
-      walls,
-      openings,
-      furniture,
-    });
+    // Rug, label, overlay and selection patches do not affect collisions; keep the old
+    // report references so subscribers do not re-render.
+    const layoutChanged =
+      corners !== state.corners || walls !== state.walls || furniture !== state.furniture;
+    const collisionReports =
+      layoutChanged || openings !== state.openings
+        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture })
+        : state.collisionReports;
     const showPassageHeatmap = patch.showPassageHeatmap ?? state.showPassageHeatmap;
-    const passageReport = showPassageHeatmap
-      ? evaluatePassageClearances(furniture, walls, corners)
-      : null;
+    const passageReport = !showPassageHeatmap
+      ? null
+      : layoutChanged || !state.passageReport
+        ? evaluatePassageClearances(furniture, walls, corners)
+        : state.passageReport;
 
     set({
       ...historyPatch,

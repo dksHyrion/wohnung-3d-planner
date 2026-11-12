@@ -129,7 +129,10 @@ export const TopBar: React.FC = () => {
   const renderTheme = useFloorplanStore((s) => s.renderTheme);
   const showDimensions3D = useFloorplanStore((s) => s.showDimensions3D);
   const cameraPreset = useFloorplanStore((s) => s.cameraPreset);
-  const collisionReports = useFloorplanStore((s) => s.collisionReports);
+  // Primitive selector: TopBar only re-renders when the count changes, not on every drag step.
+  const collisionCount = useFloorplanStore(
+    (s) => Object.values(s.collisionReports).filter((r) => r.hasCollision).length
+  );
   const cameraEyeLevelCm = useFloorplanStore((s) => s.cameraEyeLevelCm);
   const showDecor = useFloorplanStore((s) => s.showDecor);
   const canUndo = useFloorplanStore((s) => s.canUndo);
@@ -154,11 +157,6 @@ export const TopBar: React.FC = () => {
   const setShowPassageHeatmap = useFloorplanStore((s) => s.setShowPassageHeatmap);
   const passageReport = useFloorplanStore((s) => s.passageReport);
   const overlayError = useFloorplanStore((s) => s.overlayError);
-  const corners = useFloorplanStore((s) => s.corners);
-  const walls = useFloorplanStore((s) => s.walls);
-  const openings = useFloorplanStore((s) => s.openings);
-  const furniture = useFloorplanStore((s) => s.furniture);
-  const rugs = useFloorplanStore((s) => s.rugs);
 
   const [selectedPreset, setSelectedPreset] = useState<string>('standard-55');
   const [jsonModalMode, setJsonModalMode] = useState<'export' | 'import' | null>(null);
@@ -176,6 +174,7 @@ export const TopBar: React.FC = () => {
   const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleDownloadPlanSvg = () => {
+    const { corners, walls, openings, furniture, rugs } = useFloorplanStore.getState();
     const svg = exportScaledFloorplanSvg(
       { corners, walls, openings, furniture, rugs },
       {
@@ -216,10 +215,6 @@ export const TopBar: React.FC = () => {
       triggerSnapshot();
     }
   };
-
-  const collisionCount = Object.values(collisionReports).filter(
-    (r) => r.hasCollision
-  ).length;
 
   const viewButtons: { mode: ViewMode; label: string; icon: React.ReactNode }[] = [
     { mode: '2d', label: t('topbar.views.mode2d'), icon: <Layers size={14} /> },
