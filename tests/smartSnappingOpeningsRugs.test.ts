@@ -6,8 +6,9 @@ import {
   computeFurnitureAlignment,
   getFurnitureWorldBoundsXZ,
 } from '../src/core/alignmentMath';
+import { de } from '../src/i18n/locales/de';
 import {
-  OPENING_TYPE_LABELS,
+  OPENING_TYPES,
   openingHasSwingArc,
   openingLetsLightThrough,
   openingIsWalkthrough,
@@ -192,9 +193,10 @@ describe('Paket 3C & 3D: Smart Alignment Snapping, Erweiterte Wandöffnungen & T
       expect(openingIsWalkthrough('balcony-door')).toBe(true);
       expect(openingIsWalkthrough('window')).toBe(false);
 
-      expect(OPENING_TYPE_LABELS['sliding-door']).toContain('Schiebetür');
-      expect(OPENING_TYPE_LABELS['passage']).toContain('Wanddurchbruch');
-      expect(OPENING_TYPE_LABELS['balcony-door']).toContain('Balkon');
+      expect([...OPENING_TYPES].sort()).toEqual(Object.keys(de.inspector.opening.types).sort());
+      expect(de.inspector.opening.types['sliding-door']).toContain('Schiebetür');
+      expect(de.inspector.opening.types['passage']).toContain('Wanddurchbruch');
+      expect(de.inspector.opening.types['balcony-door']).toContain('Balkon');
     });
 
     it('eliminates 90° door swing collisions for sliding-door and passage while still guarding the wall opening itself', () => {

@@ -36,7 +36,6 @@ import { PlanExportDialog } from './PlanExportDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import { EditorTool, ViewMode } from '../../core/types';
-import { MoodPresetKey } from '../../core/lighting/moodPresets';
 import { exportScaledFloorplanSvg } from '../../core/export/planSvgExport';
 import { fitOverlayToViewport } from '../../core/tracingMath';
 import { computeFitViewBox } from '../../core/wallMath';
@@ -95,15 +94,6 @@ export function formatTimeOfDay(hour: number, lang?: Language): string {
   const time = `${String(normalizedH).padStart(2, '0')}:${String(normalizedM).padStart(2, '0')}`;
   return activeLang === 'en' ? time : `${time} Uhr`;
 }
-
-export const MOOD_PRESET_BUTTONS: { key: MoodPresetKey; label: string }[] = [
-  { key: 'neutral', label: '🌤️ Neutral' },
-  { key: 'morning', label: '🌅 Morgen' },
-  { key: 'noon', label: '☀️ Mittag' },
-  { key: 'golden_hour', label: '🌇 Golden Hour' },
-  { key: 'blue_hour', label: '🌆 Blaue Std.' },
-  { key: 'night', label: '🌙 Nacht' },
-];
 
 export function capture3DCanvasSnapshot(
   canvas: { toDataURL: (type: string) => string },

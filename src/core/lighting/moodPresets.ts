@@ -246,13 +246,6 @@ function lerp(a: number, b: number, t: number): number {
 
 const moodCache = new Map<number, MoodConfig>();
 
-/**
- * Clears the mood interpolation cache. Useful for tests or preset reload.
- */
-export function clearMoodCache(): void {
-  moodCache.clear();
-}
-
 function computeInterpolatedMood(hour: number): MoodConfig {
   if (hour <= MOOD_PRESETS.morning.hour) {
     if (Math.abs(hour - MOOD_PRESETS.morning.hour) < 0.001) {

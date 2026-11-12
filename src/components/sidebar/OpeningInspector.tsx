@@ -2,7 +2,7 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import { OPENING_TYPE_LABELS, openingHasSwingArc } from '../../core/doorLeaf';
+import { OPENING_TYPES, openingHasSwingArc } from '../../core/doorLeaf';
 import type { OpeningType, WallOpening } from '../../core/types';
 
 export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpening }) {
@@ -64,7 +64,7 @@ export function OpeningInspector({ selectedOpening }: { selectedOpening: WallOpe
             value={selectedOpening.type}
             onChange={(e) => handleTypeChange(e.target.value as OpeningType)}
           >
-            {(Object.keys(OPENING_TYPE_LABELS) as OpeningType[]).map((typeKey) => (
+            {OPENING_TYPES.map((typeKey) => (
               <option key={typeKey} value={typeKey}>
                 {t(`inspector.opening.types.${typeKey}`)}
               </option>

@@ -13,28 +13,6 @@ import { getWallGeometry, checkWallFitCm } from './wallMath';
 import { openingHasSwingArc } from './doorLeaf';
 import { layoutFurnitureParts } from './furnitureShapes';
 
-export function computeFurnitureOBB(
-  item: FurnitureItem,
-  shrinkCm: number = EPSILON_CM
-): OBB {
-  const halfW = Math.max(0.5, item.widthCm / 2 - shrinkCm);
-  const halfH = Math.max(0.5, item.heightCm / 2 - shrinkCm);
-  const halfD = Math.max(0.5, item.depthCm / 2 - shrinkCm);
-
-  const center = new THREE.Vector3(
-    item.x,
-    item.elevationCm + item.heightCm / 2,
-    item.z
-  );
-  const halfSize = new THREE.Vector3(halfW, halfH, halfD);
-  const rotMatrix = new THREE.Matrix4().makeRotationY(
-    THREE.MathUtils.degToRad(item.rotationYDeg)
-  );
-  const basis = new THREE.Matrix3().setFromMatrix4(rotMatrix);
-
-  return new OBB(center, halfSize, basis);
-}
-
 export function computeFurnitureClearanceOBB(
   item: FurnitureItem,
   shrinkCm: number = EPSILON_CM

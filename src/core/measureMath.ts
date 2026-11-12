@@ -38,31 +38,6 @@ export function computePointDistanceCm(
   };
 }
 
-export function getFurniture2DCorners(item: FurnitureItem): Point2D[] {
-  const halfW = item.widthCm / 2;
-  const halfD = item.depthCm / 2;
-  const rotRad = (item.rotationYDeg * Math.PI) / 180;
-  const cos = Math.cos(rotRad);
-  const sin = Math.sin(rotRad);
-
-  // Local offsets for the 4 corners
-  const localCorners: [number, number][] = [
-    [-halfW, -halfD],
-    [halfW, -halfD],
-    [halfW, halfD],
-    [-halfW, halfD],
-  ];
-
-  return localCorners.map(([lx, lz]) => {
-    const rx = lx * cos + lz * sin;
-    const rz = -lx * sin + lz * cos;
-    return {
-      x: item.x + rx,
-      z: item.z + rz,
-    };
-  });
-}
-
 export function pointToSegmentDistance(
   p: Point2D,
   a: Point2D,

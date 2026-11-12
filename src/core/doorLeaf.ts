@@ -1,12 +1,6 @@
 import { OpeningType, WallOpening } from './types';
 
-export const OPENING_TYPE_LABELS: Record<OpeningType, string> = {
-  door: 'Drehtür',
-  'sliding-door': 'Schiebetür',
-  passage: 'Wanddurchbruch (offen)',
-  'balcony-door': 'Balkon-/Terrassentür',
-  window: 'Fenster',
-};
+export const OPENING_TYPES: readonly OpeningType[] = ['door', 'sliding-door', 'passage', 'balcony-door', 'window'];
 
 export function openingHasSwingArc(type: OpeningType): boolean {
   return type === 'door' || type === 'balcony-door';

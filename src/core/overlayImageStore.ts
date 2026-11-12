@@ -318,20 +318,3 @@ export async function compressStoredOverlay(
   return runtimeUrlForOverlay(imageId);
 }
 
-/** Alte Exporte mit Data-URL in den Bildspeicher legen. */
-export async function ingestDataUrlOverlay(
-  image: BackgroundImageOverlay
-): Promise<BackgroundImageOverlay> {
-  if (!image.url.startsWith('data:')) {
-    const url = image.imageId ? runtimeUrlForOverlay(image.imageId) || image.url : image.url;
-    return { ...image, url };
-  }
-  const blob = dataUrlToBlob(image.url) ?? new Blob([image.url]);
-  const imageId = image.imageId || `bg-${Date.now().toString(36)}`;
-  await putOverlayBlob(imageId, blob);
-  return {
-    ...image,
-    imageId,
-    url: runtimeUrlForOverlay(imageId),
-  };
-}
