@@ -27,6 +27,7 @@ import {
 } from '../../core/materials/proceduralTextures';
 import { AreaRug, Corner, FurnitureItem, FlooringType, Wall, WallOpening } from '../../core/types';
 import { openingIsWalkthrough, openingLetsLightThrough } from '../../core/doorLeaf';
+import { createFrameThrottle } from '../../core/frameThrottle';
 import {
   applyRoomLabels,
   computeFloorPolygons,
@@ -737,6 +738,9 @@ export const Scene3D: React.FC = () => {
     });
   };
 
+  // One store commit per animation frame while dragging; pointer up flushes the last position.
+  const dragFrame = useRef(createFrameThrottle()).current;
+
   const handleDragPlaneMove = (e: ThreeEvent<PointerEvent>) => {
     if (!draggingFurniture) return;
     e.stopPropagation();
@@ -746,16 +750,18 @@ export const Scene3D: React.FC = () => {
     }
     const targetX = e.point.x - draggingFurniture.offsetX;
     const targetZ = e.point.z - draggingFurniture.offsetZ;
-    if (draggingFurniture.kind === 'rug') {
-      moveRug(draggingFurniture.id, targetX, targetZ, { recordHistory: false });
-    } else {
-      moveFurniture(draggingFurniture.id, targetX, targetZ, {
-        recordHistory: false,
-      });
-    }
+    const { kind, id } = draggingFurniture;
+    dragFrame.schedule(() => {
+      if (kind === 'rug') {
+        moveRug(id, targetX, targetZ, { recordHistory: false });
+      } else {
+        moveFurniture(id, targetX, targetZ, { recordHistory: false });
+      }
+    });
   };
 
   const handleDragPlaneUp = () => {
+    dragFrame.flush();
     if (draggingFurniture) {
       setDraggingFurniture(null);
       dragHasMovedRef.current = false;

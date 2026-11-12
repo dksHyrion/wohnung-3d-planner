@@ -13,6 +13,7 @@ import {
 import { Corner, Wall } from '../../core/types';
 import { BackgroundOverlayControls } from './BackgroundOverlayControls';
 import { CanvasDragState, FloorplanSvg2D } from './FloorplanSvg2D';
+import { createFrameThrottle } from '../../core/frameThrottle';
 
 export const FloorplanCanvas2D: React.FC = () => {
   const { t } = useTranslation();
@@ -179,6 +180,9 @@ export const FloorplanCanvas2D: React.FC = () => {
     });
   };
 
+  // One store commit per animation frame while dragging; pointer up flushes the last position.
+  const dragFrame = useRef(createFrameThrottle()).current;
+
   const handleSvgPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (activeTool === 'calibrate-scale' && calibrationPoints.p1 && !calibrationPoints.p2) {
       setCalibrationHoverPt(clientToWorldCm(e.clientX, e.clientY));
@@ -194,7 +198,9 @@ export const FloorplanCanvas2D: React.FC = () => {
       const pt = clientToWorldCm(e.clientX, e.clientY);
       const newX = Number((pt.x - dragState.offsetX).toFixed(1));
       const newZ = Number((pt.z - dragState.offsetZ).toFixed(1));
-      updateBackgroundImage({ xCm: newX, zCm: newZ }, { recordHistory: false });
+      dragFrame.schedule(() =>
+        updateBackgroundImage({ xCm: newX, zCm: newZ }, { recordHistory: false })
+      );
       return;
     }
 
@@ -204,11 +210,12 @@ export const FloorplanCanvas2D: React.FC = () => {
       const rect = svg.getBoundingClientRect();
       const dxCm = ((e.clientX - dragState.startClientX) / rect.width) * dragState.startVB.w;
       const dyCm = ((e.clientY - dragState.startClientY) / rect.height) * dragState.startVB.h;
-      setViewBox({
+      const nextVB = {
         ...dragState.startVB,
         x: dragState.startVB.x - dxCm,
         y: dragState.startVB.y - dyCm,
-      });
+      };
+      dragFrame.schedule(() => setViewBox(nextVB));
       return;
     }
 
@@ -219,9 +226,10 @@ export const FloorplanCanvas2D: React.FC = () => {
         pushUndoSnapshot();
         (dragState as { hasMoved?: boolean }).hasMoved = true;
       }
-      moveCorner(dragState.cornerId, snapToGridCm(pt.x), snapToGridCm(pt.z), {
-        recordHistory: false,
-      });
+      const { cornerId } = dragState;
+      dragFrame.schedule(() =>
+        moveCorner(cornerId, snapToGridCm(pt.x), snapToGridCm(pt.z), { recordHistory: false })
+      );
       return;
     }
 
@@ -230,12 +238,10 @@ export const FloorplanCanvas2D: React.FC = () => {
         pushUndoSnapshot();
         (dragState as { hasMoved?: boolean }).hasMoved = true;
       }
-      moveFurniture(
-        dragState.furnitureId,
-        pt.x - dragState.offsetX,
-        pt.z - dragState.offsetZ,
-        { recordHistory: false }
-      );
+      const { furnitureId } = dragState;
+      const x = pt.x - dragState.offsetX;
+      const z = pt.z - dragState.offsetZ;
+      dragFrame.schedule(() => moveFurniture(furnitureId, x, z, { recordHistory: false }));
       return;
     }
 
@@ -244,12 +250,10 @@ export const FloorplanCanvas2D: React.FC = () => {
         pushUndoSnapshot();
         (dragState as { hasMoved?: boolean }).hasMoved = true;
       }
-      moveRug(
-        dragState.rugId,
-        snapToGridCm(pt.x - dragState.offsetX),
-        snapToGridCm(pt.z - dragState.offsetZ),
-        { recordHistory: false }
-      );
+      const { rugId } = dragState;
+      const x = snapToGridCm(pt.x - dragState.offsetX);
+      const z = snapToGridCm(pt.z - dragState.offsetZ);
+      dragFrame.schedule(() => moveRug(rugId, x, z, { recordHistory: false }));
       return;
     }
 
@@ -289,6 +293,7 @@ export const FloorplanCanvas2D: React.FC = () => {
   };
 
   const handleSvgPointerUp = () => {
+    dragFrame.flush();
     if (dragState?.type === 'draw-wall') {
       const dist = Math.hypot(
         dragState.currentX - dragState.startX,
@@ -322,6 +327,7 @@ export const FloorplanCanvas2D: React.FC = () => {
   };
 
   const handleSvgPointerCancel = () => {
+    dragFrame.flush();
     clearAlignmentGuides();
     setDragState(null);
   };
