@@ -16,7 +16,7 @@ A centimeter-accurate 2D/3D architectural floorplan and furniture placement simu
 # Start development server (local)
 npm run dev
 
-# Run all automated tests (495 tests across 53 files)
+# Run all automated tests
 npm test
 
 # Run Vitest once without watch mode
@@ -46,13 +46,13 @@ npm run build
 
 ### C. Compound Collision & Multi-Part Furniture
 * Compound pieces (dining table + chairs, L-sofas, beds + nightstands, unfolded sofa beds) must register their sub-polygons in `src/core/furnitureShapes.ts` (`layoutFurnitureParts`).
-* Both 2D SVG canvas, 2D plan export, and 3D collision (`computeFurnitureOBB` / SAT) share `layoutFurnitureParts` to ensure zero discrepancies between rendered visuals and clearance checks.
+* Both 2D SVG canvas, 2D plan export, and 3D collision (`computeFurnitureOBBs` / SAT) share `layoutFurnitureParts` to ensure zero discrepancies between rendered visuals and clearance checks.
 
 ### D. Store Architecture (`zustand`)
 * Store resides in `src/store/useFloorplanStore.ts` and delegates to domain action slices:
-  * `src/store/geometry.ts`: Walls, corners, openings, furniture, rugs, and collision evaluations.
+  * `src/store/geometry.ts`: Aggregates the domain slices in `src/store/slices/` (`wallSlice`, `furnitureSlice`, `rugSlice`, `presetSlice`): walls, corners, openings, furniture, rugs. Collision evaluation runs in `setWithCollisions` (`useFloorplanStore.ts`).
   * `src/store/view.ts`: Tool selection, camera preset, lighting/time, grid, measure tool.
-  * `src/store/history.ts`: 30-step undo/redo buffer, LocalStorage autosave, JSON import/export.
+  * `src/store/history.ts`: 30-step undo/redo buffer, JSON import/export. Autosave logic lives in `src/store/autosave.ts`, `src/store/planFile.ts` and `src/server/`.
 * **Drag Transactions:** When implementing drag interactions in 2D or 3D, always call `pushUndoSnapshot()` on pointer down, then use `{ recordHistory: false }` during pointer move to avoid flooding the undo history.
 
 ### E. 100% Offline-First
@@ -70,7 +70,7 @@ npm run build
 ## 4. Coding & Testing Guidelines
 
 * **TypeScript Strictness:** Strict types enabled. Avoid `any`. Prefer Discriminated Unions for visual types and tool modes.
-* **Preserve Integrity:** Keep all 495 automated tests passing when refactoring or adding features.
+* **Preserve Integrity:** Keep all automated tests passing when refactoring or adding features.
 * **Privacy by Design:** Never commit personal names, real addresses, private purchase receipts, or private floorplans to git. Keep private plans in `privat/` (ignored by `.gitignore`).
 * **Verification Before Completion:** Always execute `npm test` and `npm run build` before claiming completion on code/feature changes.
-* **Operational Directness (Dev Server / Tunnel):** On purely operational requests (e.g. "mache den tunnel auf", "starte den server"), execute the action immediately: start the background dev server/tunnel without running test suites, without exploratory token consumption, and report the reachable URLs directly.
+* **Operational Directness (Dev Server / Tunnel):** On purely operational requests (e.g. "mache den tunnel auf", "starte den server"), execute the action immediately: start the background dev server/tunnel (`npm run dev -- --host 0.0.0.0 --port 5173`) without running test suites, without exploratory token consumption, and report the reachable URLs directly.

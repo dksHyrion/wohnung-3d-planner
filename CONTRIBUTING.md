@@ -22,7 +22,7 @@ Jeder Beitrag (Pull Request) muss diese unverletzlichen Grundregeln einhalten:
 
 ### C. Geteilte Compound-Geometrie
 * Mehrteilige Möbel (z. B. Esstisch mit Stühlen, L-Sofas, Schlafsofas) definieren ihre Teilpolygone zentral in `src/core/furnitureShapes.ts` via `layoutFurnitureParts`.
-* 2D-Canvas, SVG-Plan-Export und 3D-Kollision (`computeFurnitureOBB` / SAT) greifen auf dieselben Teilpolygone zu, um Diskrepanzen zwischen Visualisierung und Prüfung zu verhindern.
+* 2D-Canvas, SVG-Plan-Export und 3D-Kollision (`computeFurnitureOBBs` / SAT) greifen auf dieselben Teilpolygone zu, um Diskrepanzen zwischen Visualisierung und Prüfung zu verhindern.
 
 ### D. Store-Architektur & Drag-Transaktionen
 * Bei Drag-Interaktionen in 2D oder 3D:
