@@ -59,6 +59,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       ...previousSnapshot.openings.map((o) => o.id),
       ...previousSnapshot.furniture.map((f) => f.id),
       ...(previousSnapshot.rugs ?? []).map((r) => r.id),
+      ...(previousSnapshot.fixtures ?? []).map((fx) => fx.id),
     ]);
     const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
 
@@ -71,6 +72,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         rugs: previousSnapshot.rugs ?? [],
         roomLabels: previousSnapshot.roomLabels ?? [],
         roofSlopes: previousSnapshot.roofSlopes ?? [],
+        fixtures: previousSnapshot.fixtures ?? [],
+        layoutVariants: previousSnapshot.variants ?? [],
+        activeVariantId: previousSnapshot.activeVariantId ?? null,
         backgroundImage: withRuntimeImage(previousSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
         selectedType: keepSelection ? state.selectedType : null,
@@ -98,6 +102,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       ...nextSnapshot.openings.map((o) => o.id),
       ...nextSnapshot.furniture.map((f) => f.id),
       ...(nextSnapshot.rugs ?? []).map((r) => r.id),
+      ...(nextSnapshot.fixtures ?? []).map((fx) => fx.id),
     ]);
     const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
 
@@ -110,6 +115,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         rugs: nextSnapshot.rugs ?? [],
         roomLabels: nextSnapshot.roomLabels ?? [],
         roofSlopes: nextSnapshot.roofSlopes ?? [],
+        fixtures: nextSnapshot.fixtures ?? [],
+        layoutVariants: nextSnapshot.variants ?? [],
+        activeVariantId: nextSnapshot.activeVariantId ?? null,
         backgroundImage: withRuntimeImage(nextSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
         selectedType: keepSelection ? state.selectedType : null,
@@ -334,6 +342,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       rugs: state.rugs,
       roomLabels: state.roomLabels,
       roofSlopes: state.roofSlopes,
+      fixtures: state.fixtures,
+      variants: state.layoutVariants,
+      activeVariantId: state.activeVariantId,
       backgroundImage: bg,
     };
     return JSON.stringify(payload, null, 2);
@@ -342,9 +353,11 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
   importJson: (jsonStr) => {
     const parsed = parsePlanJson(jsonStr);
     if (!parsed) return false;
-    const { importedWasDataUrl, ...plan } = parsed;
+    const { importedWasDataUrl, variants, activeVariantId, ...plan } = parsed;
     setWithCollisions({
       ...plan,
+      layoutVariants: variants,
+      activeVariantId,
       selectedId: null,
       selectedType: null,
     });

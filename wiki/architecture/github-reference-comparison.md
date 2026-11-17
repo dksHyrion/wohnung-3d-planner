@@ -45,18 +45,16 @@ flowchart TD
    * **Ehrliche 3D-Materialien & Perspektive (Sprint 3):** Neutrales `MOOD_PRESETS.neutral`, exakte Augenhöhe (`170 cm` / `115 cm`, frei einstellbar 50–250 cm), Sonnen-Fenster-Kopplung (`alignSunWithWindows`) und `showDecor`-Schalter.
    * **CAD- & BOM-Export (Sprint 4):** Gehrungs-/öffnungsgeschnittener SVG-Plan ([`wallExportPolygons.ts`](../../src/core/export/wallExportPolygons.ts), [`planSvgExport.ts`](../../src/core/export/planSvgExport.ts)), AutoCAD R12 DXF ([`dxfExport.ts`](../../src/core/export/dxfExport.ts)) und CSV/Markdown-Stückliste & Raumflächenbilanz ([`bomExport.ts`](../../src/core/export/bomExport.ts)).
    * **Ergonomie 2.0 & Dachschrägen (Sprint 5–6):** 2D-EDT-Erreichbarkeit, C-Space-Lieferweg, DIN 18040-2 150-cm-Wendekreis, Stuhl-Rückzug, Klapp-Diff und Scorecard ([`ergonomicsScorecard.ts`](../../src/core/ergonomicsScorecard.ts)); Dachschrägen (`RoofSlope`), 3D-Höhenkollision und WoFlV § 4 Flächenanrechnung ([`roofSlopeMath.ts`](../../src/core/roofSlopeMath.ts)) plus Playwright-Browser-E2E ([`e2e/app.spec.ts`](../../e2e/app.spec.ts)).
+5. **Paket 3A — Haustechnik, Anschlüsse & Heizkörper ([`mepFixtures.ts`](../../src/core/mepFixtures.ts)):**
+   * Wandgebundene `WallFixture`-Elemente (`radiator`, `socket`, `switch`, `data-outlet`, `water-outlet`, `shaft`) mit 2D-/3D-Modellen (`WallFixtureMesh3D.tsx`), `FixtureInspector.tsx`, SVG-/DXF-Export (Layer `MEP`), 3D-Wärmestau-/Verdeckungs-Kollision (`fixture-blocked`) und Abstandsdiagnose zur nächsten Steckdose.
+6. **Paket 3E — Interaktive WASD-Begehung & Sichtachsen-/Blendungs-Check ([`walkAndSightlines.ts`](../../src/core/walkAndSightlines.ts)):**
+   * Tastaturgesteuerte First-Person-Begehung (WASD / Pfeiltasten) in `Scene3D.tsx` mit Durchschreiten von `openingIsWalkthrough`-Öffnungen und Wand-Sliding (`stepFirstPersonWalk`).
+   * Monitor-Blendungsanalyse gegen Fenster/Sonne (`reflection-glare`, `backlight-contrast`) sowie Sichtachsen-Analyse (Sofa $\to$ Wandbild/TV inkl. Hindernisprüfung) in 2D und Scorecard.
+7. **Paket 3F — Stellproben-Varianten (Layout-Snapshots A/B) ([`layoutVariants.ts`](../../src/core/layoutVariants.ts)):**
+   * Speichern und 1-Klick-Umschalten mehrerer Einrichtungs-Varianten (`furniture` + `rugs`) auf demselben Grundriss über `variantSlice.ts` (`saveLayoutVariant`, `switchLayoutVariant`, Auto-Sync aktiver Änderungen, JSON-Persistenz) samt vergleichender Kennzahlen-Auswertung (`compareLayoutVariants`: freie Bodenfläche %, kritische Engstellen, Kollisionen, Scorecard-Note & Empfehlung) in [`LayoutVariantsSection.tsx`](../../src/components/sidebar/LayoutVariantsSection.tsx).
 
 ---
 
-## 3. Dokumentiertes Backlog für kommende Ausbaustufen (Pakete 3A, 3E, 3F)
+## 3. Dokumentiertes Backlog für kommende Ausbaustufen
 
-Die weiteren aus den GitHub-Projekten abgeleiteten Verbesserungsrichtungen sind für künftige Ausbaustufen vorbereitet:
-
-* **Paket 3A — Haustechnik, Anschlüsse & Heizkörper (aus `cvdlab/react-planner` & `SweetHome3D`):**
-  * Modellierung wandgebundener Haustechnik: **Heizkörper** (unter Fenstern inkl. Wärmestau-/Tiefe-Prüfung), **Steckdosen, Lichtschalter, LAN-/TV-Dosen**, **Wasser-/Abwasseranschlüsse** sowie **Versorgungsschächte / Wandpfeiler** in Raumecken.
-  * Automatische Prüfung, ob Schränke Lichtschalter verdecken oder wie weit elektrifizierte Möbel (z. B. *Inwerk Masterlift 2*) von der nächsten Steckdose entfernt stehen.
-* **Paket 3E — Interaktive WASD-Begehung & Sichtachsen-/Blendungs-Check (aus `openPlan3D` & `threejs-sims-house-builder`):**
-  * Tastaturgesteuerte Bewegung (WASD / Pfeiltasten) im `first-person`-Modus (170 cm / 115 cm Augenhöhe) durch alle Durchgangsöffnungen (`openingIsWalkthrough`).
-  * Sichtachsen- und Blendungsanalyse (z. B. Fensterreflexion auf dem Schreibtisch-Monitor, Blickwinkel Sofa $\to$ Wandbild/TV).
-* **Paket 3F — Stellproben-Varianten (Layout-Snapshots A/B):**
-  * Speichern mehrerer Einrichtungs-Varianten (z. B. *Variante A: Home-Office am Nordfenster* vs. *Variante B: Sofa am Fenster*) auf demselben Grundriss mit 1-Klick-Umschaltung und Kennzahlen-Vergleich (freie Innenfläche, kritische Engstellen).
+Sämtliche aus den GitHub-Projekten abgeleiteten Referenz-Pakete (**3A bis 3F**) sind inzwischen vollständig umgesetzt. Weitere Ideen betreffen lediglich optionale Detailvertiefungen (z. B. WoFlV-Höhenlinien im SVG-/DXF-Export oder zusätzliche Browser-E2E-Flows).

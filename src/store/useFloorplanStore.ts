@@ -11,6 +11,8 @@ import {
   AreaRug,
   RoomLabel,
   RoofSlope,
+  WallFixture,
+  LayoutVariant,
   BackgroundImageOverlay,
 } from '../core/types';
 import { evaluateFloorplanCollisions } from '../core/collisionEngine';
@@ -54,6 +56,13 @@ function cloneFloorplanData(data: FloorplanData): FloorplanData {
     rugs: (data.rugs ?? []).map((r) => ({ ...r })),
     roomLabels: (data.roomLabels ?? []).map((label) => ({ ...label })),
     roofSlopes: (data.roofSlopes ?? []).map((s) => ({ ...s })),
+    fixtures: (data.fixtures ?? []).map((fx) => ({ ...fx })),
+    variants: (data.variants ?? []).map((v) => ({
+      ...v,
+      furniture: v.furniture.map((f) => ({ ...f })),
+      rugs: v.rugs.map((r) => ({ ...r })),
+    })),
+    activeVariantId: data.activeVariantId ?? null,
     backgroundImage: backgroundImageForExport(data.backgroundImage),
   };
 }
@@ -76,6 +85,9 @@ function captureFloorplanSnapshot(state: {
   rugs?: AreaRug[];
   roomLabels?: RoomLabel[];
   roofSlopes?: RoofSlope[];
+  fixtures?: WallFixture[];
+  layoutVariants?: LayoutVariant[];
+  activeVariantId?: string | null;
   backgroundImage?: BackgroundImageOverlay | null;
 }): FloorplanData {
   return cloneFloorplanData({
@@ -86,6 +98,9 @@ function captureFloorplanSnapshot(state: {
     rugs: state.rugs ?? [],
     roomLabels: state.roomLabels ?? [],
     roofSlopes: state.roofSlopes ?? [],
+    fixtures: state.fixtures ?? [],
+    variants: state.layoutVariants ?? [],
+    activeVariantId: state.activeVariantId ?? null,
     backgroundImage: backgroundImageForExport(state.backgroundImage),
   });
 }
@@ -122,6 +137,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       (patch.rugs !== undefined && patch.rugs !== state.rugs) ||
       (patch.roomLabels !== undefined && patch.roomLabels !== state.roomLabels) ||
       (patch.roofSlopes !== undefined && patch.roofSlopes !== state.roofSlopes) ||
+      (patch.fixtures !== undefined && patch.fixtures !== state.fixtures) ||
       (patch.backgroundImage !== undefined && patch.backgroundImage !== state.backgroundImage);
 
     const historyPatch = recordHistory && hasDataChanged ? pushHistory() : {};
@@ -131,14 +147,18 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     const furniture = patch.furniture ?? state.furniture;
     const roomLabels = patch.roomLabels ?? state.roomLabels;
     const roofSlopes = patch.roofSlopes ?? state.roofSlopes;
+    const fixtures = patch.fixtures ?? state.fixtures;
 
     // Rug, label, overlay and selection patches do not affect collisions; keep the old
     // report references so subscribers do not re-render.
     const layoutChanged =
       corners !== state.corners || walls !== state.walls || furniture !== state.furniture;
     const collisionReports =
-      layoutChanged || openings !== state.openings || roofSlopes !== state.roofSlopes
-        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture, roofSlopes })
+      layoutChanged ||
+      openings !== state.openings ||
+      roofSlopes !== state.roofSlopes ||
+      fixtures !== state.fixtures
+        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture, roofSlopes, fixtures })
         : state.collisionReports;
     const showPassageHeatmap = patch.showPassageHeatmap ?? state.showPassageHeatmap;
     const passageReport = !showPassageHeatmap
@@ -212,6 +232,9 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     rugs: initialData.rugs ?? [],
     roomLabels: initialData.roomLabels ?? [],
     roofSlopes: initialData.roofSlopes ?? [],
+    fixtures: initialData.fixtures ?? [],
+    layoutVariants: initialData.variants ?? [],
+    activeVariantId: initialData.activeVariantId ?? null,
     backgroundImage: initialData.backgroundImage ?? null,
     overlayError: null,
     persistenceError: null,

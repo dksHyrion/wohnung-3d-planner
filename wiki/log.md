@@ -4,6 +4,34 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-17] Paket 3F — Stellproben-Varianten (Layout-Snapshots A/B)
+
+- **Action:** `FEATURE`, `STATE_MANAGEMENT`, `ERGONOMICS`
+- **Domänenlogik & Vergleich (`src/core/layoutVariants.ts`):**
+  - `LayoutVariant` (`furniture` + `rugs` pro Grundriss) mit `computeVariantMetrics` und `compareLayoutVariants` (Freiflächenquote %, kritische Engstellen, Kollisionen, Scorecard-Note & Empfehlungs-Ranking).
+- **Store, Persistenz & UI (`variantSlice.ts`, `LayoutVariantsSection.tsx`, `planImport.ts`):**
+  - `saveLayoutVariant`, `switchLayoutVariant` (inkl. automatischem Rücksichern der laufenden Änderungen in die aktive Variante vor dem Umschalten), `renameLayoutVariant`, `deleteLayoutVariant`, Undo/Redo und JSON-Round-Trip.
+  - Kompakte Vergleichs-Karten in `InspectorSidebar.tsx` (DE / EN). Damit sind alle Referenz-Pakete `3A–3F` vollständig abgeschlossen.
+
+## [2026-11-17] Paket 3E — Interaktive WASD-Begehung & Sichtachsen-/Blendungs-Check
+
+- **Action:** `FEATURE`, `CAMERA`, `ERGONOMICS`, `LIGHTING`
+- **WASD First-Person Navigation (`walkAndSightlines.ts`, `Scene3D.tsx`):**
+  - `stepFirstPersonWalk` bewegt Kamera und Orbit-Target synchron entlang der Blick-/Strafe-Achsen auf konstanter Augenhöhe (`cameraEyeLevelCm`), lässt Durchgangsöffnungen (`openingIsWalkthrough`) passieren und gleitet bei schrägem Wandkontakt sauber entlang der Wand.
+  - Tastatur-Listener (`WASD` / Pfeiltasten) in `CameraController` aktiv im `first-person`-Modus (mit Eingabefeld-Schutz und `viewer3d.wasdHint`).
+- **Blendungs- & Sichtachsen-Analyse (`evaluateWalkAndSightlines`):**
+  - Prüft Schreibtische und Monitore (`desk-monitor`, `desk`, `inwerk-masterlift`) gegen Tageslichtöffnungen + Sonnenvektor (`reflection-glare`, `backlight-contrast`) sowie Sitzgruppen-Sichtachsen zu Wandbildern/Medienflächen inkl. Verdeckung durch Wände oder hohe Möbel.
+  - Anzeige in `ErgonomicsScorecardSection.tsx` und als farbige 2D-Strahlen in `FurnitureAndOverlaysLayers.tsx`.
+
+## [2026-11-17] Paket 3A — Haustechnik, Anschlüsse, Heizkörper & Versorgungsschächte
+
+- **Action:** `FEATURE`, `MEP`, `COLLISION`, `CAD_EXPORT`
+- **Domänenlogik & Kollision (`src/core/mepFixtures.ts`, `collisionEngine.ts`):**
+  - `WallFixture` (`radiator`, `socket`, `switch`, `data-outlet`, `water-outlet`, `shaft`) mit automatischer Rauminnenseiten-Auflösung und 3D-OBB-Prüfung (`fixture-blocked`).
+  - Semantische Verdeckungs- & Wärmestauprüfung: 30-cm-Wärmestau vor Heizkörpern, verdeckte Lichtschalter/Steckdosen, Erlaubnis von Sanitärmöbeln/Küchen vor Wasseranschlüssen und offenen Schreibtischen vor niedrigen Dosen sowie `evaluateMepDiagnostics` (Steckdosen-Entfernung zu elektrifizierten Möbeln wie *Inwerk Masterlift 2*).
+- **2D/3D, Export & UI (`WallFixtureMesh3D.tsx`, `FixtureInspector.tsx`, `WallInspector.tsx`, `ErgonomicsScorecardSection.tsx`, `planSvgExport.ts`, `dxfExport.ts`):**
+  - Klickbare 2D-/3D-Darstellung, eigener Inspektor inkl. Wandseitenwechsel, Store-/Undo-/JSON-Integration, SVG-Symbole (`.arch-fixture`) und DXF-Layer `MEP`.
+
 ## [2026-11-17] Ausbaustufe Sprints 1–6 & Wiki-Lint: Geometrie, CAD-UX, 3D-Qualität, CAD/BOM-Export, Ergonomie 2.0, Dachschrägen/WoFlV & Playwright E2E
 
 - **Action:** `FEATURE`, `GEOMETRY`, `CAD_EXPORT`, `ERGONOMICS`, `E2E_TESTING`, `LINT`

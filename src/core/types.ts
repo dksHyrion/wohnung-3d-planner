@@ -150,7 +150,37 @@ export type CollisionIssueType =
   | 'furniture-intersection'
   | 'opening-blocked'
   | 'clearance-blocked'
-  | 'roof-slope-exceeded';
+  | 'roof-slope-exceeded'
+  | 'fixture-blocked';
+
+export type WallFixtureType =
+  | 'radiator'
+  | 'socket'
+  | 'switch'
+  | 'data-outlet'
+  | 'water-outlet'
+  | 'shaft';
+
+export interface WallFixture {
+  id: string;
+  wallId: string;
+  type: WallFixtureType;
+  offsetFromStartCm: number;
+  widthCm: number;
+  heightCm: number;
+  depthCm: number;
+  elevationCm: number;
+  side?: 'pos' | 'neg';
+  label?: string;
+}
+
+export interface LayoutVariant {
+  id: string;
+  name: string;
+  createdAt: string;
+  furniture: FurnitureItem[];
+  rugs: AreaRug[];
+}
 
 export interface RoofSlope {
   id: string;
@@ -243,6 +273,9 @@ export interface FloorplanData {
   rugs?: AreaRug[];
   roomLabels?: RoomLabel[];
   roofSlopes?: RoofSlope[];
+  fixtures?: WallFixture[];
+  variants?: LayoutVariant[];
+  activeVariantId?: string | null;
   backgroundImage?: BackgroundImageOverlay | null;
 }
 

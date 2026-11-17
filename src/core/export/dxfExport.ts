@@ -4,6 +4,7 @@ import { computeExteriorDimensionChains } from '../dimensionMath';
 import { layoutFurnitureParts } from '../furnitureShapes';
 import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { computeWallPlanPolygons } from './wallExportPolygons';
+import { computeWallFixtureBoxes } from '../mepFixtures';
 import type { Language } from '../../i18n/types';
 
 export interface DxfExportOptions {
@@ -19,6 +20,7 @@ const DXF_LAYERS: Array<{ name: string; color: number }> = [
   { name: 'RUGS', color: 8 },
   { name: 'DIMENSIONS', color: 1 },
   { name: 'TEXT', color: 2 },
+  { name: 'MEP', color: 6 },
 ];
 
 function fmt(n: number): string {
@@ -295,6 +297,23 @@ export function exportFloorplanDxf(
     addText(out, 'TEXT', r.centroid.x, dxfY(r.centroid.z) + 10, 14, label);
     addText(out, 'TEXT', r.centroid.x, dxfY(r.centroid.z) - 10, 11, `${r.netAreaSqM.toFixed(2)} m2`);
   });
+
+  // 4b. Wall MEP Fixtures (Radiators, Sockets, Switches, Shafts)
+  if (data.fixtures && data.fixtures.length > 0) {
+    const fixtureBoxes = computeWallFixtureBoxes(data.corners, data.walls, data.fixtures, rooms);
+    for (const fx of fixtureBoxes) {
+      const hw = fx.widthCm / 2;
+      const hd = fx.depthCm / 2;
+      const deg = (-fx.angleRad * 180) / Math.PI;
+      const poly = [
+        rotateLocalPoint(fx.center.x, fx.center.z, deg, -hw, -hd),
+        rotateLocalPoint(fx.center.x, fx.center.z, deg, hw, -hd),
+        rotateLocalPoint(fx.center.x, fx.center.z, deg, hw, hd),
+        rotateLocalPoint(fx.center.x, fx.center.z, deg, -hw, hd),
+      ];
+      addClosedPolyline(out, 'MEP', poly);
+    }
+  }
 
   // 5. Exterior dimension chains
   if (includeDimensions && data.corners.length > 0 && data.walls.length > 0) {

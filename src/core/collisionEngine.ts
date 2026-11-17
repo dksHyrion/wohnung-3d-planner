@@ -18,6 +18,11 @@ import {
   getEffectiveCeilingHeightAt,
   resolveRoofSlopePlanes,
 } from './roofSlopeMath';
+import {
+  computeWallFixtureBoxes,
+  doesFurnitureBlockFixture,
+  formatFixtureCollisionMessage,
+} from './mepFixtures';
 
 export { segmentsIntersect2D };
 
@@ -491,13 +496,27 @@ export function evaluateFloorplanCollisions(
   const reports: Record<string, FurnitureCollisionReport> = {};
 
   const roofSlopes = data.roofSlopes ?? [];
+  const fixtures = data.fixtures ?? [];
+  const computedRooms =
+    roofSlopes.length > 0 || fixtures.length > 0
+      ? computeFloorPolygons(data.corners, data.walls)
+      : [];
   const roofPlanes =
     roofSlopes.length > 0
       ? resolveRoofSlopePlanes(
           data.corners,
           data.walls,
           roofSlopes,
-          computeFloorPolygons(data.corners, data.walls)
+          computedRooms
+        )
+      : [];
+  const fixtureBoxes =
+    fixtures.length > 0
+      ? computeWallFixtureBoxes(
+          data.corners,
+          data.walls,
+          fixtures,
+          computedRooms
         )
       : [];
   const maxCeilingCm =
@@ -705,6 +724,19 @@ export function evaluateFloorplanCollisions(
           message: `"${item.name}" ragt ${Math.round(maxOverflow)} cm in die Dachschräge (${Math.round(worstTopY)} cm > ${Math.round(worstCeilingY)} cm).`,
         });
         report.hasCollision = true;
+      }
+    }
+
+    if (fixtureBoxes.length > 0) {
+      for (const fbox of fixtureBoxes) {
+        if (doesFurnitureBlockFixture(item, fbox, itemOBBs)) {
+          report.issues.push({
+            type: 'fixture-blocked',
+            targetId: fbox.fixtureId,
+            message: formatFixtureCollisionMessage(item.name, fbox.type),
+          });
+          report.hasCollision = true;
+        }
       }
     }
 

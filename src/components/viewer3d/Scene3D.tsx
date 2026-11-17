@@ -13,7 +13,9 @@ import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { WallMesh3D, SKIRTING_THICKNESS_CM, WALL_CAP_THICKNESS_OFFSET_CM } from './WallMesh3D';
 import { RoofSlopeMesh3D } from './RoofSlopeMesh3D';
+import { WallFixtureMesh3D } from './WallFixtureMesh3D';
 import { resolveRoofSlopePlanes } from '../../core/roofSlopeMath';
+import { computeWallFixtureBoxes } from '../../core/mepFixtures';
 import { computeWallMiterMap, type WallMiterExtents } from '../../core/wallMiter';
 import { computeEffectiveSunLight } from '../../core/windowLight';
 import { FurnitureMesh3D } from './FurnitureMesh3D';
@@ -43,6 +45,10 @@ import { ProceduralCurtain3D } from './decor/ProceduralCurtain3D';
 import { WindowLightPool3D } from './decor/WindowLightPool3D';
 import { PostFX3D } from './PostFX3D';
 import { interpolateMood } from '../../core/lighting/moodPresets';
+import {
+  DEFAULT_WALK_SPEED_CM_PER_SEC,
+  stepFirstPersonWalk,
+} from '../../core/walkAndSightlines';
 
 declare global {
   interface Window {
@@ -277,6 +283,7 @@ export const CameraController: React.FC<{
   const setViewMode = useFloorplanStore((s) => s.setViewMode);
   const lastNonceRef = useRef(0);
   const lastEyeLevelRef = useRef(cameraEyeLevelCm);
+  const pressedKeysRef = useRef<Set<string>>(new Set());
   const transitionRef = useRef<{
     active: boolean;
     goalPos: THREE.Vector3;
@@ -286,6 +293,59 @@ export const CameraController: React.FC<{
     goalPos: new THREE.Vector3(),
     goalTarget: new THREE.Vector3(),
   });
+
+  useEffect(() => {
+    if (cameraPreset !== 'first-person') {
+      pressedKeysRef.current.clear();
+      return;
+    }
+
+    const WALK_KEYS = new Set([
+      'w',
+      'a',
+      's',
+      'd',
+      'arrowup',
+      'arrowdown',
+      'arrowleft',
+      'arrowright',
+    ]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const targetEl = e.target as HTMLElement | null;
+      if (
+        targetEl &&
+        (targetEl.tagName === 'INPUT' ||
+          targetEl.tagName === 'TEXTAREA' ||
+          targetEl.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (!WALK_KEYS.has(k)) return;
+      if (k.startsWith('arrow')) e.preventDefault();
+      pressedKeysRef.current.add(k);
+      transitionRef.current.active = false;
+      invalidate();
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeysRef.current.delete(e.key.toLowerCase());
+    };
+
+    const handleBlur = () => {
+      pressedKeysRef.current.clear();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [cameraPreset, invalidate]);
 
   useEffect(() => {
     if (!controls || !('addEventListener' in controls)) return;
@@ -300,6 +360,47 @@ export const CameraController: React.FC<{
   }, [controls]);
 
   useFrame((_, delta) => {
+    if (cameraPreset === 'first-person' && pressedKeysRef.current.size > 0) {
+      const keys = pressedKeysRef.current;
+      const forwardInput =
+        (keys.has('w') || keys.has('arrowup') ? 1 : 0) -
+        (keys.has('s') || keys.has('arrowdown') ? 1 : 0);
+      const strafeInput =
+        (keys.has('d') || keys.has('arrowright') ? 1 : 0) -
+        (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
+
+      if (forwardInput !== 0 || strafeInput !== 0) {
+        const orbit =
+          controls && 'target' in controls
+            ? (controls as unknown as OrbitControlsLike)
+            : null;
+        const currentTarget = orbit
+          ? { x: orbit.target.x, y: orbit.target.y, z: orbit.target.z }
+          : { x: roomBounds.cx, y: cameraEyeLevelCm, z: roomBounds.cz };
+        const stepCm = DEFAULT_WALK_SPEED_CM_PER_SEC * Math.min(delta, 0.1);
+        const res = stepFirstPersonWalk({
+          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+          target: currentTarget,
+          forwardInput,
+          strafeInput,
+          stepCm,
+          eyeLevelCm: cameraEyeLevelCm,
+          corners,
+          walls,
+          openings,
+        });
+        camera.position.set(res.pos.x, res.pos.y, res.pos.z);
+        if (orbit) {
+          orbit.target.set(res.target.x, res.target.y, res.target.z);
+          orbit.update();
+        } else {
+          camera.lookAt(res.target.x, res.target.y, res.target.z);
+        }
+        camera.updateProjectionMatrix();
+        invalidate();
+      }
+    }
+
     if (!transitionRef.current.active) return;
     const alpha = 1 - Math.exp(-9 * Math.min(delta, 0.1));
     camera.position.lerp(transitionRef.current.goalPos, alpha);
@@ -596,6 +697,7 @@ export const Scene3D: React.FC = () => {
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
   const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const fixtures = useFloorplanStore((s) => s.fixtures);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs =
     useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
@@ -715,6 +817,10 @@ export const Scene3D: React.FC = () => {
   const roofSlopePlanes = useMemo(
     () => resolveRoofSlopePlanes(corners, walls, roofSlopes, rooms),
     [corners, walls, roofSlopes, rooms]
+  );
+  const fixtureBoxes = useMemo(
+    () => computeWallFixtureBoxes(corners, walls, fixtures, rooms),
+    [corners, walls, fixtures, rooms]
   );
   const maxCeilingCm = useMemo(
     () => (walls.length > 0 ? Math.max(250, ...walls.map((w) => w.heightCm)) : 250),
@@ -904,6 +1010,7 @@ export const Scene3D: React.FC = () => {
           {usePerspective
             ? t('viewer3d.perspectiveBadge')
             : t('viewer3d.isometricBadge')}
+          {cameraPreset === 'first-person' ? ` • ${t('viewer3d.wasdHint')}` : ''}
         </span>
       </div>
 
@@ -1098,6 +1205,16 @@ export const Scene3D: React.FC = () => {
             plane={plane}
             maxCeilingCm={maxCeilingCm}
             theme={renderTheme}
+          />
+        ))}
+
+        {/* 3D Wall MEP Fixtures (Radiators, Sockets, Switches, Data, Water, Shafts) */}
+        {fixtureBoxes.map((box) => (
+          <WallFixtureMesh3D
+            key={box.fixtureId}
+            box={box}
+            isSelected={selectedType === 'fixture' && selectedId === box.fixtureId}
+            onSelect={(id) => selectEntity(id, 'fixture')}
           />
         ))}
 

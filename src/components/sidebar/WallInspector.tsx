@@ -3,6 +3,7 @@ import { DoorOpen, AppWindow, Sliders, Trash2, Scissors } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { getWallGeometry } from '../../core/wallMath';
+import { createDefaultFixture, WALL_FIXTURE_TYPES } from '../../core/mepFixtures';
 import type { Wall } from '../../core/types';
 
 export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
@@ -15,6 +16,7 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const walls = useFloorplanStore((s) => s.walls);
   const openings = useFloorplanStore((s) => s.openings);
   const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const fixtures = useFloorplanStore((s) => s.fixtures);
   const updateWallLengthCm = useFloorplanStore((s) => s.updateWallLengthCm);
   const updateWallProps = useFloorplanStore((s) => s.updateWallProps);
   const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
@@ -23,10 +25,13 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const addRoofSlope = useFloorplanStore((s) => s.addRoofSlope);
   const updateRoofSlope = useFloorplanStore((s) => s.updateRoofSlope);
   const removeRoofSlope = useFloorplanStore((s) => s.removeRoofSlope);
+  const addFixture = useFloorplanStore((s) => s.addFixture);
+  const removeFixture = useFloorplanStore((s) => s.removeFixture);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
   const idKnee = React.useId();
   const idPitch = React.useId();
   const wallRoofSlope = roofSlopes.find((s) => s.wallId === selectedWall.id) ?? null;
+  const wallFixtures = fixtures.filter((fx) => fx.wallId === selectedWall.id);
 
   const start = corners.find((c) => c.id === selectedWall.startCornerId);
   const end = corners.find((c) => c.id === selectedWall.endCornerId);
@@ -313,6 +318,74 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
                 {t('inspector.wall.flipRoofSide')}
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Haustechnik / MEP Fixtures on this Wall */}
+      <div
+        style={{
+          marginTop: '8px',
+          paddingTop: '8px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+        }}
+      >
+        <span className="form-label" style={{ margin: 0 }}>
+          {t('inspector.wall.mepTitle')}
+        </span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {WALL_FIXTURE_TYPES.map((ft) => (
+            <button
+              key={ft}
+              type="button"
+              className="btn btn-outline"
+              style={{ padding: '2px 6px', fontSize: '0.68rem' }}
+              onClick={() =>
+                addFixture(createDefaultFixture(ft, selectedWall.id, lengthCm))
+              }
+            >
+              + {t(`inspector.fixture.types.${ft}`)}
+            </button>
+          ))}
+        </div>
+
+        {wallFixtures.length > 0 && (
+          <div className="catalog-grid">
+            {wallFixtures.map((fx) => (
+              <div
+                key={fx.id}
+                className="catalog-item-btn"
+                style={{ padding: '4px 8px' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => selectEntity(fx.id, 'fixture')}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                    {t(`inspector.fixture.types.${fx.type}`)} ({fx.widthCm}×{fx.depthCm} cm)
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  style={{ padding: '3px 6px' }}
+                  onClick={() => removeFixture(fx.id)}
+                  title={t('inspector.fixture.deleteFixture')}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>

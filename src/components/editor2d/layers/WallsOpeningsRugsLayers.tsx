@@ -1,7 +1,8 @@
 import React from 'react';
 import { useFloorplanStore } from '../../../store/useFloorplanStore';
-import { getWallGeometry } from '../../../core/wallMath';
+import { getWallGeometry, applyRoomLabels, computeFloorPolygons } from '../../../core/wallMath';
 import { doorHingeOnRight, doorLeafPlanPoints, doorSwingsInward } from '../../../core/doorLeaf';
+import { computeWallFixtureBoxes } from '../../../core/mepFixtures';
 import type { Corner, Wall } from '../../../core/types';
 import type { CanvasDragState } from '../FloorplanSvg2D';
 
@@ -96,10 +97,19 @@ export const WallsAndOpeningsLayer = React.memo(function WallsAndOpeningsLayer({
   handleWallClick: (event: React.MouseEvent, wall: Wall) => void;
 }) {
   const walls = useFloorplanStore((s) => s.walls);
+  const corners = useFloorplanStore((s) => s.corners);
+  const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
+  const fixtures = useFloorplanStore((s) => s.fixtures);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+
+  const fixtureBoxes = React.useMemo(() => {
+    if (!fixtures || fixtures.length === 0) return [];
+    const rooms = applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels);
+    return computeWallFixtureBoxes(corners, walls, fixtures, rooms);
+  }, [corners, walls, fixtures, roomLabels]);
 
   return (
     <>
@@ -410,6 +420,108 @@ export const WallsAndOpeningsLayer = React.memo(function WallsAndOpeningsLayer({
               strokeWidth={1.5}
               strokeDasharray="4 3"
             />
+          </g>
+        );
+      })}
+
+      {/* Wall-Mounted MEP Fixtures & Utility Shafts */}
+      {fixtureBoxes.map((fx) => {
+        const isSelected = selectedType === 'fixture' && selectedId === fx.fixtureId;
+        const rotDeg = (fx.angleRad * 180) / Math.PI;
+        const strokeCol = isSelected
+          ? '#38bdf8'
+          : fx.type === 'water-outlet'
+          ? '#0284c7'
+          : fx.type === 'switch'
+          ? '#f59e0b'
+          : fx.type === 'data-outlet'
+          ? '#06b6d4'
+          : '#e2e8f0';
+
+        return (
+          <g
+            key={fx.fixtureId}
+            data-fixture-id={fx.fixtureId}
+            data-fixture-type={fx.type}
+            transform={`translate(${fx.center.x}, ${fx.center.z}) rotate(${rotDeg})`}
+            style={{ cursor: 'pointer' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              selectEntity(fx.fixtureId, 'fixture');
+            }}
+          >
+            {fx.type === 'shaft' && (
+              <g>
+                <rect
+                  x={-fx.widthCm / 2}
+                  y={-fx.depthCm / 2}
+                  width={fx.widthCm}
+                  height={fx.depthCm}
+                  fill={isSelected ? 'rgba(56, 189, 248, 0.35)' : '#475569'}
+                  stroke={strokeCol}
+                  strokeWidth={1.8}
+                />
+                <line
+                  x1={-fx.widthCm / 2}
+                  y1={-fx.depthCm / 2}
+                  x2={fx.widthCm / 2}
+                  y2={fx.depthCm / 2}
+                  stroke={strokeCol}
+                  strokeWidth={1.2}
+                />
+                <line
+                  x1={fx.widthCm / 2}
+                  y1={-fx.depthCm / 2}
+                  x2={-fx.widthCm / 2}
+                  y2={fx.depthCm / 2}
+                  stroke={strokeCol}
+                  strokeWidth={1.2}
+                />
+              </g>
+            )}
+            {fx.type === 'radiator' && (
+              <g>
+                <rect
+                  x={-fx.widthCm / 2}
+                  y={-fx.depthCm / 2}
+                  width={fx.widthCm}
+                  height={fx.depthCm}
+                  rx={2}
+                  fill={isSelected ? 'rgba(56, 189, 248, 0.28)' : 'rgba(226, 232, 240, 0.22)'}
+                  stroke={strokeCol}
+                  strokeWidth={1.5}
+                />
+                {[-0.35, -0.17, 0, 0.17, 0.35].map((ratio, idx) => (
+                  <line
+                    key={`rad-fin-${idx}`}
+                    x1={fx.widthCm * ratio}
+                    y1={-fx.depthCm / 2}
+                    x2={fx.widthCm * ratio}
+                    y2={fx.depthCm / 2}
+                    stroke={strokeCol}
+                    strokeWidth={1.1}
+                  />
+                ))}
+              </g>
+            )}
+            {fx.type !== 'shaft' && fx.type !== 'radiator' && (
+              <g>
+                <rect
+                  x={-Math.max(8, fx.widthCm / 2)}
+                  y={-Math.max(4, fx.depthCm / 2)}
+                  width={Math.max(16, fx.widthCm)}
+                  height={Math.max(8, fx.depthCm)}
+                  rx={2}
+                  fill="#0f172a"
+                  stroke={strokeCol}
+                  strokeWidth={1.5}
+                />
+                <circle cx={0} cy={0} r={3.5} fill={strokeCol} />
+              </g>
+            )}
           </g>
         );
       })}

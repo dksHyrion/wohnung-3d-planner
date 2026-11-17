@@ -2,6 +2,7 @@ import React from 'react';
 import { useFloorplanStore } from '../../../store/useFloorplanStore';
 import { snapAngleToOrthogonal, applyRoomLabels, computeFloorPolygons } from '../../../core/wallMath';
 import { resolveRoofSlopePlanes, computeRoofSlopeContourLines } from '../../../core/roofSlopeMath';
+import { evaluateWalkAndSightlines } from '../../../core/walkAndSightlines';
 import { computePointDistanceCm } from '../../../core/measureMath';
 import { bedHeadboardDepthCm, isOsakaOpen, layoutFurnitureParts } from '../../../core/furnitureShapes';
 import { resolveFurnitureVisual } from '../../../core/furnitureVisual';
@@ -245,8 +246,12 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
   const ergonomicsScorecard = useFloorplanStore((s) => s.ergonomicsScorecard);
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
+  const openings = useFloorplanStore((s) => s.openings);
+  const furniture = useFloorplanStore((s) => s.furniture);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
+  const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
 
   const roofContours = React.useMemo(() => {
     if (!roofSlopes || roofSlopes.length === 0) return [];
@@ -254,6 +259,14 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
     const planes = resolveRoofSlopePlanes(corners, walls, roofSlopes, rooms);
     return planes.map(computeRoofSlopeContourLines);
   }, [corners, walls, roomLabels, roofSlopes]);
+
+  const walkSightReport = React.useMemo(() => {
+    if (!showPassageHeatmap) return null;
+    return evaluateWalkAndSightlines(
+      { corners, walls, openings, furniture },
+      { timeOfDay, alignSunWithWindows }
+    );
+  }, [showPassageHeatmap, corners, walls, openings, furniture, timeOfDay, alignSunWithWindows]);
   const measureStart = useFloorplanStore((s) => s.measureStart);
   const measureEnd = useFloorplanStore((s) => s.measureEnd);
   const activeTool = useFloorplanStore((s) => s.activeTool);
@@ -333,6 +346,38 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
               </g>
             );
           })}
+          {walkSightReport?.glareIssues.map((gl, idx) => (
+            <line
+              key={`glare-2d-${idx}`}
+              data-testid={`glare-ray-${gl.furnitureId}`}
+              x1={gl.windowPoint.x}
+              y1={gl.windowPoint.z}
+              x2={gl.screenPoint.x}
+              y2={gl.screenPoint.z}
+              stroke={gl.severity === 'critical' ? '#ef4444' : '#f59e0b'}
+              strokeWidth={1.8}
+              strokeDasharray="3 3"
+            />
+          ))}
+          {walkSightReport?.sightlines.map((sl, idx) => (
+            <line
+              key={`sight-2d-${idx}`}
+              data-testid={`sightline-ray-${sl.fromId}-${sl.toId}`}
+              x1={sl.fromPoint.x}
+              y1={sl.fromPoint.z}
+              x2={sl.toPoint.x}
+              y2={sl.toPoint.z}
+              stroke={
+                sl.status === 'obstructed'
+                  ? '#ef4444'
+                  : sl.status === 'angled'
+                  ? '#f59e0b'
+                  : '#38bdf8'
+              }
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+            />
+          ))}
         </g>
       )}
 

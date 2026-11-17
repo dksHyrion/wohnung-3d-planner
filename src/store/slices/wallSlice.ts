@@ -1,4 +1,11 @@
-import type { Corner, RoofSlope, RoomLabel, Wall, WallOpening } from '../../core/types';
+import type {
+  Corner,
+  RoofSlope,
+  RoomLabel,
+  Wall,
+  WallFixture,
+  WallOpening,
+} from '../../core/types';
 import {
   applyRoomLabels,
   computeFloorPolygons,
@@ -29,6 +36,9 @@ export type WallActions = Pick<
   | 'addRoofSlope'
   | 'updateRoofSlope'
   | 'removeRoofSlope'
+  | 'addFixture'
+  | 'updateFixture'
+  | 'removeFixture'
 >;
 
 export function createWallSlice(deps: StoreDeps): WallActions {
@@ -389,6 +399,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       const walls = state.walls.filter((w) => w.id !== wallId);
       const openings = state.openings.filter((o) => o.wallId !== wallId);
       const roofSlopes = state.roofSlopes.filter((s) => s.wallId !== wallId);
+      const fixtures = state.fixtures.filter((fx) => fx.wallId !== wallId);
       const usedCornerIds = new Set<string>();
       for (const w of walls) {
         usedCornerIds.add(w.startCornerId);
@@ -404,6 +415,9 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         (state.selectedType === 'opening' &&
           state.selectedId !== null &&
           !openings.some((o) => o.id === state.selectedId)) ||
+        (state.selectedType === 'fixture' &&
+          state.selectedId !== null &&
+          !fixtures.some((fx) => fx.id === state.selectedId)) ||
         (state.selectedType === 'corner' &&
           state.selectedId !== null &&
           !corners.some((c) => c.id === state.selectedId));
@@ -413,6 +427,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         walls,
         openings,
         roofSlopes,
+        fixtures,
         furniture,
         ...(shouldClearSelection
           ? { selectedId: null, selectedType: null, selectedRoomId: null }
@@ -722,6 +737,64 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       const state = get();
       setWithCollisions({
         roofSlopes: state.roofSlopes.filter((s) => s.id !== slopeId),
+      });
+    },
+
+    addFixture: (fixture) => {
+      const state = get();
+      const id = generateId('fix');
+      const newFixture: WallFixture = {
+        ...fixture,
+        id,
+        widthCm: Math.max(4, fixture.widthCm),
+        heightCm: Math.max(4, fixture.heightCm),
+        depthCm: Math.max(1, fixture.depthCm),
+        elevationCm: Math.max(0, fixture.elevationCm),
+      };
+      setWithCollisions({
+        fixtures: [...state.fixtures, newFixture],
+        selectedId: id,
+        selectedType: 'fixture',
+      });
+      return id;
+    },
+
+    updateFixture: (fixtureId, patch) => {
+      const state = get();
+      const existing = state.fixtures.find((fx) => fx.id === fixtureId);
+      if (!existing) return;
+
+      const wall = state.walls.find((w) => w.id === existing.wallId);
+      const start = wall ? state.corners.find((c) => c.id === wall.startCornerId) : undefined;
+      const end = wall ? state.corners.find((c) => c.id === wall.endCornerId) : undefined;
+      const wallLen = wall && start && end ? getWallGeometry(start, end).lengthCm : 1000;
+
+      const nextWidth = Math.max(4, Math.min(wallLen, patch.widthCm ?? existing.widthCm));
+      const halfW = nextWidth / 2;
+      const rawOffset = patch.offsetFromStartCm ?? existing.offsetFromStartCm;
+      const nextOffset = Math.max(halfW, Math.min(wallLen - halfW, rawOffset));
+
+      const fixtures = state.fixtures.map((fx) => {
+        if (fx.id !== fixtureId) return fx;
+        return {
+          ...fx,
+          ...patch,
+          widthCm: nextWidth,
+          offsetFromStartCm: nextOffset,
+          heightCm: Math.max(4, patch.heightCm ?? fx.heightCm),
+          depthCm: Math.max(1, patch.depthCm ?? fx.depthCm),
+          elevationCm: Math.max(0, patch.elevationCm ?? fx.elevationCm),
+        };
+      });
+      setWithCollisions({ fixtures });
+    },
+
+    removeFixture: (fixtureId) => {
+      const state = get();
+      setWithCollisions({
+        fixtures: state.fixtures.filter((fx) => fx.id !== fixtureId),
+        selectedId: state.selectedId === fixtureId ? null : state.selectedId,
+        selectedType: state.selectedId === fixtureId ? null : state.selectedType,
       });
     },
   };

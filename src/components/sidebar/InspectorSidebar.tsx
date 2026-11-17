@@ -14,6 +14,8 @@ import { OpeningInspector } from './OpeningInspector';
 import { FurnitureInspector } from './FurnitureInspector';
 import { RoomInspector } from './RoomInspector';
 import { RugInspector } from './RugInspector';
+import { FixtureInspector } from './FixtureInspector';
+import { LayoutVariantsSection } from './LayoutVariantsSection';
 import { ErgonomicsScorecardSection } from './ErgonomicsScorecardSection';
 import {
   CatalogFurnitureTemplate,
@@ -56,6 +58,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
+  const fixtures = useFloorplanStore((s) => s.fixtures);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs = useFloorplanStore((s) => s.rugs);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
@@ -125,6 +128,11 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const selectedRug =
     selectedType === 'rug'
       ? rugs.find((r) => r.id === selectedId) ?? null
+      : null;
+
+  const selectedFixture =
+    selectedType === 'fixture'
+      ? fixtures.find((fx) => fx.id === selectedId) ?? null
       : null;
 
   const attachedChildren = useMemo(
@@ -285,6 +293,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
 
       {/* 4b. Selected Rug Inspector */}
       {selectedRug && <RugInspector selectedRug={selectedRug} />}
+
+      {/* 4c. Selected Wall Fixture (MEP) Inspector */}
+      {selectedFixture && <FixtureInspector selectedFixture={selectedFixture} />}
 
       {/* 5. Selected Furniture Inspector + Surface Stacking */}
       {selectedFurniture && (
@@ -665,6 +676,8 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
           </div>
         )}
       </section>
+
+      <LayoutVariantsSection />
 
       <ErgonomicsScorecardSection />
     </aside>

@@ -3,6 +3,10 @@ import { Footprints, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import type { ScorecardGrade } from '../../core/ergonomicsScorecard';
+import { computeFurnitureOBBs } from '../../core/collisionEngine';
+import { evaluateMepDiagnostics } from '../../core/mepFixtures';
+import { computeFloorPolygons } from '../../core/wallMath';
+import { evaluateWalkAndSightlines } from '../../core/walkAndSightlines';
 
 const GRADE_COLORS: Record<ScorecardGrade, string> = {
   A: '#10b981',
@@ -16,6 +20,28 @@ export const ErgonomicsScorecardSection: React.FC = () => {
   const showPassageHeatmap = useFloorplanStore((s) => s.showPassageHeatmap);
   const ergonomicsScorecard = useFloorplanStore((s) => s.ergonomicsScorecard);
   const setShowPassageHeatmap = useFloorplanStore((s) => s.setShowPassageHeatmap);
+  const corners = useFloorplanStore((s) => s.corners);
+  const walls = useFloorplanStore((s) => s.walls);
+  const openings = useFloorplanStore((s) => s.openings);
+  const furniture = useFloorplanStore((s) => s.furniture);
+  const fixtures = useFloorplanStore((s) => s.fixtures);
+  const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
+  const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
+
+  const mepDiagnostics = React.useMemo(() => {
+    if (!showPassageHeatmap || !fixtures || fixtures.length === 0) return null;
+    const obbMap = new Map(furniture.map((f) => [f.id, computeFurnitureOBBs(f)]));
+    const rooms = computeFloorPolygons(corners, walls);
+    return evaluateMepDiagnostics({ corners, walls, openings, furniture, fixtures }, obbMap, rooms);
+  }, [showPassageHeatmap, corners, walls, openings, furniture, fixtures]);
+
+  const walkSightReport = React.useMemo(() => {
+    if (!showPassageHeatmap) return null;
+    return evaluateWalkAndSightlines(
+      { corners, walls, openings, furniture },
+      { timeOfDay, alignSunWithWindows }
+    );
+  }, [showPassageHeatmap, corners, walls, openings, furniture, timeOfDay, alignSunWithWindows]);
 
   return (
     <section className="sidebar-section" data-testid="ergonomics-scorecard-section">
@@ -198,6 +224,91 @@ export const ErgonomicsScorecardSection: React.FC = () => {
                   : t('ergonomics.scorecard.foldOpenOk', {
                       name: fd.furnitureName,
                       pose: fd.simulatedPose,
+                    })}
+              </span>
+            </div>
+          ))}
+
+          {mepDiagnostics && mepDiagnostics.socketDistances.map((sd) => (
+            <div
+              key={`mep-sock-${sd.furnitureId}`}
+              style={{
+                fontSize: '0.7rem',
+                color: sd.warning ? '#fbbf24' : '#34d399',
+                display: 'flex',
+                gap: '5px',
+                alignItems: 'center',
+              }}
+            >
+              {sd.warning ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+              <span>
+                {sd.distanceCm !== null
+                  ? t('ergonomics.scorecard.socketDistance', {
+                      name: sd.furnitureName,
+                      dist: sd.distanceCm,
+                    })
+                  : t('ergonomics.scorecard.noSocketNear', { name: sd.furnitureName })}
+              </span>
+            </div>
+          ))}
+
+          {walkSightReport && walkSightReport.glareIssues.map((gl, idx) => (
+            <div
+              key={`glare-${gl.furnitureId}-${gl.windowId}-${idx}`}
+              style={{
+                fontSize: '0.7rem',
+                color: gl.severity === 'critical' ? '#f87171' : '#fbbf24',
+                display: 'flex',
+                gap: '5px',
+                alignItems: 'center',
+              }}
+            >
+              <AlertTriangle size={12} />
+              <span>
+                {gl.kind === 'reflection-glare'
+                  ? t('ergonomics.scorecard.glareReflection', {
+                      name: gl.furnitureName,
+                      dist: gl.distanceCm,
+                    })
+                  : t('ergonomics.scorecard.glareBacklight', {
+                      name: gl.furnitureName,
+                      dist: gl.distanceCm,
+                    })}
+              </span>
+            </div>
+          ))}
+
+          {walkSightReport && walkSightReport.sightlines.map((sl, idx) => (
+            <div
+              key={`sight-${sl.fromId}-${sl.toId}-${idx}`}
+              style={{
+                fontSize: '0.7rem',
+                color:
+                  sl.status === 'obstructed'
+                    ? '#f87171'
+                    : sl.status === 'angled'
+                    ? '#fbbf24'
+                    : '#34d399',
+                display: 'flex',
+                gap: '5px',
+                alignItems: 'center',
+              }}
+            >
+              {sl.status === 'clear' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+              <span>
+                {sl.status === 'obstructed'
+                  ? t('ergonomics.scorecard.sightlineBlocked', {
+                      from: sl.fromName,
+                      to: sl.toName,
+                      blocker: sl.obstructedByWall
+                        ? t('ergonomics.scorecard.wallObstacle')
+                        : sl.obstructedByName ?? '',
+                    })
+                  : t('ergonomics.scorecard.sightlineOk', {
+                      from: sl.fromName,
+                      to: sl.toName,
+                      dist: sl.distanceCm,
+                      angle: sl.viewingAngleDeg,
                     })}
               </span>
             </div>

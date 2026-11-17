@@ -11,6 +11,8 @@ import {
   AreaRug,
   RoomLabel,
   RoofSlope,
+  WallFixture,
+  LayoutVariant,
   BackgroundImageOverlay,
   Point2D,
   AlignmentGuide,
@@ -29,6 +31,7 @@ export type SelectableEntityType =
   | 'furniture'
   | 'room'
   | 'rug'
+  | 'fixture'
   | null;
 export type CameraPreset = 'axonometric' | 'isometric' | 'top-down' | 'first-person';
 
@@ -41,6 +44,9 @@ export interface FloorplanState {
   rugs: AreaRug[];
   roomLabels: RoomLabel[];
   roofSlopes: RoofSlope[];
+  fixtures: WallFixture[];
+  layoutVariants: LayoutVariant[];
+  activeVariantId: string | null;
   backgroundImage: BackgroundImageOverlay | null;
   overlayError: string | null;
   persistenceError: string | null;
@@ -148,6 +154,12 @@ export interface FloorplanState {
     patch: Partial<Omit<RoofSlope, 'id' | 'wallId'>>
   ) => void;
   removeRoofSlope: (slopeId: string) => void;
+  addFixture: (fixture: Omit<WallFixture, 'id'>) => string;
+  updateFixture: (
+    fixtureId: string,
+    patch: Partial<Omit<WallFixture, 'id' | 'wallId'>>
+  ) => void;
+  removeFixture: (fixtureId: string) => void;
   addFurniture: (item: Omit<FurnitureItem, 'id'>) => string;
   updateFurniture: (
     furnitureId: string,
@@ -177,6 +189,10 @@ export interface FloorplanState {
     options?: { recordHistory?: boolean }
   ) => void;
   removeRug: (rugId: string) => void;
+  saveLayoutVariant: (name?: string) => string;
+  switchLayoutVariant: (variantId: string) => void;
+  renameLayoutVariant: (variantId: string, name: string) => void;
+  deleteLayoutVariant: (variantId: string) => void;
   loadPreset: (presetKey: string) => void;
   pushUndoSnapshot: () => void;
   setOverlayError: (message: string | null) => void;

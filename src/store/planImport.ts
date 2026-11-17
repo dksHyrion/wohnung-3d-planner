@@ -7,9 +7,12 @@ import {
   FloorplanData,
   FurnitureCategory,
   FurnitureItem,
+  LayoutVariant,
   RoofSlope,
   RoomLabel,
   Wall,
+  WallFixture,
+  WallFixtureType,
   WallOpening,
 } from '../core/types';
 
@@ -21,6 +24,9 @@ export interface ParsedPlan {
   rugs: AreaRug[];
   roomLabels: RoomLabel[];
   roofSlopes: RoofSlope[];
+  fixtures: WallFixture[];
+  variants: LayoutVariant[];
+  activeVariantId: string | null;
   backgroundImage: BackgroundImageOverlay | null;
   importedWasDataUrl: boolean;
 }
@@ -62,6 +68,141 @@ function dedupeId(rawId: string, seen: Set<string>, prefix: string): string {
   const newId = `${id}_dup${counter}`;
   seen.add(newId);
   return newId;
+}
+
+function sanitizeFurnitureList(
+  rawList: Partial<FurnitureItem>[],
+  validWallIds: Set<string>
+): FurnitureItem[] | null {
+  const seenIds = new Set<string>();
+  const out: FurnitureItem[] = [];
+  for (const f of rawList.slice(0, MAX_ENTITIES_PER_TYPE)) {
+    if (
+      !f ||
+      typeof f.id !== 'string' ||
+      typeof f.name !== 'string' ||
+      !Number.isFinite(f.widthCm) ||
+      !Number.isFinite(f.heightCm) ||
+      !Number.isFinite(f.depthCm) ||
+      !Number.isFinite(f.x) ||
+      !Number.isFinite(f.z)
+    ) {
+      return null;
+    }
+    const id = dedupeId(f.id, seenIds, 'f');
+    const visual =
+      typeof f.visual === 'string' && isFurnitureVisualType(f.visual)
+        ? f.visual
+        : undefined;
+    const category =
+      typeof f.category === 'string' && VALID_CATEGORIES.has(f.category as FurnitureCategory)
+        ? (f.category as FurnitureCategory)
+        : 'custom';
+    const snappedWallId =
+      typeof f.snappedWallId === 'string' && validWallIds.has(f.snappedWallId)
+        ? f.snappedWallId
+        : null;
+
+    out.push({
+      id,
+      name: f.name.slice(0, 200),
+      category,
+      widthCm: clamp(Number(f.widthCm), 1, MAX_DIMENSION_CM),
+      heightCm: clamp(Number(f.heightCm), 1, MAX_DIMENSION_CM),
+      depthCm: clamp(Number(f.depthCm), 1, MAX_DIMENSION_CM),
+      x: clamp(Number(f.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+      z: clamp(Number(f.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+      elevationCm: clamp(finiteOr(f.elevationCm, 0), 0, MAX_DIMENSION_CM),
+      rotationYDeg: finiteOr(f.rotationYDeg, 0),
+      color: typeof f.color === 'string' ? f.color : '#6366f1',
+      snappedWallId,
+      isRealFurniture: Boolean(f.isRealFurniture),
+      brand: typeof f.brand === 'string' ? f.brand.slice(0, 100) : undefined,
+      modelName: typeof f.modelName === 'string' ? f.modelName.slice(0, 100) : undefined,
+      articleNumber:
+        typeof f.articleNumber === 'string' ? f.articleNumber.slice(0, 100) : undefined,
+      notes: typeof f.notes === 'string' ? f.notes.slice(0, 1000) : undefined,
+      visual,
+      catalogWidthCm:
+        Number.isFinite(f.catalogWidthCm) && Number(f.catalogWidthCm) > 0
+          ? Number(f.catalogWidthCm)
+          : undefined,
+      catalogHeightCm:
+        Number.isFinite(f.catalogHeightCm) && Number(f.catalogHeightCm) > 0
+          ? Number(f.catalogHeightCm)
+          : undefined,
+      catalogDepthCm:
+        Number.isFinite(f.catalogDepthCm) && Number(f.catalogDepthCm) > 0
+          ? Number(f.catalogDepthCm)
+          : undefined,
+      clearanceZoneCm:
+        Number.isFinite(f.clearanceZoneCm) && Number(f.clearanceZoneCm) > 0
+          ? Number(f.clearanceZoneCm)
+          : undefined,
+      hasNightstands:
+        typeof f.hasNightstands === 'boolean' ? f.hasNightstands : undefined,
+      pose: f.pose === 'open' || f.pose === 'closed' ? f.pose : undefined,
+      attachedToId:
+        typeof f.attachedToId === 'string' && f.attachedToId.trim().length > 0
+          ? f.attachedToId.trim()
+          : f.attachedToId === null
+          ? null
+          : undefined,
+    });
+  }
+
+  const validFurnitureIds = new Set(out.map((f) => f.id));
+  for (const item of out) {
+    if (item.attachedToId) {
+      if (item.attachedToId === item.id || !validFurnitureIds.has(item.attachedToId)) {
+        item.attachedToId = null;
+      }
+    }
+  }
+  const itemMap = new Map(out.map((f) => [f.id, f]));
+  for (const item of out) {
+    if (!item.attachedToId) continue;
+    const seen = new Set<string>([item.id]);
+    let cur: string | null | undefined = item.attachedToId;
+    while (cur) {
+      if (seen.has(cur)) {
+        item.attachedToId = null;
+        break;
+      }
+      seen.add(cur);
+      cur = itemMap.get(cur)?.attachedToId;
+    }
+  }
+  return out;
+}
+
+function sanitizeRugsList(rawList: unknown): AreaRug[] {
+  if (!Array.isArray(rawList)) return [];
+  const seenRugIds = new Set<string>();
+  const rugs: AreaRug[] = [];
+  for (const r of rawList.slice(0, 500)) {
+    if (
+      r &&
+      typeof r.id === 'string' &&
+      Number.isFinite(r.widthCm) &&
+      Number.isFinite(r.depthCm) &&
+      Number.isFinite(r.x) &&
+      Number.isFinite(r.z)
+    ) {
+      const id = dedupeId(r.id, seenRugIds, 'r');
+      rugs.push({
+        id,
+        name: typeof r.name === 'string' ? r.name.slice(0, 100) : undefined,
+        widthCm: clamp(Number(r.widthCm), 1, MAX_DIMENSION_CM),
+        depthCm: clamp(Number(r.depthCm), 1, MAX_DIMENSION_CM),
+        x: clamp(Number(r.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+        z: clamp(Number(r.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+        rotationYDeg: finiteOr(r.rotationYDeg, 0),
+        color: typeof r.color === 'string' ? r.color : undefined,
+      });
+    }
+  }
+  return rugs;
 }
 
 export function parsePlanJson(jsonStr: string): ParsedPlan | null {
@@ -169,134 +310,9 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       });
     }
 
-    const seenFurnitureIds = new Set<string>();
-    const furniture: FurnitureItem[] = [];
-    for (const f of parsed.furniture.slice(0, MAX_ENTITIES_PER_TYPE)) {
-      if (
-        !f ||
-        typeof f.id !== 'string' ||
-        typeof f.name !== 'string' ||
-        !Number.isFinite(f.widthCm) ||
-        !Number.isFinite(f.heightCm) ||
-        !Number.isFinite(f.depthCm) ||
-        !Number.isFinite(f.x) ||
-        !Number.isFinite(f.z)
-      ) {
-        return null;
-      }
-      const id = dedupeId(f.id, seenFurnitureIds, 'f');
-      const visual =
-        typeof f.visual === 'string' && isFurnitureVisualType(f.visual)
-          ? f.visual
-          : undefined;
-
-      const category =
-        typeof f.category === 'string' && VALID_CATEGORIES.has(f.category as FurnitureCategory)
-          ? (f.category as FurnitureCategory)
-          : 'custom';
-
-      const snappedWallId =
-        typeof f.snappedWallId === 'string' && validWallIds.has(f.snappedWallId)
-          ? f.snappedWallId
-          : null;
-
-      furniture.push({
-        id,
-        name: f.name.slice(0, 200),
-        category,
-        widthCm: clamp(Number(f.widthCm), 1, MAX_DIMENSION_CM),
-        heightCm: clamp(Number(f.heightCm), 1, MAX_DIMENSION_CM),
-        depthCm: clamp(Number(f.depthCm), 1, MAX_DIMENSION_CM),
-        x: clamp(Number(f.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
-        z: clamp(Number(f.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
-        elevationCm: clamp(finiteOr(f.elevationCm, 0), 0, MAX_DIMENSION_CM),
-        rotationYDeg: finiteOr(f.rotationYDeg, 0),
-        color: typeof f.color === 'string' ? f.color : '#6366f1',
-        snappedWallId,
-        isRealFurniture: Boolean(f.isRealFurniture),
-        brand: typeof f.brand === 'string' ? f.brand.slice(0, 100) : undefined,
-        modelName: typeof f.modelName === 'string' ? f.modelName.slice(0, 100) : undefined,
-        articleNumber:
-          typeof f.articleNumber === 'string' ? f.articleNumber.slice(0, 100) : undefined,
-        notes: typeof f.notes === 'string' ? f.notes.slice(0, 1000) : undefined,
-        visual,
-        catalogWidthCm:
-          Number.isFinite(f.catalogWidthCm) && Number(f.catalogWidthCm) > 0
-            ? Number(f.catalogWidthCm)
-            : undefined,
-        catalogHeightCm:
-          Number.isFinite(f.catalogHeightCm) && Number(f.catalogHeightCm) > 0
-            ? Number(f.catalogHeightCm)
-            : undefined,
-        catalogDepthCm:
-          Number.isFinite(f.catalogDepthCm) && Number(f.catalogDepthCm) > 0
-            ? Number(f.catalogDepthCm)
-            : undefined,
-        clearanceZoneCm:
-          Number.isFinite(f.clearanceZoneCm) && Number(f.clearanceZoneCm) > 0
-            ? Number(f.clearanceZoneCm)
-            : undefined,
-        hasNightstands:
-          typeof f.hasNightstands === 'boolean' ? f.hasNightstands : undefined,
-        pose: f.pose === 'open' || f.pose === 'closed' ? f.pose : undefined,
-        attachedToId:
-          typeof f.attachedToId === 'string' && f.attachedToId.trim().length > 0
-            ? f.attachedToId.trim()
-            : f.attachedToId === null
-            ? null
-            : undefined,
-      });
-    }
-
-    const validFurnitureIds = new Set(furniture.map((f) => f.id));
-    for (const item of furniture) {
-      if (item.attachedToId) {
-        if (item.attachedToId === item.id || !validFurnitureIds.has(item.attachedToId)) {
-          item.attachedToId = null;
-        }
-      }
-    }
-    const itemMap = new Map(furniture.map((f) => [f.id, f]));
-    for (const item of furniture) {
-      if (!item.attachedToId) continue;
-      const seen = new Set<string>([item.id]);
-      let cur: string | null | undefined = item.attachedToId;
-      while (cur) {
-        if (seen.has(cur)) {
-          item.attachedToId = null;
-          break;
-        }
-        seen.add(cur);
-        cur = itemMap.get(cur)?.attachedToId;
-      }
-    }
-
-    const seenRugIds = new Set<string>();
-    const rugs: AreaRug[] = [];
-    if (Array.isArray(parsed.rugs)) {
-      for (const r of parsed.rugs.slice(0, 500)) {
-        if (
-          r &&
-          typeof r.id === 'string' &&
-          Number.isFinite(r.widthCm) &&
-          Number.isFinite(r.depthCm) &&
-          Number.isFinite(r.x) &&
-          Number.isFinite(r.z)
-        ) {
-          const id = dedupeId(r.id, seenRugIds, 'r');
-          rugs.push({
-            id,
-            name: typeof r.name === 'string' ? r.name.slice(0, 100) : undefined,
-            widthCm: clamp(Number(r.widthCm), 1, MAX_DIMENSION_CM),
-            depthCm: clamp(Number(r.depthCm), 1, MAX_DIMENSION_CM),
-            x: clamp(Number(r.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
-            z: clamp(Number(r.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
-            rotationYDeg: finiteOr(r.rotationYDeg, 0),
-            color: typeof r.color === 'string' ? r.color : undefined,
-          });
-        }
-      }
-    }
+    const furniture = sanitizeFurnitureList(parsed.furniture, validWallIds);
+    if (!furniture) return null;
+    const rugs = sanitizeRugsList(parsed.rugs);
 
     const roomLabels: RoomLabel[] = [];
     if (Array.isArray(parsed.roomLabels)) {
@@ -384,6 +400,71 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       }
     }
 
+    const VALID_FIXTURE_TYPES = new Set<WallFixtureType>([
+      'radiator',
+      'socket',
+      'switch',
+      'data-outlet',
+      'water-outlet',
+      'shaft',
+    ]);
+    const fixtures: WallFixture[] = [];
+    if (Array.isArray(parsed.fixtures)) {
+      const seenFixtureIds = new Set<string>();
+      const validWallIds = new Set(walls.map((w) => w.id));
+      for (const fx of parsed.fixtures.slice(0, MAX_ENTITIES_PER_TYPE)) {
+        if (
+          !fx ||
+          typeof fx.wallId !== 'string' ||
+          !validWallIds.has(fx.wallId) ||
+          typeof fx.type !== 'string' ||
+          !VALID_FIXTURE_TYPES.has(fx.type as WallFixtureType)
+        ) {
+          continue;
+        }
+        const id = dedupeId(typeof fx.id === 'string' ? fx.id : '', seenFixtureIds, 'fix');
+        const side = fx.side === 'pos' || fx.side === 'neg' ? fx.side : undefined;
+        fixtures.push({
+          id,
+          wallId: fx.wallId,
+          type: fx.type as WallFixtureType,
+          offsetFromStartCm: clamp(finiteOr(fx.offsetFromStartCm, 50), 0, MAX_DIMENSION_CM),
+          widthCm: clamp(finiteOr(fx.widthCm, 20), 4, MAX_DIMENSION_CM),
+          heightCm: clamp(finiteOr(fx.heightCm, 20), 4, 500),
+          depthCm: clamp(finiteOr(fx.depthCm, 5), 1, 500),
+          elevationCm: clamp(finiteOr(fx.elevationCm, 0), 0, 500),
+          ...(side ? { side } : {}),
+          ...(typeof fx.label === 'string' && fx.label.trim()
+            ? { label: fx.label.trim().slice(0, 80) }
+            : {}),
+        });
+      }
+    }
+
+    const variants: LayoutVariant[] = [];
+    if (Array.isArray(parsed.variants)) {
+      const seenVariantIds = new Set<string>();
+      const validWallIdSet = new Set(walls.map((w) => w.id));
+      for (const v of parsed.variants.slice(0, 20)) {
+        if (!v || typeof v.name !== 'string' || !Array.isArray(v.furniture)) continue;
+        const vFurn = sanitizeFurnitureList(v.furniture, validWallIdSet);
+        if (!vFurn) continue;
+        const id = dedupeId(typeof v.id === 'string' ? v.id : '', seenVariantIds, 'var');
+        variants.push({
+          id,
+          name: v.name.trim().slice(0, 80) || 'Variante',
+          createdAt: typeof v.createdAt === 'string' ? v.createdAt : new Date().toISOString(),
+          furniture: vFurn,
+          rugs: sanitizeRugsList(v.rugs),
+        });
+      }
+    }
+    const activeVariantId =
+      typeof parsed.activeVariantId === 'string' &&
+      variants.some((v) => v.id === parsed.activeVariantId)
+        ? parsed.activeVariantId
+        : null;
+
     return {
       corners,
       walls,
@@ -392,6 +473,9 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       rugs,
       roomLabels,
       roofSlopes,
+      fixtures,
+      variants,
+      activeVariantId,
       backgroundImage,
       importedWasDataUrl,
     };

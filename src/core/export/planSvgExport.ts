@@ -5,6 +5,7 @@ import { layoutFurnitureParts, bedHeadboardDepthCm, isOsakaOpen } from '../furni
 import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { resolveFurnitureVisual } from '../furnitureVisual';
 import { computeWallPlanPolygons } from './wallExportPolygons';
+import { computeWallFixtureBoxes } from '../mepFixtures';
 import type { Language } from '../../i18n/types';
 
 export interface PlanExportOptions {
@@ -221,6 +222,7 @@ export function exportScaledFloorplanSvg(
       .arch-window-frame { stroke: #0f172a; stroke-width: 0.4; }
       .arch-window-glass { stroke: #0284c7; stroke-width: 0.3; }
       .arch-rug-rect { fill: #f8fafc; stroke: #94a3b8; stroke-width: 0.3; stroke-dasharray: 1.2 0.8; }
+      .arch-fixture { fill: #e2e8f0; stroke: #0f172a; stroke-width: 0.35; }
       .arch-furniture-rect { fill: #f1f5f9; stroke: #475569; stroke-width: 0.4; }
       .arch-furniture-detail { fill: none; stroke: #475569; stroke-width: 0.25; }
       .arch-furniture-detail-fill { fill: #ffffff; stroke: #475569; stroke-width: 0.25; }
@@ -368,6 +370,36 @@ export function exportScaledFloorplanSvg(
         `    <path class="arch-door-arc" d="M ${latchClosedX} ${latchClosedY} A ${doorW_mm} ${doorW_mm} 0 0 ${sweepFlag} ${leafOpenX} ${leafOpenY}" />`
       );
       parts.push(`  </g>`);
+    }
+  }
+
+  // Haustechnik / Wall Fixtures (Radiators, Outlets, Switches, Shafts)
+  if (data.fixtures && data.fixtures.length > 0) {
+    const fixtureBoxes = computeWallFixtureBoxes(data.corners, data.walls, data.fixtures, rooms);
+    if (fixtureBoxes.length > 0) {
+      parts.push(`  <!-- MEP Wall Fixtures -->`);
+      for (const fx of fixtureBoxes) {
+        const fxPaperX = toPaperX(fx.center.x);
+        const fxPaperY = toPaperY(fx.center.z);
+        const wMm = fmtMm(Math.max(1.6, fx.widthCm * scaleRatio));
+        const dMm = fmtMm(Math.max(1.0, fx.depthCm * scaleRatio));
+        const deg = fmtMm((fx.angleRad * 180) / Math.PI);
+        parts.push(
+          `  <g class="arch-fixture" data-fixture-id="${escapeXml(fx.fixtureId)}" data-fixture-type="${escapeXml(fx.type)}" transform="translate(${fxPaperX}, ${fxPaperY}) rotate(${deg})">`
+        );
+        parts.push(
+          `    <rect x="${fmtMm(-wMm / 2)}" y="${fmtMm(-dMm / 2)}" width="${wMm}" height="${dMm}" />`
+        );
+        if (fx.type === 'shaft') {
+          parts.push(
+            `    <line x1="${fmtMm(-wMm / 2)}" y1="${fmtMm(-dMm / 2)}" x2="${fmtMm(wMm / 2)}" y2="${fmtMm(dMm / 2)}" />`
+          );
+          parts.push(
+            `    <line x1="${fmtMm(wMm / 2)}" y1="${fmtMm(-dMm / 2)}" x2="${fmtMm(-wMm / 2)}" y2="${fmtMm(dMm / 2)}" />`
+          );
+        }
+        parts.push(`  </g>`);
+      }
     }
   }
 

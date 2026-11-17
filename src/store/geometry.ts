@@ -4,6 +4,7 @@ import { createFurnitureSlice, propagateAttachedChildren } from './slices/furnit
 import { createWallSlice } from './slices/wallSlice';
 import { createRugSlice } from './slices/rugSlice';
 import { createPresetSlice } from './slices/presetSlice';
+import { createVariantSlice } from './slices/variantSlice';
 
 export type GeometryActions = Pick<
   FloorplanState,
@@ -22,6 +23,9 @@ export type GeometryActions = Pick<
   | 'addRoofSlope'
   | 'updateRoofSlope'
   | 'removeRoofSlope'
+  | 'addFixture'
+  | 'updateFixture'
+  | 'removeFixture'
   | 'addFurniture'
   | 'updateFurniture'
   | 'moveFurniture'
@@ -33,6 +37,10 @@ export type GeometryActions = Pick<
   | 'updateRug'
   | 'moveRug'
   | 'removeRug'
+  | 'saveLayoutVariant'
+  | 'switchLayoutVariant'
+  | 'renameLayoutVariant'
+  | 'deleteLayoutVariant'
   | 'loadPreset'
 >;
 
@@ -44,5 +52,6 @@ export function createGeometryActions(deps: StoreDeps): GeometryActions {
     ...createWallSlice(deps),
     ...createFurnitureSlice(deps),
     ...createRugSlice(deps),
+    ...createVariantSlice(deps),
   };
 }
