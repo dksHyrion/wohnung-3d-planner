@@ -11,6 +11,7 @@ import { interpolateMood } from '../../core/lighting/moodPresets';
 import { Corner, Wall, WallOpening } from '../../core/types';
 import { getWallGeometry } from '../../core/wallMath';
 import { openingLetsLightThrough } from '../../core/doorLeaf';
+import { computeEffectiveSunLight } from '../../core/windowLight';
 
 export const STUDIO_HEMISPHERE_SKY = '#e0f2fe';
 export const STUDIO_HEMISPHERE_GROUND = '#f0e6d8';
@@ -177,33 +178,36 @@ export const StudioStage3D: React.FC<StudioStage3DProps> = ({
   const rawContactScale = Math.max(1600, shadowHalfSize * 2);
   const contactScale = Math.ceil(rawContactScale / 200) * 200;
 
-  // Calculate sun position vector from elevation and azimuth angles
-  const elevationRad = (mood.sunElevationDeg * Math.PI) / 180;
-  const azimuthRad = (mood.sunAzimuthDeg * Math.PI) / 180;
   const sunDist = 1800;
-  const sunX = roomBounds.cx + sunDist * Math.cos(elevationRad) * Math.sin(azimuthRad);
-  const sunY = Math.max(20, sunDist * Math.sin(elevationRad));
-  const sunZ = roomBounds.cz + sunDist * Math.cos(elevationRad) * Math.cos(azimuthRad);
-
-  const windowLighting = useMemo(
+  const effectiveSun = useMemo(
     () =>
-      computeDominantWindowDirection(
+      computeEffectiveSunLight({
         corners,
         walls,
         openings,
-        roomBounds,
-        mood.sunElevationDeg,
-        sunDist
-      ),
-    [corners, walls, openings, roomBounds, mood.sunElevationDeg, sunDist]
+        roomCenter: { cx: roomBounds.cx, cz: roomBounds.cz },
+        sunElevationDeg: mood.sunElevationDeg,
+        sunAzimuthDeg: mood.sunAzimuthDeg,
+        alignSunWithWindows: isStudio && alignSunWithWindows,
+        sunDistance: sunDist,
+      }),
+    [
+      corners,
+      walls,
+      openings,
+      roomBounds.cx,
+      roomBounds.cz,
+      mood.sunElevationDeg,
+      mood.sunAzimuthDeg,
+      isStudio,
+      alignSunWithWindows,
+      sunDist,
+    ]
   );
 
-  const effectiveSunPosition: [number, number, number] =
-    isStudio && alignSunWithWindows && windowLighting.hasWindows
-      ? windowLighting.sunPosition
-      : isStudio
-      ? [sunX, sunY, sunZ]
-      : [roomBounds.cx + 500, 750, roomBounds.cz + 400];
+  const effectiveSunPosition: [number, number, number] = isStudio
+    ? effectiveSun.sunPosition
+    : [roomBounds.cx + 500, 750, roomBounds.cz + 400];
 
   useEffect(() => {
     if (sunLightRef.current) {

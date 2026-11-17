@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   exportScaledFloorplanSvg,
   computePlanFit,
-  PlanExportOptions,
 } from '../src/core/export/planSvgExport';
 import { layoutFurnitureParts, localPartWorldCenter } from '../src/core/furnitureShapes';
 import { computeFurnitureOBBs } from '../src/core/collisionEngine';
@@ -251,18 +250,20 @@ describe('Export Fixes & Compound Invariants', () => {
       const svg50 = exportScaledFloorplanSvg(plan, { scale: '1:50' });
       const svg100 = exportScaledFloorplanSvg(plan, { scale: '1:100' });
 
-      // Wall from 0 to 400 cm:
-      // At 1:50: length = 400 * 0.2 = 80 mm.
-      // At 1:100: length = 400 * 0.1 = 40 mm.
-      const match50 = svg50.match(/<line class="arch-wall" x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)"/);
-      expect(match50).not.toBeNull();
-      const len50 = Math.abs(parseFloat(match50![3]) - parseFloat(match50![1]));
-      expect(len50).toBeCloseTo(80, 1);
+      // Wall spans from 0 to 400 cm (split by door opening into 2 mitered polygons):
+      // At 1:50: total outer span = 400 * 0.2 = 80 mm.
+      // At 1:100: total outer span = 400 * 0.1 = 40 mm.
+      const spanX = (svg: string) => {
+        const matches = [...svg.matchAll(/<polygon class="arch-wall"[^>]*points="([^"]+)"/g)];
+        expect(matches.length).toBeGreaterThan(0);
+        const xs = matches.flatMap((m) =>
+          m[1].trim().split(/\s+/).map((pt) => parseFloat(pt.split(',')[0]))
+        );
+        return Math.max(...xs) - Math.min(...xs);
+      };
 
-      const match100 = svg100.match(/<line class="arch-wall" x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)"/);
-      expect(match100).not.toBeNull();
-      const len100 = Math.abs(parseFloat(match100![3]) - parseFloat(match100![1]));
-      expect(len100).toBeCloseTo(40, 1);
+      expect(spanX(svg50)).toBeCloseTo(80, 1);
+      expect(spanX(svg100)).toBeCloseTo(40, 1);
     });
 
     it('computes plan fit and auto-scales standard-55 to fit within A4 paper', () => {

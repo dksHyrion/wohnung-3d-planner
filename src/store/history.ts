@@ -4,10 +4,7 @@ import {
   backgroundImageForExport,
 } from '../core/overlayImageStore';
 import { calculateScaleFromReference } from '../core/tracingMath';
-import {
-  BackgroundImageOverlay,
-  FloorplanData,
-} from '../core/types';
+import { getTranslation } from '../i18n/i18n';
 import type { StoreDeps } from './deps';
 import { wouldClobberSavedPlan } from './autosave';
 import { parsePlanJson } from './planImport';
@@ -73,6 +70,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         furniture: previousSnapshot.furniture,
         rugs: previousSnapshot.rugs ?? [],
         roomLabels: previousSnapshot.roomLabels ?? [],
+        roofSlopes: previousSnapshot.roofSlopes ?? [],
         backgroundImage: withRuntimeImage(previousSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
         selectedType: keepSelection ? state.selectedType : null,
@@ -111,6 +109,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         furniture: nextSnapshot.furniture,
         rugs: nextSnapshot.rugs ?? [],
         roomLabels: nextSnapshot.roomLabels ?? [],
+        roofSlopes: nextSnapshot.roofSlopes ?? [],
         backgroundImage: withRuntimeImage(nextSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
         selectedType: keepSelection ? state.selectedType : null,
@@ -135,7 +134,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         void writePlanFile(json);
       }
     } catch {
-      set({ persistenceError: 'Der Plan konnte nicht im Browser gesichert werden.' });
+      set({
+        persistenceError: getTranslation(get().language, 'persistence.saveError'),
+      });
       void writePlanFile(jsonOverride ?? get().exportJson());
     }
   },
@@ -162,7 +163,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
               // ignore
             }
             set({
-              persistenceError: 'Die automatische Sicherung war beschädigt und wurde als Kopie gesichert.',
+              persistenceError: getTranslation(get().language, 'persistence.corruptBackup'),
             });
           }
         }
@@ -332,6 +333,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       furniture: state.furniture,
       rugs: state.rugs,
       roomLabels: state.roomLabels,
+      roofSlopes: state.roofSlopes,
       backgroundImage: bg,
     };
     return JSON.stringify(payload, null, 2);

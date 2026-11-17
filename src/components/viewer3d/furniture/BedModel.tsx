@@ -22,7 +22,6 @@ import { useFloorplanStore } from '../../../store/useFloorplanStore';
 export const BedModel: React.FC<FurnitureModelProps> = ({
   item,
   hasCollision = false,
-  isSelected = false,
 }) => {
   const showDecor = useFloorplanStore((s) => s.showDecor);
   const { widthCm: width, heightCm: height, depthCm: depth } = item;
@@ -44,7 +43,6 @@ export const BedModel: React.FC<FurnitureModelProps> = ({
   }, []);
 
   const tintColor = hasCollision ? '#ef4444' : undefined;
-  const frameColor = tintColor || '#334155';
   const headboardColor = tintColor || item.color || '#e2d8ce'; // warm linen beige
   const mattressColor = tintColor || '#faf8f5';
   const duvetColor = tintColor || '#f1ebe4';

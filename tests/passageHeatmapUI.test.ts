@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
-import { FurnitureItem, Wall, Corner } from '../src/core/types';
+import { FurnitureItem } from '../src/core/types';
 import { FloorplanCanvas2D } from '../src/components/editor2d/FloorplanCanvas2D';
 import { TopBar } from '../src/components/layout/TopBar';
 import { PassageClearance3D } from '../src/components/viewer3d/PassageClearance3D';

@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  checkSATOverlap,
   computeFurnitureClearanceCm,
   computeFurnitureToWallDistanceCm,
 } from '../src/core/measureMath';
 import {
   evaluatePassageClearances,
-  classifyPassageSeverity,
 } from '../src/core/ergonomicsEngine';
 import { FurnitureItem, Wall, Corner, EPSILON_CM } from '../src/core/types';
 

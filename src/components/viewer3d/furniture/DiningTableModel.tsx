@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { FurnitureModelProps } from './SofaModel';
 import { diningTableLayout } from '../../../core/furnitureShapes';
@@ -20,7 +19,6 @@ import { useFloorplanStore } from '../../../store/useFloorplanStore';
 export const DiningTableModel: React.FC<FurnitureModelProps> = ({
   item,
   hasCollision = false,
-  isSelected = false,
 }) => {
   const showDecor = useFloorplanStore((s) => s.showDecor);
   const { widthCm: width, heightCm: height, depthCm: depth } = item;

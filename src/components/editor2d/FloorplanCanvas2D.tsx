@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -10,6 +10,12 @@ import {
   snapAngleToOrthogonal,
   snapValueToGrid,
 } from '../../core/wallMath';
+import {
+  clientDeltaToWorldDelta,
+  clientPointToSvgWorldCm,
+  computeWallEndpointFromLength,
+  zoomViewBoxAtPoint,
+} from '../../core/canvas2dMath';
 import { Corner, Wall } from '../../core/types';
 import { BackgroundOverlayControls } from './BackgroundOverlayControls';
 import { CanvasDragState, FloorplanSvg2D } from './FloorplanSvg2D';
@@ -40,6 +46,7 @@ export const FloorplanCanvas2D: React.FC = () => {
   const moveRug = useFloorplanStore((s) => s.moveRug);
   const clearAlignmentGuides = useFloorplanStore((s) => s.clearAlignmentGuides);
   const addWallWithCorners = useFloorplanStore((s) => s.addWallWithCorners);
+  const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
   const addOpening = useFloorplanStore((s) => s.addOpening);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -51,9 +58,13 @@ export const FloorplanCanvas2D: React.FC = () => {
     w: number;
     h: number;
   }>(() => computeFitViewBox(corners));
+  const viewBoxRef = useRef(viewBox);
+  viewBoxRef.current = viewBox;
 
   const [calibrationHoverPt, setCalibrationHoverPt] = useState<{ x: number; z: number } | null>(null);
   const [calibrationInputCm, setCalibrationInputCm] = useState<string>('200');
+  const [polylineWalls, setPolylineWalls] = useState(false);
+  const [wallLengthInput, setWallLengthInput] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,25 +77,121 @@ export const FloorplanCanvas2D: React.FC = () => {
   }, [activeTool, cancelCalibration]);
 
   const [dragState, setDragState] = useState<CanvasDragState>(null);
+  const dragStateRef = useRef<CanvasDragState>(dragState);
+  dragStateRef.current = dragState;
+  const wallLengthInputRef = useRef(wallLengthInput);
+  wallLengthInputRef.current = wallLengthInput;
+
+  useEffect(() => {
+    if (activeTool !== 'draw-wall') {
+      setWallLengthInput('');
+    }
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (dragState?.type !== 'draw-wall') return;
+    const handleWallKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      const currentDrag = dragStateRef.current;
+      if (!currentDrag || currentDrag.type !== 'draw-wall') return;
+
+      if (/^[0-9]$/.test(e.key) || e.key === '.' || e.key === ',') {
+        e.preventDefault();
+        const ch = e.key === ',' ? '.' : e.key;
+        if (ch === '.' && wallLengthInputRef.current.includes('.')) return;
+        const nextInput = wallLengthInputRef.current + ch;
+        setWallLengthInput(nextInput);
+        const parsed = parseFloat(nextInput);
+        if (Number.isFinite(parsed) && parsed >= 1) {
+          const endPt = computeWallEndpointFromLength(
+            { x: currentDrag.startX, z: currentDrag.startZ },
+            { x: currentDrag.currentX, z: currentDrag.currentZ },
+            parsed,
+            orthoSnapEnabled,
+            e.shiftKey
+          );
+          setDragState({
+            ...currentDrag,
+            currentX: endPt.x,
+            currentZ: endPt.z,
+          });
+        }
+        return;
+      }
+
+      if (e.key === 'Backspace') {
+        if (wallLengthInputRef.current.length > 0) {
+          e.preventDefault();
+          setWallLengthInput((prev) => prev.slice(0, -1));
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const parsed = parseFloat(wallLengthInputRef.current);
+        if (Number.isFinite(parsed) && parsed >= 10) {
+          e.preventDefault();
+          const endPt = computeWallEndpointFromLength(
+            { x: currentDrag.startX, z: currentDrag.startZ },
+            { x: currentDrag.currentX, z: currentDrag.currentZ },
+            parsed,
+            orthoSnapEnabled,
+            e.shiftKey
+          );
+          addWallWithCorners(
+            { x: currentDrag.startX, z: currentDrag.startZ },
+            endPt
+          );
+          setWallLengthInput('');
+          if (polylineWalls) {
+            setDragState({
+              type: 'draw-wall',
+              startX: endPt.x,
+              startZ: endPt.z,
+              currentX: endPt.x,
+              currentZ: endPt.z,
+            });
+          } else {
+            setDragState(null);
+            setActiveTool('select');
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setWallLengthInput('');
+        setDragState(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleWallKeyDown);
+    return () => window.removeEventListener('keydown', handleWallKeyDown);
+  }, [dragState?.type, orthoSnapEnabled, polylineWalls, addWallWithCorners, setActiveTool]);
 
   const cornerMap = useMemo(
     () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
     [corners]
   );
 
-  const clientToWorldCm = (clientX: number, clientY: number): { x: number; z: number } => {
-    const svg = svgRef.current;
-    if (!svg) return { x: 0, z: 0 };
-    const rect = svg.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return { x: 0, z: 0 };
-
-    const normX = (clientX - rect.left) / rect.width;
-    const normY = (clientY - rect.top) / rect.height;
-    return {
-      x: Number((viewBox.x + normX * viewBox.w).toFixed(1)),
-      z: Number((viewBox.y + normY * viewBox.h).toFixed(1)),
-    };
-  };
+  const clientToWorldCm = useCallback(
+    (clientX: number, clientY: number): { x: number; z: number } => {
+      const svg = svgRef.current;
+      if (!svg) return { x: 0, z: 0 };
+      const rect = svg.getBoundingClientRect();
+      const ctmInverse =
+        typeof svg.getScreenCTM === 'function' ? svg.getScreenCTM()?.inverse() ?? null : null;
+      return clientPointToSvgWorldCm(clientX, clientY, rect, viewBoxRef.current, ctmInverse);
+    },
+    []
+  );
 
   const snapToGridCm = (val: number) => snapValueToGrid(val, gridSizeCm);
 
@@ -94,17 +201,10 @@ export const FloorplanCanvas2D: React.FC = () => {
     const onNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
       const factor = e.deltaY > 0 ? 1.12 : 0.89;
+      const rect = svgEl.getBoundingClientRect();
       setViewBox((v) => {
-        const newW = Math.min(3000, Math.max(250, v.w * factor));
-        const newH = Math.min(2400, Math.max(200, v.h * factor));
-        const cx = v.x + v.w / 2;
-        const cy = v.y + v.h / 2;
-        return {
-          x: cx - newW / 2,
-          y: cy - newH / 2,
-          w: newW,
-          h: newH,
-        };
+        const anchor = clientPointToSvgWorldCm(e.clientX, e.clientY, rect, v);
+        return zoomViewBoxAtPoint(v, anchor, factor);
       });
     };
     svgEl.addEventListener('wheel', onNativeWheel, { passive: false });
@@ -118,13 +218,6 @@ export const FloorplanCanvas2D: React.FC = () => {
   };
 
   const handleSvgPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (typeof e.currentTarget.setPointerCapture === 'function') {
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {
-        // ignore in environments without pointer capture
-      }
-    }
     if (activeTool === 'calibrate-scale') {
       if (!calibrationPoints.p1 || !calibrationPoints.p2) {
         const pt = clientToWorldCm(e.clientX, e.clientY);
@@ -137,11 +230,46 @@ export const FloorplanCanvas2D: React.FC = () => {
       return;
     }
 
+    if (typeof e.currentTarget.setPointerCapture === 'function') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore in environments without pointer capture
+      }
+    }
+
     const pt = clientToWorldCm(e.clientX, e.clientY);
 
     if (activeTool === 'draw-wall') {
+      if (e.button === 2 && dragState?.type === 'draw-wall') {
+        setWallLengthInput('');
+        setDragState(null);
+        return;
+      }
+      if (dragState?.type === 'draw-wall' && polylineWalls) {
+        const dist = Math.hypot(
+          dragState.currentX - dragState.startX,
+          dragState.currentZ - dragState.startZ
+        );
+        if (dist >= 10) {
+          addWallWithCorners(
+            { x: dragState.startX, z: dragState.startZ },
+            { x: dragState.currentX, z: dragState.currentZ }
+          );
+          setWallLengthInput('');
+          setDragState({
+            type: 'draw-wall',
+            startX: dragState.currentX,
+            startZ: dragState.currentZ,
+            currentX: dragState.currentX,
+            currentZ: dragState.currentZ,
+          });
+          return;
+        }
+      }
       const sx = snapToGridCm(pt.x);
       const sz = snapToGridCm(pt.z);
+      setWallLengthInput('');
       setDragState({
         type: 'draw-wall',
         startX: sx,
@@ -208,12 +336,16 @@ export const FloorplanCanvas2D: React.FC = () => {
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      const dxCm = ((e.clientX - dragState.startClientX) / rect.width) * dragState.startVB.w;
-      const dyCm = ((e.clientY - dragState.startClientY) / rect.height) * dragState.startVB.h;
+      const { dxCm, dzCm } = clientDeltaToWorldDelta(
+        e.clientX - dragState.startClientX,
+        e.clientY - dragState.startClientY,
+        rect,
+        dragState.startVB
+      );
       const nextVB = {
         ...dragState.startVB,
         x: dragState.startVB.x - dxCm,
-        y: dragState.startVB.y - dyCm,
+        y: dragState.startVB.y - dzCm,
       };
       dragFrame.schedule(() => setViewBox(nextVB));
       return;
@@ -258,6 +390,22 @@ export const FloorplanCanvas2D: React.FC = () => {
     }
 
     if (dragState.type === 'draw-wall') {
+      const parsedLen = parseFloat(wallLengthInput);
+      if (Number.isFinite(parsedLen) && parsedLen >= 1 && wallLengthInput.length > 0) {
+        const endPt = computeWallEndpointFromLength(
+          { x: dragState.startX, z: dragState.startZ },
+          { x: snapToGridCm(pt.x), z: snapToGridCm(pt.z) },
+          parsedLen,
+          orthoSnapEnabled,
+          e.shiftKey
+        );
+        setDragState({
+          ...dragState,
+          currentX: endPt.x,
+          currentZ: endPt.z,
+        });
+        return;
+      }
       let curX = snapToGridCm(pt.x);
       let curZ = snapToGridCm(pt.z);
       if (orthoSnapEnabled || e.shiftKey) {
@@ -304,7 +452,21 @@ export const FloorplanCanvas2D: React.FC = () => {
           { x: dragState.startX, z: dragState.startZ },
           { x: dragState.currentX, z: dragState.currentZ }
         );
+        setWallLengthInput('');
+        if (polylineWalls) {
+          setDragState({
+            type: 'draw-wall',
+            startX: dragState.currentX,
+            startZ: dragState.currentZ,
+            currentX: dragState.currentX,
+            currentZ: dragState.currentZ,
+          });
+          return;
+        }
         setActiveTool('select');
+      } else if (polylineWalls) {
+        // Stay anchored in polyline mode after initial click-point
+        return;
       }
     }
 
@@ -332,40 +494,49 @@ export const FloorplanCanvas2D: React.FC = () => {
     setDragState(null);
   };
 
-  const handleWallClick = (e: React.MouseEvent, wall: Wall) => {
-    e.stopPropagation();
-    const start = cornerMap.get(wall.startCornerId);
-    const end = cornerMap.get(wall.endCornerId);
-    if (!start || !end) return;
+  const handleWallClick = useCallback(
+    (e: React.MouseEvent, wall: Wall) => {
+      e.stopPropagation();
+      const start = cornerMap.get(wall.startCornerId);
+      const end = cornerMap.get(wall.endCornerId);
+      if (!start || !end) return;
 
-    const geom = getWallGeometry(start, end);
+      const geom = getWallGeometry(start, end);
 
-    if (activeTool === 'add-door' || activeTool === 'add-window') {
-      const clickPt = clientToWorldCm(e.clientX, e.clientY);
-      const relX = clickPt.x - start.x;
-      const relZ = clickPt.z - start.z;
-      const proj = relX * geom.tangent.x + relZ * geom.tangent.z;
-      const defaultWidth = activeTool === 'add-door' ? 86 : 120;
-      const clampedOffset = Math.max(
-        10,
-        Math.min(geom.lengthCm - defaultWidth - 10, Math.round(proj - defaultWidth / 2))
-      );
+      if (activeTool === 'select' && e.altKey) {
+        const clickPt = clientToWorldCm(e.clientX, e.clientY);
+        splitWallAt(wall.id, clickPt);
+        return;
+      }
 
-      addOpening({
-        wallId: wall.id,
-        type: activeTool === 'add-door' ? 'door' : 'window',
-        offsetFromStartCm: Math.max(0, clampedOffset),
-        widthCm: defaultWidth,
-        heightCm: activeTool === 'add-door' ? 200 : 130,
-        sillHeightCm: activeTool === 'add-door' ? 0 : 90,
-        swingDirection: activeTool === 'add-door' ? 'in-left' : undefined,
-      });
-      setActiveTool('select');
-      return;
-    }
+      if (activeTool === 'add-door' || activeTool === 'add-window') {
+        const clickPt = clientToWorldCm(e.clientX, e.clientY);
+        const relX = clickPt.x - start.x;
+        const relZ = clickPt.z - start.z;
+        const proj = relX * geom.tangent.x + relZ * geom.tangent.z;
+        const defaultWidth = activeTool === 'add-door' ? 86 : 120;
+        const clampedOffset = Math.max(
+          10,
+          Math.min(geom.lengthCm - defaultWidth - 10, Math.round(proj - defaultWidth / 2))
+        );
 
-    selectEntity(wall.id, 'wall');
-  };
+        addOpening({
+          wallId: wall.id,
+          type: activeTool === 'add-door' ? 'door' : 'window',
+          offsetFromStartCm: Math.max(0, clampedOffset),
+          widthCm: defaultWidth,
+          heightCm: activeTool === 'add-door' ? 200 : 130,
+          sillHeightCm: activeTool === 'add-door' ? 0 : 90,
+          swingDirection: activeTool === 'add-door' ? 'in-left' : undefined,
+        });
+        setActiveTool('select');
+        return;
+      }
+
+      selectEntity(wall.id, 'wall');
+    },
+    [cornerMap, activeTool, clientToWorldCm, splitWallAt, addOpening, setActiveTool, selectEntity]
+  );
 
   const roomPolygons = useMemo(
     () => applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels),
@@ -381,6 +552,30 @@ export const FloorplanCanvas2D: React.FC = () => {
             snap: orthoSnapEnabled ? t('editor2d.orthoSnapSuffix') : '',
           })}
         </span>
+        {activeTool === 'draw-wall' && (
+          <button
+            type="button"
+            className={`btn ${polylineWalls ? 'active' : 'btn-outline'}`}
+            style={{ marginLeft: 8, padding: '2px 8px', fontSize: '0.72rem' }}
+            title={t('editor2d.polylineTitle')}
+            onClick={() => {
+              setPolylineWalls((prev) => !prev);
+              setDragState(null);
+            }}
+          >
+            {t('editor2d.polylineLabel')}
+          </button>
+        )}
+        {dragState?.type === 'draw-wall' && (
+          <span
+            data-testid="wall-numeric-hint"
+            style={{ marginLeft: 8, color: '#38bdf8', fontWeight: 600 }}
+          >
+            {wallLengthInput.length > 0
+              ? t('editor2d.numericLengthBadge', { value: wallLengthInput })
+              : t('editor2d.numericLengthHint')}
+          </span>
+        )}
       </div>
 
       <div className="viewport-controls">
@@ -450,6 +645,13 @@ export const FloorplanCanvas2D: React.FC = () => {
         onPointerUp={handleSvgPointerUp}
         onPointerCancel={handleSvgPointerCancel}
         onLostPointerCapture={handleSvgPointerCancel}
+        onContextMenu={(e) => {
+          if (dragState?.type === 'draw-wall') {
+            e.preventDefault();
+            setWallLengthInput('');
+            setDragState(null);
+          }
+        }}
       >
         <FloorplanSvg2D
           viewBox={viewBox}
@@ -460,6 +662,7 @@ export const FloorplanCanvas2D: React.FC = () => {
           roomPolygons={roomPolygons}
           clientToWorldCm={clientToWorldCm}
           handleWallClick={handleWallClick}
+          wallLengthInput={wallLengthInput}
         />
       </svg>
 

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
 import { setGlobalLanguage, getTranslation } from '../src/i18n/i18n';

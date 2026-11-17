@@ -1,4 +1,4 @@
-import React, { useEffect, useId } from 'react';
+import { useEffect, useId } from 'react';
 import { Download, Ruler } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
 
@@ -18,6 +18,9 @@ export interface PlanExportDialogProps {
   planTitle?: string;
   setPlanTitle?: (title: string) => void;
   handleDownloadPlanSvg?: () => void;
+  handleDownloadPlanDxf?: () => void;
+  handleDownloadBomCsv?: () => void;
+  handleDownloadBomMd?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -38,6 +41,9 @@ export function PlanExportDialog({
   planTitle = '',
   setPlanTitle,
   handleDownloadPlanSvg,
+  handleDownloadPlanDxf,
+  handleDownloadBomCsv,
+  handleDownloadBomMd,
   isOpen,
   onClose,
 }: PlanExportDialogProps) {
@@ -261,6 +267,7 @@ export function PlanExportDialog({
             <div
               style={{
                 display: 'flex',
+                flexWrap: 'wrap',
                 justifyContent: 'flex-end',
                 gap: '8px',
                 marginTop: '4px',
@@ -273,6 +280,36 @@ export function PlanExportDialog({
               >
                 {t('common.cancel')}
               </button>
+              {handleDownloadBomCsv && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleDownloadBomCsv}
+                >
+                  <Download size={14} />
+                  <span>{t('dialogs.export.downloadBomCsv')}</span>
+                </button>
+              )}
+              {handleDownloadBomMd && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleDownloadBomMd}
+                >
+                  <Download size={14} />
+                  <span>{t('dialogs.export.downloadBomMd')}</span>
+                </button>
+              )}
+              {handleDownloadPlanDxf && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleDownloadPlanDxf}
+                >
+                  <Download size={14} />
+                  <span>{t('dialogs.export.downloadDxf')}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="btn active"

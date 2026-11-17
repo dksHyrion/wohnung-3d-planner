@@ -19,13 +19,14 @@ Um unsere 3D-Wohnungsvisualisierung gezielt nach dem Stand der Technik weiterzue
 
 ---
 
-## 2. Heute umgesetzte Best Practices (Pakete 3C & 3D)
+## 2. Umgesetzte Best Practices & Sprints 1–6 (Pakete 3B, 3C & 3D)
 
 ```mermaid
 flowchart TD
-  GH["GitHub-Referenzanalyse\n(openPlan3D, react-planner, SweetHome3D)"] --> P3C["Paket 3C: Smart Alignment & Snapping\nsrc/core/alignmentMath.ts"]
+  GH["GitHub-Referenzanalyse\n(openPlan3D, react-planner, SweetHome3D, blueprint3d)"] --> P3C["Paket 3C: Smart Alignment & Snapping\nsrc/core/alignmentMath.ts"]
   GH --> P3DA["Paket 3D-A: 5 Wandöffnungen\nsrc/core/doorLeaf.ts & DoorLeaf3D.tsx"]
   GH --> P3DB["Paket 3D-B: Interaktiver Teppich-Editor\nsrc/components/sidebar/RugInspector.tsx"]
+  GH --> P3B["Paket 3B + Sprints 1-6: Wandgehrungen, Split,\nCAD-Export, Ergonomie 2.0 & Dachschrägen/WoFlV"]
 ```
 
 1. **Paket 3C — Smart Alignment Guides & Kante-an-Kante Möbel-Snapping ([`alignmentMath.ts`](../../src/core/alignmentMath.ts)):**
@@ -39,19 +40,21 @@ flowchart TD
 3. **Paket 3D-B — Interaktiver Teppich-Editor (`AreaRug`):**
    * Store-Aktionen `addRug`, `updateRug`, `moveRug` (mit `{ recordHistory: false }` während Dragging) und `removeRug`.
    * Auswahl, Drag-and-Drop und `Delete`/`Backspace`-Löschung in 2D und 3D sowie eigener [`RugInspector.tsx`](../../src/components/sidebar/RugInspector.tsx) und Export im 1:50/1:100-Vektorplan (`.arch-rug`).
+4. **Paket 3B & Sprints 1–6 — Geometrie, 3D-Qualität, CAD/BOM-Export, Ergonomie 2.0, WoFlV & E2E:**
+   * **Wand-Gehrungen & `splitWallAt` (Paket 3B / Sprint 1–2):** Winkelhalbierenden-Gehrungen über [`wallMiter.ts`](../../src/core/wallMiter.ts) für 3D-Wände, Wandkappen und Sockelleisten; Wandteilung via `splitWallAt`, automatisches X-Kreuzungsschneiden (`splitCrossingWalls`), Raum-Löcher (`holes` / `netHoles`) und hohle Öffnungs-Subsegmente in [`collisionEngine.ts`](../../src/core/collisionEngine.ts).
+   * **Ehrliche 3D-Materialien & Perspektive (Sprint 3):** Neutrales `MOOD_PRESETS.neutral`, exakte Augenhöhe (`170 cm` / `115 cm`, frei einstellbar 50–250 cm), Sonnen-Fenster-Kopplung (`alignSunWithWindows`) und `showDecor`-Schalter.
+   * **CAD- & BOM-Export (Sprint 4):** Gehrungs-/öffnungsgeschnittener SVG-Plan ([`wallExportPolygons.ts`](../../src/core/export/wallExportPolygons.ts), [`planSvgExport.ts`](../../src/core/export/planSvgExport.ts)), AutoCAD R12 DXF ([`dxfExport.ts`](../../src/core/export/dxfExport.ts)) und CSV/Markdown-Stückliste & Raumflächenbilanz ([`bomExport.ts`](../../src/core/export/bomExport.ts)).
+   * **Ergonomie 2.0 & Dachschrägen (Sprint 5–6):** 2D-EDT-Erreichbarkeit, C-Space-Lieferweg, DIN 18040-2 150-cm-Wendekreis, Stuhl-Rückzug, Klapp-Diff und Scorecard ([`ergonomicsScorecard.ts`](../../src/core/ergonomicsScorecard.ts)); Dachschrägen (`RoofSlope`), 3D-Höhenkollision und WoFlV § 4 Flächenanrechnung ([`roofSlopeMath.ts`](../../src/core/roofSlopeMath.ts)) plus Playwright-Browser-E2E ([`e2e/app.spec.ts`](../../e2e/app.spec.ts)).
 
 ---
 
-## 3. Dokumentiertes Backlog für kommende Ausbaustufen (Pakete 3A, 3B, 3E, 3F)
+## 3. Dokumentiertes Backlog für kommende Ausbaustufen (Pakete 3A, 3E, 3F)
 
-Die weiteren aus den GitHub-Projekten abgeleiteten Verbesserungsrichtungen sind für künftige Sprints vorbereitet:
+Die weiteren aus den GitHub-Projekten abgeleiteten Verbesserungsrichtungen sind für künftige Ausbaustufen vorbereitet:
 
 * **Paket 3A — Haustechnik, Anschlüsse & Heizkörper (aus `cvdlab/react-planner` & `SweetHome3D`):**
   * Modellierung wandgebundener Haustechnik: **Heizkörper** (unter Fenstern inkl. Wärmestau-/Tiefe-Prüfung), **Steckdosen, Lichtschalter, LAN-/TV-Dosen**, **Wasser-/Abwasseranschlüsse** sowie **Versorgungsschächte / Wandpfeiler** in Raumecken.
   * Automatische Prüfung, ob Schränke Lichtschalter verdecken oder wie weit elektrifizierte Möbel (z. B. *Inwerk Masterlift 2*) von der nächsten Steckdose entfernt stehen.
-* **Paket 3B — 3D-Wand-Gehrungen (Miter Joints) & `splitWallAt` (aus `charmlinn/blueprint3d-modern`):**
-  * Berechnung der Winkelhalbierenden an Eckknoten für nahtlose 45°-Gehrungsschnitte an 3D-Wänden, Wandkappen und Fußleisten in `WallMesh3D.tsx`.
-  * Store-Aktion `splitWallAt(wallId, point)` zum nachträglichen Teilen einer bestehenden Wand durch Klick im 2D-Editor.
 * **Paket 3E — Interaktive WASD-Begehung & Sichtachsen-/Blendungs-Check (aus `openPlan3D` & `threejs-sims-house-builder`):**
   * Tastaturgesteuerte Bewegung (WASD / Pfeiltasten) im `first-person`-Modus (170 cm / 115 cm Augenhöhe) durch alle Durchgangsöffnungen (`openingIsWalkthrough`).
   * Sichtachsen- und Blendungsanalyse (z. B. Fensterreflexion auf dem Schreibtisch-Monitor, Blickwinkel Sofa $\to$ Wandbild/TV).

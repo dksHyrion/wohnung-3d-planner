@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
-import { FurnitureItem } from '../src/core/types';
-import { CatalogFurnitureTemplate, FURNITURE_CATALOG } from '../src/core/presets';
+import { CatalogFurnitureTemplate } from '../src/core/presets';
 import {
   InspectorSidebar,
   filterCatalogTemplates,

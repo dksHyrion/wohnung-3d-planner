@@ -1,5 +1,5 @@
 import React from 'react';
-import { DoorOpen, AppWindow, Sliders, Trash2 } from 'lucide-react';
+import { DoorOpen, AppWindow, Sliders, Trash2, Scissors } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { getWallGeometry } from '../../core/wallMath';
@@ -14,11 +14,19 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const openings = useFloorplanStore((s) => s.openings);
+  const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
   const updateWallLengthCm = useFloorplanStore((s) => s.updateWallLengthCm);
   const updateWallProps = useFloorplanStore((s) => s.updateWallProps);
+  const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
   const addOpening = useFloorplanStore((s) => s.addOpening);
   const removeOpening = useFloorplanStore((s) => s.removeOpening);
+  const addRoofSlope = useFloorplanStore((s) => s.addRoofSlope);
+  const updateRoofSlope = useFloorplanStore((s) => s.updateRoofSlope);
+  const removeRoofSlope = useFloorplanStore((s) => s.removeRoofSlope);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+  const idKnee = React.useId();
+  const idPitch = React.useId();
+  const wallRoofSlope = roofSlopes.find((s) => s.wallId === selectedWall.id) ?? null;
 
   const start = corners.find((c) => c.id === selectedWall.startCornerId);
   const end = corners.find((c) => c.id === selectedWall.endCornerId);
@@ -139,6 +147,17 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
           <AppWindow size={14} />
           <span>{t('inspector.wall.addWindow')}</span>
         </button>
+
+        <button
+          type="button"
+          className="btn btn-outline"
+          disabled={lengthCm < 20}
+          title={t('inspector.wall.splitWallTitle')}
+          onClick={() => splitWallAt(selectedWall.id)}
+        >
+          <Scissors size={14} />
+          <span>{t('inspector.wall.splitWall')}</span>
+        </button>
       </div>
 
       {wallOpenings.length > 0 && (
@@ -193,6 +212,110 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
           </div>
         </div>
       )}
+      <div
+        style={{
+          marginTop: '8px',
+          paddingTop: '8px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span className="form-label" style={{ margin: 0 }}>
+            {t('inspector.wall.roofSlopeTitle')}
+          </span>
+          {wallRoofSlope ? (
+            <button
+              type="button"
+              className="btn btn-danger"
+              style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+              onClick={() => removeRoofSlope(wallRoofSlope.id)}
+            >
+              {t('inspector.wall.removeRoofSlope')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-outline"
+              style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+              onClick={() =>
+                addRoofSlope({
+                  wallId: selectedWall.id,
+                  kneeWallHeightCm: 100,
+                  pitchDeg: 40,
+                })
+              }
+            >
+              {t('inspector.wall.addRoofSlope')}
+            </button>
+          )}
+        </div>
+
+        {wallRoofSlope && (
+          <div className="form-grid">
+            <div className="form-field">
+              <label htmlFor={idKnee} className="form-label">
+                {t('inspector.wall.kneeWallHeight')}
+              </label>
+              <input
+                id={idKnee}
+                type="number"
+                min={0}
+                max={250}
+                step={5}
+                className="number-input"
+                value={wallRoofSlope.kneeWallHeightCm}
+                onChange={(e) =>
+                  updateRoofSlope(wallRoofSlope.id, {
+                    kneeWallHeightCm: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor={idPitch} className="form-label">
+                {t('inspector.wall.pitchDeg')}
+              </label>
+              <input
+                id={idPitch}
+                type="number"
+                min={5}
+                max={75}
+                step={1}
+                className="number-input"
+                value={wallRoofSlope.pitchDeg}
+                onChange={(e) =>
+                  updateRoofSlope(wallRoofSlope.id, {
+                    pitchDeg: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="form-field full">
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ width: '100%', fontSize: '0.72rem' }}
+                onClick={() =>
+                  updateRoofSlope(wallRoofSlope.id, {
+                    side: wallRoofSlope.side === 'neg' ? 'pos' : 'neg',
+                  })
+                }
+              >
+                {t('inspector.wall.flipRoofSide')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

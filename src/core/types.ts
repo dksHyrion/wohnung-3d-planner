@@ -149,7 +149,16 @@ export type CollisionIssueType =
   | 'wall-intersection'
   | 'furniture-intersection'
   | 'opening-blocked'
-  | 'clearance-blocked';
+  | 'clearance-blocked'
+  | 'roof-slope-exceeded';
+
+export interface RoofSlope {
+  id: string;
+  wallId: string;
+  kneeWallHeightCm: number;
+  pitchDeg: number;
+  side?: 'pos' | 'neg';
+}
 
 export interface CollisionIssue {
   type: CollisionIssueType;
@@ -177,6 +186,8 @@ export interface RoomPolygon {
   centroid: { x: number; z: number };
   netCorners: { x: number; z: number }[];
   netAreaSqM: number;
+  holes?: Corner[][];
+  netHoles?: { x: number; z: number }[][];
   flooringType?: FlooringType;
   name?: string;
 }
@@ -231,6 +242,7 @@ export interface FloorplanData {
   furniture: FurnitureItem[];
   rugs?: AreaRug[];
   roomLabels?: RoomLabel[];
+  roofSlopes?: RoofSlope[];
   backgroundImage?: BackgroundImageOverlay | null;
 }
 

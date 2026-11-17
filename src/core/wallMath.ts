@@ -10,6 +10,7 @@ import {
   RoomPolygon,
   RoomLabel,
 } from './types';
+import { segmentInteriorIntersection2D } from './geometry2d';
 
 export type { FlooringType, RoomPolygon };
 
@@ -320,8 +321,8 @@ export function computeFloorPolygons(
 
   if (activeWalls.length < 3) return [];
 
-  const wallByEndpoints = new Map<string, Wall>();
   const wallKey = (a: string, b: string) => (a < b ? `${a}--${b}` : `${b}--${a}`);
+  const wallByEndpoints = new Map<string, Wall>();
   for (const w of activeWalls) {
     wallByEndpoints.set(wallKey(w.startCornerId, w.endCornerId), w);
   }
@@ -340,7 +341,32 @@ export function computeFloorPolygons(
 
   const visitedHalfEdges = new Set<string>();
   const edgeKey = (u: string, v: string) => `${u}->${v}`;
-  const rooms: RoomPolygon[] = [];
+
+  interface RoomCandidate {
+    corners: Corner[];
+    signedArea2: number;
+    centroidX: number;
+    centroidZ: number;
+    netCorners: { x: number; z: number }[];
+    netAreaSqCm: number;
+    minX: number;
+    minZ: number;
+    holes: Corner[][];
+    netHoles: { x: number; z: number }[][];
+    holeGrossAreaSqCm: number;
+    holeNetAreaSqCm: number;
+  }
+
+  interface HoleCandidate {
+    corners: Corner[];
+    cornerIdSet: Set<string>;
+    absSignedArea2: number;
+    netCorners: { x: number; z: number }[];
+    netAreaSqCm: number;
+  }
+
+  const roomCandidates: RoomCandidate[] = [];
+  const holeCandidates: HoleCandidate[] = [];
 
   for (const [uInit, neighbors] of adj.entries()) {
     for (const vInit of neighbors) {
@@ -408,115 +434,195 @@ export function computeFloorPolygons(
       }
 
       if (signedArea2 > 100) {
-        const areaSqCm = signedArea2 / 2;
-        const areaSqM = Number((areaSqCm / 10000).toFixed(2));
         const centroidX = Number((cx / (3 * signedArea2)).toFixed(1));
         const centroidZ = Number((cz / (3 * signedArea2)).toFixed(1));
-
-        // Calculate net inner polygon by offsetting each wall edge inward by thickness/2
-        interface EdgeLine {
-          nx: number;
-          nz: number;
-          c: number;
-          d: number;
-        }
-        const edgeLines: EdgeLine[] = [];
-        const nCorners = cycleCorners.length;
-
-        for (let i = 0; i < nCorners; i++) {
-          const p1 = cycleCorners[i];
-          const p2 = cycleCorners[(i + 1) % nCorners];
-          const dx = p2.x - p1.x;
-          const dz = p2.z - p1.z;
-          const len = Math.hypot(dx, dz);
-          const wall = wallByEndpoints.get(wallKey(p1.id, p2.id));
-          const thickness = wall ? wall.thicknessCm : 15;
-          const d = thickness / 2;
-
-          if (len < 1e-4) {
-            edgeLines.push({ nx: 0, nz: 0, c: 0, d });
-            continue;
-          }
-
-          // Clockwise winding in XZ -> inward normal is (-dz/len, dx/len)
-          const nx = -dz / len;
-          const nz = dx / len;
-          const c = nx * p1.x + nz * p1.z + d;
-          edgeLines.push({ nx, nz, c, d });
-        }
-
-        const netCorners: { x: number; z: number }[] = [];
-        for (let i = 0; i < nCorners; i++) {
-          const prevEdge = edgeLines[(i - 1 + nCorners) % nCorners];
-          const currEdge = edgeLines[i];
-          const pCurr = cycleCorners[i];
-
-          const det = prevEdge.nx * currEdge.nz - prevEdge.nz * currEdge.nx;
-          let netX = pCurr.x;
-          let netZ = pCurr.z;
-
-          if (Math.abs(det) < 1e-5) {
-            // Collinear edges (e.g. T-junction corner along a straight wall)
-            const avgD = (prevEdge.d + currEdge.d) / 2;
-            const avgNx = (prevEdge.nx + currEdge.nx) / 2;
-            const avgNz = (prevEdge.nz + currEdge.nz) / 2;
-            netX = pCurr.x + avgD * avgNx;
-            netZ = pCurr.z + avgD * avgNz;
-          } else {
-            const ix = (prevEdge.c * currEdge.nz - currEdge.c * prevEdge.nz) / det;
-            const iz = (prevEdge.nx * currEdge.c - currEdge.nx * prevEdge.c) / det;
-            const dist = Math.hypot(ix - pCurr.x, iz - pCurr.z);
-            const maxMiter = Math.max(prevEdge.d, currEdge.d) * 5;
-            if (dist > maxMiter) {
-              const avgD = (prevEdge.d + currEdge.d) / 2;
-              const avgNx = (prevEdge.nx + currEdge.nx) / 2;
-              const avgNz = (prevEdge.nz + currEdge.nz) / 2;
-              netX = pCurr.x + avgD * avgNx;
-              netZ = pCurr.z + avgD * avgNz;
-            } else {
-              netX = ix;
-              netZ = iz;
-            }
-          }
-
-          netCorners.push({
-            x: Number(netX.toFixed(2)),
-            z: Number(netZ.toFixed(2)),
-          });
-        }
-
-        // Net area calculation via shoelace
-        let netSignedArea2 = 0;
-        for (let i = 0; i < netCorners.length; i++) {
-          const p1 = netCorners[i];
-          const p2 = netCorners[(i + 1) % netCorners.length];
-          netSignedArea2 += p1.x * p2.z - p2.x * p1.z;
-        }
+        const { netCorners, netSignedArea2 } = computeOffsetLoop(
+          cycleCorners,
+          wallByEndpoints,
+          wallKey
+        );
         const netAreaSqCm = Math.max(0, netSignedArea2 / 2);
-        const netAreaSqM = Number((netAreaSqCm / 10000).toFixed(2));
+        let minX = Infinity;
+        let minZ = Infinity;
+        for (const c of cycleCorners) {
+          if (c.x < minX) minX = c.x;
+          if (c.z < minZ) minZ = c.z;
+        }
 
-        const defaultFlooring: FlooringType =
-          rooms.length === 0
-            ? 'microcement'
-            : rooms.length === 1
-            ? 'parquet'
-            : 'tile';
-        const flooringType = customFloorings?.[rooms.length] ?? defaultFlooring;
-
-        rooms.push({
-          id: `room-${rooms.length + 1}`,
+        roomCandidates.push({
           corners: cycleCorners,
-          areaSqM,
-          centroid: { x: centroidX, z: centroidZ },
+          signedArea2,
+          centroidX,
+          centroidZ,
           netCorners,
-          netAreaSqM,
-          flooringType,
+          netAreaSqCm,
+          minX,
+          minZ,
+          holes: [],
+          netHoles: [],
+          holeGrossAreaSqCm: 0,
+          holeNetAreaSqCm: 0,
+        });
+      } else if (signedArea2 < -100) {
+        const { netCorners, netSignedArea2 } = computeOffsetLoop(
+          cycleCorners,
+          wallByEndpoints,
+          wallKey
+        );
+        holeCandidates.push({
+          corners: cycleCorners,
+          cornerIdSet: new Set(cycleIds),
+          absSignedArea2: Math.abs(signedArea2),
+          netCorners,
+          netAreaSqCm: Math.max(0, Math.abs(netSignedArea2) / 2),
         });
       }
     }
   }
 
-  return rooms;
+  // Attach interior island/shaft outer loops as holes to their smallest enclosing room
+  for (const hole of holeCandidates) {
+    let bestEnclosing: RoomCandidate | null = null;
+    for (const room of roomCandidates) {
+      if (room.signedArea2 <= hole.absSignedArea2 + 1) continue;
+      const roomCornerIds = new Set(room.corners.map((c) => c.id));
+      const testCorner =
+        hole.corners.find((c) => !roomCornerIds.has(c.id)) ??
+        {
+          x: (hole.corners[0].x + hole.corners[1].x) / 2,
+          z: (hole.corners[0].z + hole.corners[1].z) / 2,
+        };
+      if (hole.cornerIdSet.size === roomCornerIds.size && [...hole.cornerIdSet].every((id) => roomCornerIds.has(id))) {
+        continue;
+      }
+      if (!pointInPolygon(testCorner.x, testCorner.z, room.corners)) continue;
+      if (!bestEnclosing || room.signedArea2 < bestEnclosing.signedArea2) {
+        bestEnclosing = room;
+      }
+    }
+    if (bestEnclosing) {
+      bestEnclosing.holes.push(hole.corners);
+      bestEnclosing.netHoles.push(hole.netCorners);
+      bestEnclosing.holeGrossAreaSqCm += hole.absSignedArea2 / 2;
+      bestEnclosing.holeNetAreaSqCm += hole.netAreaSqCm;
+    }
+  }
+
+  // Deterministic geometric ordering independent of wall/corner array order
+  roomCandidates.sort(
+    (a, b) =>
+      a.minX - b.minX ||
+      a.minZ - b.minZ ||
+      a.centroidX - b.centroidX ||
+      a.centroidZ - b.centroidZ
+  );
+
+  return roomCandidates.map((cand, idx) => {
+    const grossAreaSqCm = Math.max(0, cand.signedArea2 / 2 - cand.holeGrossAreaSqCm);
+    const netAreaSqCm = Math.max(0, cand.netAreaSqCm - cand.holeNetAreaSqCm);
+    const areaSqM = Number((grossAreaSqCm / 10000).toFixed(2));
+    const netAreaSqM = Number((netAreaSqCm / 10000).toFixed(2));
+
+    const defaultFlooring: FlooringType =
+      idx === 0 ? 'microcement' : idx === 1 ? 'parquet' : 'tile';
+    const flooringType = customFloorings?.[idx] ?? defaultFlooring;
+
+    return {
+      id: `room-${idx + 1}`,
+      corners: cand.corners,
+      areaSqM,
+      centroid: { x: cand.centroidX, z: cand.centroidZ },
+      netCorners: cand.netCorners,
+      netAreaSqM,
+      ...(cand.holes.length > 0 ? { holes: cand.holes, netHoles: cand.netHoles } : {}),
+      flooringType,
+    };
+  });
+}
+
+function computeOffsetLoop(
+  cycleCorners: Corner[],
+  wallByEndpoints: Map<string, Wall>,
+  wallKey: (a: string, b: string) => string
+): { netCorners: { x: number; z: number }[]; netSignedArea2: number } {
+  interface EdgeLine {
+    nx: number;
+    nz: number;
+    c: number;
+    d: number;
+  }
+  const edgeLines: EdgeLine[] = [];
+  const nCorners = cycleCorners.length;
+
+  for (let i = 0; i < nCorners; i++) {
+    const p1 = cycleCorners[i];
+    const p2 = cycleCorners[(i + 1) % nCorners];
+    const dx = p2.x - p1.x;
+    const dz = p2.z - p1.z;
+    const len = Math.hypot(dx, dz);
+    const wall = wallByEndpoints.get(wallKey(p1.id, p2.id));
+    const thickness = wall ? wall.thicknessCm : 15;
+    const d = thickness / 2;
+
+    if (len < 1e-4) {
+      edgeLines.push({ nx: 0, nz: 0, c: 0, d });
+      continue;
+    }
+
+    // In XZ (X right, Z down): points inward for CW rooms and outward for CCW holes
+    const nx = -dz / len;
+    const nz = dx / len;
+    const c = nx * p1.x + nz * p1.z + d;
+    edgeLines.push({ nx, nz, c, d });
+  }
+
+  const netCorners: { x: number; z: number }[] = [];
+  for (let i = 0; i < nCorners; i++) {
+    const prevEdge = edgeLines[(i - 1 + nCorners) % nCorners];
+    const currEdge = edgeLines[i];
+    const pCurr = cycleCorners[i];
+
+    const det = prevEdge.nx * currEdge.nz - prevEdge.nz * currEdge.nx;
+    let netX = pCurr.x;
+    let netZ = pCurr.z;
+
+    if (Math.abs(det) < 1e-5) {
+      const avgD = (prevEdge.d + currEdge.d) / 2;
+      const avgNx = (prevEdge.nx + currEdge.nx) / 2;
+      const avgNz = (prevEdge.nz + currEdge.nz) / 2;
+      netX = pCurr.x + avgD * avgNx;
+      netZ = pCurr.z + avgD * avgNz;
+    } else {
+      const ix = (prevEdge.c * currEdge.nz - currEdge.c * prevEdge.nz) / det;
+      const iz = (prevEdge.nx * currEdge.c - currEdge.nx * prevEdge.c) / det;
+      const dist = Math.hypot(ix - pCurr.x, iz - pCurr.z);
+      const maxMiter = Math.max(prevEdge.d, currEdge.d) * 5;
+      if (dist > maxMiter) {
+        const avgD = (prevEdge.d + currEdge.d) / 2;
+        const avgNx = (prevEdge.nx + currEdge.nx) / 2;
+        const avgNz = (prevEdge.nz + currEdge.nz) / 2;
+        netX = pCurr.x + avgD * avgNx;
+        netZ = pCurr.z + avgD * avgNz;
+      } else {
+        netX = ix;
+        netZ = iz;
+      }
+    }
+
+    netCorners.push({
+      x: Number(netX.toFixed(2)),
+      z: Number(netZ.toFixed(2)),
+    });
+  }
+
+  let netSignedArea2 = 0;
+  for (let i = 0; i < netCorners.length; i++) {
+    const p1 = netCorners[i];
+    const p2 = netCorners[(i + 1) % netCorners.length];
+    netSignedArea2 += p1.x * p2.z - p2.x * p1.z;
+  }
+
+  return { netCorners, netSignedArea2 };
 }
 
 export function pointInPolygon(
@@ -538,6 +644,15 @@ export function pointInPolygon(
   return inside;
 }
 
+/** Checks whether (x, z) lies inside a room polygon and outside any interior holes. */
+export function isPointInRoom(x: number, z: number, room: RoomPolygon): boolean {
+  if (!pointInPolygon(x, z, room.corners)) return false;
+  if (room.holes && room.holes.some((hole) => pointInPolygon(x, z, hole))) {
+    return false;
+  }
+  return true;
+}
+
 /** Writes a label onto the room that contains its point. Unmatched labels are ignored. */
 export function applyRoomLabels(
   rooms: RoomPolygon[],
@@ -545,7 +660,7 @@ export function applyRoomLabels(
 ): RoomPolygon[] {
   if (!labels || labels.length === 0) return rooms;
   return rooms.map((room) => {
-    const label = labels.find((entry) => pointInPolygon(entry.x, entry.z, room.corners));
+    const label = labels.find((entry) => isPointInRoom(entry.x, entry.z, room));
     if (!label) return room;
     return {
       ...room,
@@ -586,24 +701,68 @@ export function getInteriorWallIds(
   return interiorIds;
 }
 
+function reassignOpeningsOnSplit(
+  openings: WallOpening[],
+  originalWallId: string,
+  wall1Id: string,
+  wall2Id: string,
+  splitDistCm: number
+): WallOpening[] {
+  return openings.map((op) => {
+    if (op.wallId !== originalWallId) return op;
+
+    const opStart = op.offsetFromStartCm;
+    const opEnd = op.offsetFromStartCm + op.widthCm;
+
+    if (opEnd <= splitDistCm) {
+      return { ...op, wallId: wall1Id };
+    } else if (opStart >= splitDistCm) {
+      return {
+        ...op,
+        wallId: wall2Id,
+        offsetFromStartCm: Number((opStart - splitDistCm).toFixed(2)),
+      };
+    } else {
+      // Straddles junction: place on whichever side has the center
+      if (opStart + op.widthCm / 2 < splitDistCm) {
+        return { ...op, wallId: wall1Id };
+      } else {
+        return {
+          ...op,
+          wallId: wall2Id,
+          offsetFromStartCm: 0,
+        };
+      }
+    }
+  });
+}
+
 /**
  * Splits existing walls at a corner that lands mid-span (T-junction),
  * moving wall openings to the appropriate half of the split wall.
+ * Never mutates input corners, walls, or openings.
  */
 export function splitWallsAtCorner(
   corners: Corner[],
   walls: Wall[],
   openings: WallOpening[],
-  corner: Corner
-): { walls: Wall[]; openings: WallOpening[]; didSplit: boolean } {
-  const cornerMap = new Map(corners.map((c) => [c.id, c]));
+  corner: Corner,
+  generateId?: (prefix: string) => string
+): { corners: Corner[]; walls: Wall[]; openings: WallOpening[]; didSplit: boolean } {
+  let currentCorners = corners.map((c) => ({ ...c }));
+  let currentCorner = { ...corner };
+  const cornerMap = new Map(currentCorners.map((c) => [c.id, c]));
   let currentWalls = [...walls];
   let currentOpenings = [...openings];
   let didSplit = false;
+  const makeWallId = () =>
+    generateId
+      ? generateId('w')
+      : `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   for (let i = 0; i < currentWalls.length; i++) {
     const wall = currentWalls[i];
-    if (wall.startCornerId === corner.id || wall.endCornerId === corner.id) {
+    if (wall.startCornerId === currentCorner.id || wall.endCornerId === currentCorner.id) {
       continue;
     }
 
@@ -618,8 +777,8 @@ export function splitWallsAtCorner(
 
     const ux = dx / len;
     const uz = dz / len;
-    const vx = corner.x - start.x;
-    const vz = corner.z - start.z;
+    const vx = currentCorner.x - start.x;
+    const vz = currentCorner.z - start.z;
 
     const t = vx * ux + vz * uz;
     const distPerp = Math.abs(vx * -uz + vz * ux);
@@ -627,63 +786,205 @@ export function splitWallsAtCorner(
     // If corner is within 2 cm of wall centerline and strictly mid-span (>= 5 cm from endpoints)
     if (distPerp <= 2.0 && t >= 5 && t <= len - 5) {
       didSplit = true;
-      // Snap corner precisely onto the centerline
-      corner.x = Number((start.x + t * ux).toFixed(2));
-      corner.z = Number((start.z + t * uz).toFixed(2));
+      currentCorner = {
+        ...currentCorner,
+        x: Number((start.x + t * ux).toFixed(2)),
+        z: Number((start.z + t * uz).toFixed(2)),
+      };
+      currentCorners = currentCorners.map((c) =>
+        c.id === currentCorner.id ? currentCorner : c
+      );
+      cornerMap.set(currentCorner.id, currentCorner);
 
       const wall1Id = wall.id;
-      const wall2Id = `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const wall2Id = makeWallId();
 
       const wall1: Wall = {
         ...wall,
         id: wall1Id,
         startCornerId: wall.startCornerId,
-        endCornerId: corner.id,
+        endCornerId: currentCorner.id,
       };
 
       const wall2: Wall = {
         ...wall,
         id: wall2Id,
-        startCornerId: corner.id,
+        startCornerId: currentCorner.id,
         endCornerId: wall.endCornerId,
       };
 
       currentWalls.splice(i, 1, wall1, wall2);
-
-      // Reassign openings on this wall
-      currentOpenings = currentOpenings.map((op) => {
-        if (op.wallId !== wall.id) return op;
-
-        const opStart = op.offsetFromStartCm;
-        const opEnd = op.offsetFromStartCm + op.widthCm;
-
-        if (opEnd <= t) {
-          return { ...op, wallId: wall1Id };
-        } else if (opStart >= t) {
-          return {
-            ...op,
-            wallId: wall2Id,
-            offsetFromStartCm: Number((opStart - t).toFixed(2)),
-          };
-        } else {
-          // Straddles junction: place on whichever side has the center
-          if (opStart + op.widthCm / 2 < t) {
-            return { ...op, wallId: wall1Id };
-          } else {
-            return {
-              ...op,
-              wallId: wall2Id,
-              offsetFromStartCm: 0,
-            };
-          }
-        }
-      });
+      currentOpenings = reassignOpeningsOnSplit(
+        currentOpenings,
+        wall.id,
+        wall1Id,
+        wall2Id,
+        t
+      );
 
       i++;
     }
   }
 
-  return { walls: currentWalls, openings: currentOpenings, didSplit };
+  return {
+    corners: currentCorners,
+    walls: currentWalls,
+    openings: currentOpenings,
+    didSplit,
+  };
+}
+
+/**
+ * Splits any existing walls crossed strictly mid-span by a newly added wall (X-junction),
+ * and splits the new wall into connected segments at each intersection point.
+ */
+export function splitCrossingWalls(
+  corners: Corner[],
+  walls: Wall[],
+  openings: WallOpening[],
+  newWall: Wall,
+  generateId: (prefix: string) => string
+): {
+  corners: Corner[];
+  walls: Wall[];
+  openings: WallOpening[];
+  createdWallIds: string[];
+} {
+  let currentCorners = [...corners];
+  let currentWalls = [...walls];
+  let currentOpenings = [...openings];
+
+  const startCorner = currentCorners.find((c) => c.id === newWall.startCornerId);
+  const endCorner = currentCorners.find((c) => c.id === newWall.endCornerId);
+  if (!startCorner || !endCorner) {
+    return {
+      corners: currentCorners,
+      walls: [...currentWalls, newWall],
+      openings: currentOpenings,
+      createdWallIds: [newWall.id],
+    };
+  }
+
+  interface CrossingHit {
+    wallId: string;
+    tNew: number;
+    distAlongExistingCm: number;
+    x: number;
+    z: number;
+  }
+
+  const hits: CrossingHit[] = [];
+  const cornerMap = new Map(currentCorners.map((c) => [c.id, c]));
+
+  for (const w of currentWalls) {
+    if (
+      w.startCornerId === newWall.startCornerId ||
+      w.startCornerId === newWall.endCornerId ||
+      w.endCornerId === newWall.startCornerId ||
+      w.endCornerId === newWall.endCornerId
+    ) {
+      continue;
+    }
+    const wStart = cornerMap.get(w.startCornerId);
+    const wEnd = cornerMap.get(w.endCornerId);
+    if (!wStart || !wEnd) continue;
+
+    const hit = segmentInteriorIntersection2D(startCorner, endCorner, wStart, wEnd, 5);
+    if (!hit) continue;
+
+    const existingLen = Math.hypot(wEnd.x - wStart.x, wEnd.z - wStart.z);
+    hits.push({
+      wallId: w.id,
+      tNew: hit.t,
+      distAlongExistingCm: hit.u * existingLen,
+      x: hit.x,
+      z: hit.z,
+    });
+  }
+
+  if (hits.length === 0) {
+    return {
+      corners: currentCorners,
+      walls: [...currentWalls, newWall],
+      openings: currentOpenings,
+      createdWallIds: [newWall.id],
+    };
+  }
+
+  hits.sort((a, b) => a.tNew - b.tNew);
+
+  const chainCornerIds: string[] = [newWall.startCornerId];
+
+  for (const hit of hits) {
+    const existingCorner = currentCorners.find(
+      (c) => Math.hypot(c.x - hit.x, c.z - hit.z) < 0.5
+    );
+    const junctionCorner: Corner = existingCorner ?? {
+      id: generateId('c'),
+      x: hit.x,
+      z: hit.z,
+    };
+    if (!existingCorner) {
+      currentCorners.push(junctionCorner);
+    }
+
+    if (chainCornerIds[chainCornerIds.length - 1] !== junctionCorner.id) {
+      chainCornerIds.push(junctionCorner.id);
+    }
+
+    const wallIdx = currentWalls.findIndex((w) => w.id === hit.wallId);
+    if (wallIdx >= 0) {
+      const targetWall = currentWalls[wallIdx];
+      if (
+        targetWall.startCornerId !== junctionCorner.id &&
+        targetWall.endCornerId !== junctionCorner.id
+      ) {
+        const wall1Id = targetWall.id;
+        const wall2Id = generateId('w');
+        const wall1: Wall = {
+          ...targetWall,
+          id: wall1Id,
+          endCornerId: junctionCorner.id,
+        };
+        const wall2: Wall = {
+          ...targetWall,
+          id: wall2Id,
+          startCornerId: junctionCorner.id,
+        };
+        currentWalls.splice(wallIdx, 1, wall1, wall2);
+        currentOpenings = reassignOpeningsOnSplit(
+          currentOpenings,
+          targetWall.id,
+          wall1Id,
+          wall2Id,
+          hit.distAlongExistingCm
+        );
+      }
+    }
+  }
+
+  if (chainCornerIds[chainCornerIds.length - 1] !== newWall.endCornerId) {
+    chainCornerIds.push(newWall.endCornerId);
+  }
+
+  const createdWallIds: string[] = [];
+  for (let i = 0; i < chainCornerIds.length - 1; i++) {
+    const segId = i === 0 ? newWall.id : generateId('w');
+    createdWallIds.push(segId);
+    currentWalls.push({
+      ...newWall,
+      id: segId,
+      startCornerId: chainCornerIds[i],
+      endCornerId: chainCornerIds[i + 1],
+    });
+  }
+
+  return {
+    corners: currentCorners,
+    walls: currentWalls,
+    openings: currentOpenings,
+    createdWallIds,
+  };
 }
 
 /**

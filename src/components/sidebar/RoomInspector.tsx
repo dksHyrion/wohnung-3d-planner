@@ -3,6 +3,7 @@ import { Home } from 'lucide-react';
 import { FlooringType, RoomPolygon } from '../../core/types';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { computeRoomWoFlVBreakdown, resolveRoofSlopePlanes } from '../../core/roofSlopeMath';
 
 export interface RoomInspectorProps {
   selectedRoom: RoomPolygon;
@@ -24,6 +25,17 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
 }) => {
   const { t, language } = useTranslation();
   const updateRoom = useFloorplanStore((s) => s.updateRoom);
+  const corners = useFloorplanStore((s) => s.corners);
+  const walls = useFloorplanStore((s) => s.walls);
+  const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+
+  const woflvBreakdown = React.useMemo(() => {
+    if (!roofSlopes || roofSlopes.length === 0) return null;
+    const planes = resolveRoofSlopePlanes(corners, walls, roofSlopes, [selectedRoom]);
+    const maxCeilingCm = walls.length > 0 ? Math.max(250, ...walls.map((w) => w.heightCm)) : 250;
+    const res = computeRoomWoFlVBreakdown(selectedRoom, planes, maxCeilingCm);
+    return res.hasRoofSlopes ? res : null;
+  }, [corners, walls, roofSlopes, selectedRoom]);
 
   const fallbackName = `${t('inspector.room.defaultName')} ${roomIndex + 1}`;
   const displayName = selectedRoom.name ?? fallbackName;
@@ -151,6 +163,36 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
             {perimeterM} m
           </div>
         </div>
+
+        {woflvBreakdown && (
+          <div className="form-field full" data-testid="room-woflv-readout">
+            <label className="form-label">{t('inspector.room.woflvArea')}</label>
+            <div
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                color: '#38bdf8',
+                padding: '6px 8px',
+                background: 'rgba(15, 23, 42, 0.55)',
+                borderRadius: 6,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              {woflvBreakdown.woflvAreaSqM.toLocaleString(locale, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{' '}
+              m²
+              <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 400, marginTop: '3px' }}>
+                {t('inspector.room.woflvBreakdown', {
+                  full: woflvBreakdown.areaFullSqM.toFixed(2),
+                  half: woflvBreakdown.areaHalfSqM.toFixed(2),
+                  zero: woflvBreakdown.areaZeroSqM.toFixed(2),
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

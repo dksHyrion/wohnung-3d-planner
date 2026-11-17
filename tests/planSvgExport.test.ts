@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { exportScaledFloorplanSvg, PlanExportOptions } from '../src/core/export/planSvgExport';
+import { exportScaledFloorplanSvg } from '../src/core/export/planSvgExport';
 import { PRESET_FLOORPLANS } from '../src/core/presets';
 
 describe('Scaled 2D Plan Export (Sprint 4 Task 4)', () => {
-  const villaData = PRESET_FLOORPLANS['luxury-villa'].data;
   const studioData = PRESET_FLOORPLANS['studio-apartment'].data;
   const emptyData = PRESET_FLOORPLANS['empty-room'].data;
 

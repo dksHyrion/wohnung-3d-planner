@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';

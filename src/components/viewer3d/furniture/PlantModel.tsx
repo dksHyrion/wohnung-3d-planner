@@ -25,7 +25,6 @@ const LEAF_DEFINITIONS: LeafConfig[] = [
 export const PlantModel: React.FC<FurnitureModelProps> = ({
   item,
   hasCollision = false,
-  isSelected = false,
 }) => {
   const { widthCm: width, heightCm: height, depthCm: depth } = item;
 

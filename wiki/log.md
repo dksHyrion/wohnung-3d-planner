@@ -4,6 +4,30 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-17] Ausbaustufe Sprints 1–6 & Wiki-Lint: Geometrie, CAD-UX, 3D-Qualität, CAD/BOM-Export, Ergonomie 2.0, Dachschrägen/WoFlV & Playwright E2E
+
+- **Action:** `FEATURE`, `GEOMETRY`, `CAD_EXPORT`, `ERGONOMICS`, `E2E_TESTING`, `LINT`
+- **Sprint 1 — Geometrie- & Kollisions-Korrektheit:**
+  - Öffnungs-Subsegmente (`computeWallSegmentOBBs`, `computeWallSubSegments`) in `collisionEngine.ts` schließen Fehlalarme in Durchgängen/über Brüstungen.
+  - Wandstärken-Änderungen (`updateWallProps` in `wallSlice.ts`) führen gesnappte Möbel samt `attachedToId`-Kindern entlang der Wandnormale mit.
+  - Graph-Topologie in `wallMath.ts`: immutables `splitWallsAtCorner`, automatisches `splitCrossingWalls`, einheitliches `geometry2d.ts`, Raum-Löcher (`holes` / `netHoles`) und deterministische Raum-IDs.
+  - TypeScript-Strictness: `noUnusedLocals` / `noUnusedParameters` in `tsconfig.json` aktiviert; History-Meldungen über `i18n` lokalisiert.
+- **Sprint 2 — 2D-CAD-Performance & UX:**
+  - `FloorplanSvg2D` in isolierte Layer (`editor2d/layers/`) mit `React.memo` und `canvas2dMath.ts` (ViewBox-Clamping) zerlegt; `FloorplanCanvas2D.tsx` Fix für `setPointerCapture` auf Wand-Klicks.
+  - Interaktive Wandteilung `splitWallAt` (Inspektor & Alt+Klick), Raum-Umbenennung und 2D-Stuhl-/Möbelsymbole.
+- **Sprint 3 — 3D-Qualität, Materialehrlichkeit & Kameraführung:**
+  - Neutrales Beleuchtungs-Preset (`MOOD_PRESETS.neutral`), ehrliche Augenhöhe (`cameraEyeLevelCm`: 170 cm / 115 cm / manuell, `55°` FOV), Fenster-gekoppelte Sonne (`alignSunWithWindows`) und `showDecor`-Schalter; einheitliche Material- und Render-Qualität über die Möbelmodelle.
+- **Sprint 4 — Professioneller CAD- & Stücklisten-Export:**
+  - Gehrungs- und öffnungsgeschnittene `.arch-wall`-Polygone (`wallExportPolygons.ts`) mit Schraffurmuster statt Weiß-Aussparungen und `visual`-basierten 2D-CAD-Symboldetails in `planSvgExport.ts`.
+  - Offline AutoCAD R12 ASCII-DXF (`dxfExport.ts`, `1 unit = 1 cm`, `dxfY = -z`) und UTF-8-CSV/Markdown-BOM-Stückliste (`bomExport.ts`), integriert in `PlanExportDialog.tsx` und `TopBar.tsx`.
+- **Sprint 5 — Ergonomie 2.0 (`ergonomicsScorecard.ts`):**
+  - 2D-EDT-Erreichbarkeitsanalyse ab Durchgangstüren, 8-Winkel-C-Space-Lieferwegprüfung um Flurecken, DIN 18040-2 150×150 cm Wendekreis (mit 2D-Overlay), Stuhl-Rückzugsraumprüfung, Klapp-Diff für `pose: 'open'` und Raum-/Wohnungs-Scorecard (`ErgonomicsScorecardSection.tsx`).
+- **Sprint 6 — Dachschrägen (WoFlV § 4) & Playwright-E2E:**
+  - `RoofSlope` (`roofSlopeMath.ts`), 3D-Höhenkollision (`roof-slope-exceeded`), `RoofSlopeMesh3D.tsx`, 2D-Höhenlinien (`1,00 m` / `2,00 m`), WoFlV-Bilanz in `RoomInspector.tsx` / `bomExport.ts` und JSON/Undo-Integration.
+  - Headless-Chromium E2E-Tests (`playwright.config.ts`, `e2e/app.spec.ts`, `npm run test:e2e`) für WebGL-Smoke, 2D-Drag + `clientToWorldCm` + Undo/Redo, SVG-Download und Dachschrägen-Workflow.
+- **Wiki-Lint & Hygiene:**
+  - `.gitignore` um `test-results/` und `playwright-report/` erweitert; `wiki/index.md`, `wiki/concepts/*`, `wiki/architecture/app-state-and-views.md` und `github-reference-comparison.md` (Paket 3B als umgesetzt eingestuft) synchronisiert.
+
 ## [2026-11-12] Refactoring nach Code-Review: Typen, Osaka, Drag, Kollision
 
 - **Action:** `REFACTOR`, `PERFORMANCE`, `I18N`

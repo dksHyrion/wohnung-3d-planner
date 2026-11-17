@@ -51,8 +51,9 @@ Für frei im Raum stehende oder gedrehte Möbel sowie für Kollisionen zwischen 
   * Mittelpunkt: $(x, \, \text{elevationCm} + H/2, \, z)$
   * Halbachsen (`halfSize`): $\left(\max(0.5, \frac{W}{2} - \epsilon), \, \max(0.5, \frac{H}{2} - \epsilon), \, \max(0.5, \frac{D}{2} - \epsilon)\right)$
   * Rotation: 3×3-Rotationsmatrix aus `Euler(0, rotationYRad, 0)`
-* **Möbel-Möbel-Schnitt (`furniture-intersection`):** `obbA.intersectsOBB(obbB)` erkennt Kollisionen auch bei $30^\circ$- oder $45^\circ$-Drehung exakt.
-* **Wand-Schnitt (`wall-intersection`):** Prüft, ob ein Möbelstück in das Volumen einer (nicht gesnappten oder angrenzenden) Wand eindringt.
+* **Möbel-Möbel-Schnitt (`furniture-intersection`):** `obbA.intersectsOBB(obbB)` erkennt Kollisionen auch bei $30^\circ$- oder $45^\circ$-Drehung exakt (mit vorgeschalteter AABB-Grobphase).
+* **Wand-Schnitt (`wall-intersection`):** `computeWallSegmentOBBs` teilt Wände anhand von `computeWallSubSegments` exakt um Türen, Durchgänge und Fensterbrüstungen, sodass Öffnungsbereiche hohl bleiben und nur feste Mauerwerksabschnitte kollidieren (keine Fehlalarme in Durchgängen oder unter hohen Fenstern).
+* **Dachschrägen-Schnitt (`roof-slope-exceeded`):** Prüft alle oberen OBB-Eckpunkte gegen `getEffectiveCeilingHeightAt` (`roofSlopeMath.ts`) und meldet exakte Höhenüberstände (`overflowCm`), sobald ein hohes Möbel (z. B. PAX-Schrank) in eine definierte `RoofSlope` ragt.
 * **Tür-Schwenkbereich (`opening-blocked`):** Schwenkbare Türen (`door`, `balcony-door`, geprüft über `openingHasSwingArc(op.type)`) prüfen ihren Aufschlag über einen exakten **90°-Kreissektor** (`isPointInDoorSwingArcCm`), wodurch Fehlalarme in den Bounding-Box-Ecken außerhalb des Radius vollständig eliminiert werden. Schiebetüren (`sliding-door`) und offene Wanddurchgänge (`passage`) erzeugen keinen 90°-Schwenkbogen im Raum; ihre lichte Wandöffnung wird jedoch weiterhin in `checkWallFitCm` gegen zugestellte Möbel geschützt.
 
 ---
@@ -93,4 +94,9 @@ Zusätzlich zur binären Kollisionsprüfung (Ja/Nein) berechnet [`src/core/ergon
   - $< 60\text{ cm}$: **Kritisch** (Rot `#ef4444`, `⚠️ X cm`) — Mindestmaß für seitliches Durchzwängen unterschritten.
   - $60\dots90\text{ cm}$: **Warnung** (Amber `#f59e0b`, `⚡ X cm`) — Eingeschränkter Durchgang; für Nebenwege passierbar, für barrierefreie Hauptwege unzureichend.
   - $90\dots120\text{ cm}$: **Optimal** (Grün `#10b981`, `✓ X cm`) — Normgerechter barrierefreier Hauptdurchgang.
+- **Ergonomie 2.0 (`src/core/ergonomicsScorecard.ts`):** Ergänzt die paarweisen Abstände um eine globale Begehbarkeits- und Nutzungsprüfung (`evaluateErgonomicsScorecard`):
+  1. **2D-Raster-Erreichbarkeit (`computeExactEDT` + BFS):** Rastert solide Wände (exkl. `openingIsWalkthrough`) und Bodenmöbel im 5-cm-Raster und prüft ab Eingangs-/Durchgangstüren ($\ge 60\text{ cm}$ Breite), ob alle Räume (`reachableFromEntrance`) und Bodenmöbel im Raum (`unreachableFurnitureIds`) ohne Sackgassen erreichbar sind.
+  2. **Lieferweg-Analyse (`canDeliverCapsule`):** 8-Winkel-Konfigurationsraum-BFS prüft auf dem Wände+Türen-Raster, ob sperrige Möbel ($\ge 90\text{ cm}$) flach (`fits`), nur gekippt (`tilted-fit`) oder gar nicht (`blocked`) um 90°-Flurecken und durch Türbreiten passen.
+  3. **DIN 18040-2 Wendekreis & Stuhl-Rückzug:** Ermittelt je Raum den größten freien Wendekreis (`TURNING_CIRCLE_DIAMETER_CM = 150`, in 2D visualisiert) sowie den freien Rückzugsraum hinter Ess-/Schreibtischstühlen (`CHAIR_PULLBACK_RECOMMENDED_CM = 80`).
+  4. **Klapp-Diff & Scorecard:** Simuliert bei klappbaren Möbeln (z. B. `boconcept-osaka`) `pose: 'open'` bei fixierter Rückwand gegen `evaluateFloorplanCollisions` und verdichtet alles zur Raum- und Wohnungs-Scorecard (`0–100`, Note `A`–`D`).
 - **Querverweis:** Detaillierte mathematische Formeln und die 2D-/3D-Visualisierung sind in [precision-editor-and-scale-export.md](precision-editor-and-scale-export.md#5-grundriss-unterleger-tracing--din-18040-ergonomie-heatmap) dokumentiert.

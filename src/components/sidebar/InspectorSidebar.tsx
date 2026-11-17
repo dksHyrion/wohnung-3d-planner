@@ -14,6 +14,7 @@ import { OpeningInspector } from './OpeningInspector';
 import { FurnitureInspector } from './FurnitureInspector';
 import { RoomInspector } from './RoomInspector';
 import { RugInspector } from './RugInspector';
+import { ErgonomicsScorecardSection } from './ErgonomicsScorecardSection';
 import {
   CatalogFurnitureTemplate,
   FURNITURE_CATALOG,
@@ -664,6 +665,8 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
           </div>
         )}
       </section>
+
+      <ErgonomicsScorecardSection />
     </aside>
   );
 };

@@ -62,15 +62,25 @@ Nach dem Vorbild der [RoomSketcher-3D-Referenz](../../raw/2026-10-20-threejs-res
 
 Sobald mehrere Räume aneinander anschließen (z. B. L-Schnitt-Hauptraum `24,3 m²` lichte Fläche / `25,9 m²` Achsmaß + rechts anschließender `22,0 m²` Nebenraum mit `550 × 400 cm` lichten Innenmaßen), entstehen im Wandgraphen T-Knoten mit Grad $\ge 3$ (z. B. `c7` bei `z = 415 cm`).
 
-> [!NOTE] Topologische Voraussetzung für T-Verbindungen
-> Die planare Facettenextraktion setzt voraus, dass an jedem Abzweigpunkt ein expliziter Eckknoten im Graphen existiert (z. B. geteilte Wand `w2` und `w2b` an Ecke `c7`). Das automatische Aufspalten bestehender Wände beim manuellen Hinzufügen einer T-Verbindung im UI-Zeichenmodus ist als künftige Store-Erweiterung (`splitWallAt`) vorgesehen.
+> [!NOTE] Topologische Voraussetzung für T-Verbindungen & Schnittpunkte
+> Die planare Facettenextraktion arbeitet auf einem sauberen Knoten-Kanten-Graphen. Bestehende Wände lassen sich nachträglich via `splitWallAt(wallId, point)` teilen; beim Zeichnen neuer kreuzender Wände schneidet `splitCrossingWalls` bestehende Kanten automatisch, und `splitWallsAtCorner` erzeugt unveränderliche Kopien statt In-Place-Mutation.
 
 1. **Planare Facetten-Extraktion (`computeFloorPolygons`):**
    * Bereinigt zunächst iterativ offene Stichwände (Knoten mit Grad $< 2$).
    * Zerlegt jede Wand in zwei gerichtete Halbkanten $(u \to v)$ und $(v \to u)$.
    * Wählt an jedem Knoten $v$ die ausgehende Kante $(v \to w)$ mit dem kleinsten positiven Rechts-Drehwinkel $\Delta \theta = (\theta_{\text{rev}} - \theta_{\text{out}}) \bmod 2\pi$.
    * Berechnet über die Shoelace-Formel den Flächeninhalt. Positive Zyklen ($A > 0$) sind geschlossene Innenräume (`areaSqM = A / 10000`), während die äußere Umrandung ($A < 0$) herausgefiltert wird.
+   * **Raum-Löcher (`holes`, `netHoles`):** Umschlossene Schächte oder Raum-im-Raum-Polygone werden per Punkt-in-Polygon-Zuordnung von der Brutto- und Nettofläche abgezogen (`netAreaSqM`, 2D/3D-Bodenfüllung).
    * **Lichte Wohnflächen-Berechnung (`netCorners`, `netAreaSqM`):** Versetzt jede Raumkante um ihre wandindividuelle Stärke `thicknessCm / 2` entlang der Innennormalen nach innen und berechnet die Schnittpunkte benachbarter Kanten. Kollineare Kanten an T-Knoten werden robust ohne Division durch Null behandelt.
-2. **Innenwand-Erkennung (`getInteriorWallIds`):**
+2. **Wand-Gehrungen (`wallMiter.ts`) & Innenwand-Erkennung (`getInteriorWallIds`):**
+   * `computeWallMiterMap` berechnet an Eckknoten exakte Winkelhalbierenden-Gehrungen für 3D-Wände, Wandkappen, Sockelleisten und den 2D-/DXF-Export.
    * Gehören sowohl $(u \to v)$ als auch $(v \to u)$ einer Wand zu einem Innenraum-Zyklus, handelt es sich um eine **Innen-/Trennwand** zwischen zwei Räumen.
    * Innenwände (samt ihrer Verbindungstür) bleiben im 3D-Cutaway-Modus auf voller Raumhöhe stehen, während nur kamerazugewandte Außenwände auf `30 cm` abgesenkt werden.
+
+---
+
+## 6. Dachschrägen (`RoofSlope`) & WoFlV § 4 (`roofSlopeMath.ts`)
+
+* **Modellierung an Kniestockwänden (`RoofSlope`):** Eine Dachschräge referenziert `wallId` mit Kniestockhöhe `kneeWallHeightCm` (ab Wandinnenfläche), Dachneigung `pitchDeg` (5°–75°) und optionaler Innenseite `side?: 'pos' | 'neg'`.
+* **Höhenfunktion & Konturen:** Für jeden Punkt im Spannbereich der Wand gilt $h(d) = h_{\text{kniestock}} + d \cdot \tan(\alpha)$ begrenzt auf die Deckenhöhe. `computeRoofSlopeContourLines` liefert die **1,00 m**- und **2,00 m**-Höhenlinien für die 2D-Arbeitsfläche.
+* **WoFlV-Anrechnung (`computeRoomWoFlVBreakdown`):** Integriert über das lichte Innenpolygon (`netCorners`, `netHoles`): Flächen $\ge 200\text{ cm}$ zu $100\,\%$, $100\dots 200\text{ cm}$ zu $50\,\%$ und $< 100\text{ cm}$ zu $0\,\%$ (`woflvAreaSqM`) — separat neben der unveränderten **Lichten Innenfläche (`netAreaSqM`)**.

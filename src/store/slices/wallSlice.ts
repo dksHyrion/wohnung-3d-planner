@@ -1,12 +1,14 @@
-import type { Corner, RoomLabel, Wall, WallOpening } from '../../core/types';
+import type { Corner, RoofSlope, RoomLabel, Wall, WallOpening } from '../../core/types';
 import {
   applyRoomLabels,
   computeFloorPolygons,
   getWallGeometry,
   pointInPolygon,
   setWallLengthCm,
+  splitCrossingWalls,
   splitWallsAtCorner,
 } from '../../core/wallMath';
+import type { FurnitureItem } from '../../core/types';
 import type { StoreDeps } from '../deps';
 import { propagateAttachedChildren } from './furnitureSlice';
 import type { FloorplanState } from '../state';
@@ -16,6 +18,7 @@ export type WallActions = Pick<
   | 'updateWallLengthCm'
   | 'updateWallProps'
   | 'addWallWithCorners'
+  | 'splitWallAt'
   | 'removeWall'
   | 'moveCorner'
   | 'removeCorner'
@@ -23,10 +26,86 @@ export type WallActions = Pick<
   | 'addOpening'
   | 'updateOpening'
   | 'removeOpening'
+  | 'addRoofSlope'
+  | 'updateRoofSlope'
+  | 'removeRoofSlope'
 >;
 
 export function createWallSlice(deps: StoreDeps): WallActions {
   const { get, setWithCollisions, generateId } = deps;
+
+  const realignSnappedFurnitureOnWalls = (
+    oldCorners: Corner[],
+    newCorners: Corner[],
+    newWalls: Wall[],
+    oldFurniture: FurnitureItem[],
+    affectedWallIds: Set<string>
+  ): FurnitureItem[] => {
+    const oldCornerMap = new Map(oldCorners.map((c) => [c.id, c]));
+    const newCornerMap = new Map(newCorners.map((c) => [c.id, c]));
+    const newWallMap = new Map(newWalls.map((w) => [w.id, w]));
+
+    const movedCarrierIds: string[] = [];
+    let updatedFurniture = oldFurniture.map((item) => {
+      if (!item.snappedWallId || !affectedWallIds.has(item.snappedWallId)) {
+        return item;
+      }
+      const affectedWall = newWallMap.get(item.snappedWallId);
+      if (!affectedWall) return item;
+      const wStart = newCornerMap.get(affectedWall.startCornerId);
+      const wEnd = newCornerMap.get(affectedWall.endCornerId);
+      if (!wStart || !wEnd) return item;
+
+      const oldStart = oldCornerMap.get(affectedWall.startCornerId);
+      const oldEnd = oldCornerMap.get(affectedWall.endCornerId);
+      let side = 1;
+      if (oldStart && oldEnd) {
+        const oldGeom = getWallGeometry(oldStart, oldEnd);
+        const oldRelX = item.x - oldStart.x;
+        const oldRelZ = item.z - oldStart.z;
+        side = oldRelX * oldGeom.normal.x + oldRelZ * oldGeom.normal.z >= 0 ? 1 : -1;
+      }
+
+      const geom = getWallGeometry(wStart, wEnd);
+      const relX = item.x - wStart.x;
+      const relZ = item.z - wStart.z;
+      const alongWall = relX * geom.tangent.x + relZ * geom.tangent.z;
+      const halfW = item.widthCm / 2;
+      const clampedAlong =
+        geom.lengthCm >= item.widthCm
+          ? Math.max(halfW, Math.min(geom.lengthCm - halfW, alongWall))
+          : geom.lengthCm / 2;
+
+      const targetCenterOffset = affectedWall.thicknessCm / 2 + item.depthCm / 2;
+      const newX = Number(
+        (wStart.x + geom.tangent.x * clampedAlong + geom.normal.x * side * targetCenterOffset).toFixed(2)
+      );
+      const newZ = Number(
+        (wStart.z + geom.tangent.z * clampedAlong + geom.normal.z * side * targetCenterOffset).toFixed(2)
+      );
+      const wallDeg = (-geom.angleRad * 180) / Math.PI;
+      const rawRot = side >= 0 ? wallDeg : wallDeg + 180;
+      const rotationYDeg = Number((((rawRot % 360) + 360) % 360).toFixed(1));
+
+      movedCarrierIds.push(item.id);
+      return {
+        ...item,
+        x: newX,
+        z: newZ,
+        rotationYDeg,
+      };
+    });
+
+    for (const carrierId of movedCarrierIds) {
+      updatedFurniture = propagateAttachedChildren(
+        oldFurniture,
+        updatedFurniture,
+        carrierId
+      );
+    }
+
+    return updatedFurniture;
+  };
 
   return {
     updateWallLengthCm: (wallId, lengthCm) => {
@@ -82,65 +161,14 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         .filter((op): op is WallOpening => op !== null);
 
       // Re-align any furniture item having snappedWallId matching an affected wall
-      const movedCarrierIds: string[] = [];
-      let updatedFurniture = state.furniture.map((item) => {
-        if (!item.snappedWallId || !affectedWallMap.has(item.snappedWallId)) {
-          return item;
-        }
-        const affectedWall = affectedWallMap.get(item.snappedWallId)!;
-        const wStart = cornerMap.get(affectedWall.startCornerId);
-        const wEnd = cornerMap.get(affectedWall.endCornerId);
-        if (!wStart || !wEnd) return item;
-
-        // Preserve wall face side from original wall geometry before the move
-        const oldStart = state.corners.find((c) => c.id === affectedWall.startCornerId);
-        const oldEnd = state.corners.find((c) => c.id === affectedWall.endCornerId);
-        let side = 1;
-        if (oldStart && oldEnd) {
-          const oldGeom = getWallGeometry(oldStart, oldEnd);
-          const oldRelX = item.x - oldStart.x;
-          const oldRelZ = item.z - oldStart.z;
-          side = (oldRelX * oldGeom.normal.x + oldRelZ * oldGeom.normal.z) >= 0 ? 1 : -1;
-        }
-
-        // Direct projection and clamping along the updated wall line
-        const geom = getWallGeometry(wStart, wEnd);
-        const relX = item.x - wStart.x;
-        const relZ = item.z - wStart.z;
-        const alongWall = relX * geom.tangent.x + relZ * geom.tangent.z;
-        const halfW = item.widthCm / 2;
-        const clampedAlong =
-          geom.lengthCm >= item.widthCm
-            ? Math.max(halfW, Math.min(geom.lengthCm - halfW, alongWall))
-            : geom.lengthCm / 2;
-
-        const targetCenterOffset = affectedWall.thicknessCm / 2 + item.depthCm / 2;
-        const newX = Number(
-          (wStart.x + geom.tangent.x * clampedAlong + geom.normal.x * side * targetCenterOffset).toFixed(2)
-        );
-        const newZ = Number(
-          (wStart.z + geom.tangent.z * clampedAlong + geom.normal.z * side * targetCenterOffset).toFixed(2)
-        );
-        const wallDeg = (-geom.angleRad * 180) / Math.PI;
-        const rawRot = side >= 0 ? wallDeg : wallDeg + 180;
-        const rotationYDeg = Number((((rawRot % 360) + 360) % 360).toFixed(1));
-
-        movedCarrierIds.push(item.id);
-        return {
-          ...item,
-          x: newX,
-          z: newZ,
-          rotationYDeg,
-        };
-      });
-
-      for (const carrierId of movedCarrierIds) {
-        updatedFurniture = propagateAttachedChildren(
-          state.furniture,
-          updatedFurniture,
-          carrierId
-        );
-      }
+      const affectedWallIds = new Set(affectedWalls.map((w) => w.id));
+      const updatedFurniture = realignSnappedFurnitureOnWalls(
+        state.corners,
+        updatedCorners,
+        state.walls,
+        state.furniture,
+        affectedWallIds
+      );
 
       const updatedOpeningIds = new Set(updatedOpenings.map((o) => o.id));
       const isSelectedOpeningDiscarded =
@@ -173,7 +201,18 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         };
       });
 
-      setWithCollisions({ walls });
+      const furniture =
+        patch.thicknessCm !== undefined
+          ? realignSnappedFurnitureOnWalls(
+              state.corners,
+              state.corners,
+              walls,
+              state.furniture,
+              new Set([wallId])
+            )
+          : state.furniture;
+
+      setWithCollisions({ walls, furniture });
     },
 
     addWallWithCorners: (start, end) => {
@@ -219,7 +258,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         z: normalizedEnd.z,
       };
 
-      const corners = [...state.corners];
+      let corners = [...state.corners];
       if (!existingStart) corners.push(startCorner);
       if (!existingEnd) corners.push(endCorner);
 
@@ -227,11 +266,13 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       let walls = [...state.walls];
       let openings = [...state.openings];
 
-      const splitStart = splitWallsAtCorner(corners, walls, openings, startCorner);
+      const splitStart = splitWallsAtCorner(corners, walls, openings, startCorner, generateId);
+      corners = splitStart.corners;
       walls = splitStart.walls;
       openings = splitStart.openings;
 
-      const splitEnd = splitWallsAtCorner(corners, walls, openings, endCorner);
+      const splitEnd = splitWallsAtCorner(corners, walls, openings, endCorner, generateId);
+      corners = splitEnd.corners;
       walls = splitEnd.walls;
       openings = splitEnd.openings;
 
@@ -243,16 +284,68 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         heightCm: 250,
       };
 
-      walls.push(newWall);
+      // Split X-crossing walls mid-span so planar room face extraction stays intact
+      const crossing = splitCrossingWalls(corners, walls, openings, newWall, generateId);
+      corners = crossing.corners;
+      walls = crossing.walls;
+      openings = crossing.openings;
+      const primaryWallId = crossing.createdWallIds[0] ?? newWall.id;
+
       setWithCollisions({
         corners,
         walls,
         openings,
-        selectedId: newWall.id,
+        selectedId: primaryWallId,
         selectedType: 'wall',
       });
 
-      return newWall.id;
+      return primaryWallId;
+    },
+
+    splitWallAt: (wallId, point) => {
+      const state = get();
+      const wall = state.walls.find((w) => w.id === wallId);
+      if (!wall) return null;
+
+      const start = state.corners.find((c) => c.id === wall.startCornerId);
+      const end = state.corners.find((c) => c.id === wall.endCornerId);
+      if (!start || !end) return null;
+
+      const geom = getWallGeometry(start, end);
+      if (geom.lengthCm < 20) return null;
+
+      let t = geom.lengthCm / 2;
+      if (point && Number.isFinite(point.x) && Number.isFinite(point.z)) {
+        const relX = point.x - start.x;
+        const relZ = point.z - start.z;
+        const proj = relX * geom.tangent.x + relZ * geom.tangent.z;
+        t = Math.max(10, Math.min(geom.lengthCm - 10, proj));
+      }
+
+      const splitCorner: Corner = {
+        id: generateId('c'),
+        x: Number((start.x + geom.tangent.x * t).toFixed(2)),
+        z: Number((start.z + geom.tangent.z * t).toFixed(2)),
+      };
+
+      const splitResult = splitWallsAtCorner(
+        [...state.corners, splitCorner],
+        state.walls,
+        state.openings,
+        splitCorner,
+        generateId
+      );
+      if (!splitResult.didSplit) return null;
+
+      setWithCollisions({
+        corners: splitResult.corners,
+        walls: splitResult.walls,
+        openings: splitResult.openings,
+        selectedId: splitCorner.id,
+        selectedType: 'corner',
+      });
+
+      return splitCorner.id;
     },
 
     moveCorner: (cornerId, x, z, options) => {
@@ -295,6 +388,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
 
       const walls = state.walls.filter((w) => w.id !== wallId);
       const openings = state.openings.filter((o) => o.wallId !== wallId);
+      const roofSlopes = state.roofSlopes.filter((s) => s.wallId !== wallId);
       const usedCornerIds = new Set<string>();
       for (const w of walls) {
         usedCornerIds.add(w.startCornerId);
@@ -318,6 +412,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         corners,
         walls,
         openings,
+        roofSlopes,
         furniture,
         ...(shouldClearSelection
           ? { selectedId: null, selectedType: null, selectedRoomId: null }
@@ -586,6 +681,47 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         openings,
         selectedId: state.selectedId === openingId ? null : state.selectedId,
         selectedType: state.selectedId === openingId ? null : state.selectedType,
+      });
+    },
+
+    addRoofSlope: (slope) => {
+      const state = get();
+      const id = generateId('roof');
+      const newSlope: RoofSlope = {
+        id,
+        wallId: slope.wallId,
+        kneeWallHeightCm: Math.max(0, Math.min(250, slope.kneeWallHeightCm)),
+        pitchDeg: Math.max(5, Math.min(75, slope.pitchDeg)),
+        ...(slope.side ? { side: slope.side } : {}),
+      };
+      setWithCollisions({ roofSlopes: [...state.roofSlopes, newSlope] });
+      return id;
+    },
+
+    updateRoofSlope: (slopeId, patch) => {
+      const state = get();
+      const roofSlopes = state.roofSlopes.map((s) => {
+        if (s.id !== slopeId) return s;
+        return {
+          ...s,
+          ...patch,
+          kneeWallHeightCm:
+            patch.kneeWallHeightCm !== undefined
+              ? Math.max(0, Math.min(250, patch.kneeWallHeightCm))
+              : s.kneeWallHeightCm,
+          pitchDeg:
+            patch.pitchDeg !== undefined
+              ? Math.max(5, Math.min(75, patch.pitchDeg))
+              : s.pitchDeg,
+        };
+      });
+      setWithCollisions({ roofSlopes });
+    },
+
+    removeRoofSlope: (slopeId) => {
+      const state = get();
+      setWithCollisions({
+        roofSlopes: state.roofSlopes.filter((s) => s.id !== slopeId),
       });
     },
   };

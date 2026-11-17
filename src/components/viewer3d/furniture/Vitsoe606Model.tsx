@@ -1,5 +1,4 @@
 import React from 'react';
-import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { FurnitureModelProps } from './SofaModel';
 

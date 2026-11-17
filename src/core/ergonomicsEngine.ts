@@ -507,3 +507,17 @@ export function evaluatePassageClearances(
     minClearanceCm,
   };
 }
+
+export {
+  evaluateErgonomicsScorecard,
+  TURNING_CIRCLE_DIAMETER_CM,
+  CHAIR_PULLBACK_RECOMMENDED_CM,
+  CHAIR_PULLBACK_CRITICAL_CM,
+  type DeliveryStatus,
+  type ScorecardGrade,
+  type FurnitureDeliveryCheck,
+  type ChairPullbackIssue,
+  type FoldOpenDiffItem,
+  type RoomScorecard,
+  type ErgonomicsScorecardReport,
+} from './ergonomicsScorecard';

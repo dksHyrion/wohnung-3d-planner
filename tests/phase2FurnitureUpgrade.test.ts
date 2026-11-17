@@ -6,7 +6,6 @@ import { FurnitureItem } from '../src/core/types';
 import {
   getOakFurnitureTexture,
   getMarbleQuartzTexture,
-  getLinenTexture,
   clearTextureCache,
 } from '../src/core/materials/proceduralTextures';
 import { SofaModel } from '../src/components/viewer3d/furniture/SofaModel';

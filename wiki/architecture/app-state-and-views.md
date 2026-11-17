@@ -10,19 +10,19 @@
 Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-State und den Render-Komponenten:
 
 1. **`src/core/` (Pure Domain Logic):**
-   * `types.ts`: Domänenmodelle (`Corner`, `Wall`, `WallOpening`, `OpeningType`, `FurnitureItem`, `AreaRug`, `AlignmentGuide`, `FurnitureCollisionReport`, `BackgroundImageOverlay`, `PassageClearance`, `PassageClearanceReport`).
-   * `wallMath.ts`: 1D-Wandprojektion (`checkWallFitCm`), Wandlängen-Änderung (`setWallLengthCm`), Snapping (`findWallSnap`) und Cutaway-Berechnung (`shouldCutawayWall`).
+   * `types.ts`: Domänenmodelle (`Corner`, `Wall`, `WallOpening`, `OpeningType`, `FurnitureItem`, `AreaRug`, `RoofSlope`, `AlignmentGuide`, `FurnitureCollisionReport`, `BackgroundImageOverlay`, `PassageClearance`, `PassageClearanceReport`).
+   * `geometry2d.ts`: Gemeinsame 2D-Schnittgeometrie (`segmentsIntersect2D`).
+   * `wallMath.ts`, `wallMiter.ts`, `wallSubSegments.ts`: 1D-Wandprojektion (`checkWallFitCm`), Wandlängen-Änderung (`setWallLengthCm`), automatischer X-Schnitt (`splitCrossingWalls`), Winkelhalbierenden-Gehrungen (`computeWallMiterMap`), Öffnungs-Subsegmente (`computeWallSubSegments`), Mehrraum-/Loch-Extraktion (`computeFloorPolygons` mit `holes`/`netHoles`), Snapping (`findWallSnap`) und Cutaway (`shouldCutawayWall`).
+   * `roofSlopeMath.ts`: Dachschrägen-Ebenen (`resolveRoofSlopePlanes`), Höhenabfrage (`getEffectiveCeilingHeightAt`), 2D-Höhenlinien (`1,00 m` / `2,00 m`), 3D-Flächenquads und WoFlV § 4 Berechnung (`computeRoomWoFlVBreakdown`).
    * `alignmentMath.ts`: Kante-an-Kante-Möbel-Snapping und Achsen-/Fluchtlinien-Berechnung (`getFurnitureWorldBoundsXZ`, `computeFurnitureAlignment`, `DEFAULT_FURNITURE_SNAP_THRESHOLD_CM = 8`).
    * `doorLeaf.ts`: Türblatt-Geometrie (`doorLeafPose`, `doorSwingFloorSegments`) sowie Öffnungstyp-Klassifikation (`OPENING_TYPE_LABELS`, `openingHasSwingArc`, `openingLetsLightThrough`, `openingIsWalkthrough`).
-   * `collisionEngine.ts`: `THREE.OBB`-Erzeugung und gesamter Kollisionsbericht (`evaluateFloorplanCollisions`). Die Möbelkästen kommen aus `furnitureShapes.ts`.
-   * `furnitureShapes.ts`: ein Layout für Bild und Kollision bei Esstisch, Ecksofa und Bett.
-   * `furnitureVisual.ts`: gültiges `visual` oder `box`. Die erlaubten Werte kommen aus `furnitureVisualCatalog.ts`.
-   * `furnitureVisualCatalog.ts`: für jedes `FurnitureVisualType` die deutsche Bezeichnung, `modelType` und `genericSubType`. `VALID_FURNITURE_VISUAL_TYPES` und `FURNITURE_VISUAL_OPTIONS` entstehen aus den Schlüsseln. Fehlt ein Schlüssel, bricht `tsc` ab.
-   * `knownFurniture.ts`: Osaka-Posen und Masterlift-Höhenbereich.
-   * `overlayImageStore.ts`: Pixel der Grundrissbilder, IndexedDB `wohnung-planer` / `overlay-images`.
-   * `tracingMath.ts`: 2-Punkt-Referenzskalierung (`calculateScaleFromReference`) und Viewport-Einpassung (`fitOverlayToViewport`) für Grundriss-Unterleger.
-   * `ergonomicsEngine.ts`: Analytische Engstellen- und Laufwege-Berechnung nach DIN 18040 und Neufert (`evaluatePassageClearances`) mit SAT-Minimaldistanz und Ampel-Klassifizierung.
-   * `catalog.ts`: `FURNITURE_CATALOG`. `floorplans/`: je eine Datei für `standard-55`, `luxury-villa`, `studio-apartment`, `rectangular-room` und `empty-room`. `presets.ts` leitet nur weiter, damit alte Importe gelten.
+   * `collisionEngine.ts`: `THREE.OBB`-Erzeugung (inkl. hohler Wandöffnungen und `roof-slope-exceeded`-Höhenprüfung) und gesamter Kollisionsbericht (`evaluateFloorplanCollisions`). Die Möbelkästen kommen aus `furnitureShapes.ts`.
+   * `ergonomicsEngine.ts` & `ergonomicsScorecard.ts`: Analytische DIN 18040 Engstellen-Analyse (`evaluatePassageClearances`) sowie Ergonomie 2.0 (`evaluateErgonomicsScorecard`: 2D-EDT-Erreichbarkeit, C-Space-Lieferweg, DIN 18040-2 150-cm-Wendekreis, Stuhl-Rückzugsraum, Klapp-Diff und Scorecard `A`–`D`).
+   * `export/` (`planSvgExport.ts`, `wallExportPolygons.ts`, `dxfExport.ts`, `bomExport.ts`): Gehrungs-/öffnungsgeschnittener SVG-Plan, AutoCAD R12 DXF-Export sowie CSV/Markdown-Stückliste & Flächen-/WoFlV-Bilanz.
+   * `canvas2dMath.ts`: Pure 2D-SVG-Koordinatenprojektion, Zoom/Pan und Zoom-Grenzen (`clampViewBox`, `clientPointToSvgWorldCm`).
+   * `furnitureShapes.ts`, `furnitureVisual.ts`, `furnitureVisualCatalog.ts`, `knownFurniture.ts`: Gemeinsames Compound-Layout, `visual`-Entkopplung, Katalog-Validierung und Osaka-/Masterlift-Spezifikationen.
+   * `overlayImageStore.ts` & `tracingMath.ts`: IndexedDB-Bildspeicher und 2-Punkt-Referenzkalibrierung.
+   * `catalog.ts`, `presets.ts`, `floorplans/`: Katalog und Grundriss-Presets.
 2. **`src/store/` (Single Source of Truth mit `Zustand`):**
    * `state.ts` hält `FloorplanState`, `CameraPreset` und `SelectableEntityType`. `geometry.ts`, `view.ts`, `history.ts` und `deps.ts` importieren den Typ von dort.
    * `useFloorplanStore.ts` baut den Store mit `createStore` und exportiert den Hook `useFloorplanStore`. Die Aktionsnamen bleiben. `getState`, `setState`, `subscribe` und `getInitialState` bleiben am Hook. Ergänzt sind `moveCorner(id, x, z, { recordHistory?: boolean })` und `moveFurniture(id, x, z, snapThresholdCm, { recordHistory?: boolean })` gegen Undo-Flutung beim Ziehen, `removeWall`, `removeCorner`, `selectRoom`, `updateRoom` sowie `propagateAttachedChildren` für gekoppelte Objekte (`attachedToId`).
@@ -30,28 +30,18 @@ Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-Stat
    * `geometry.ts`: Schlanker Orchestrator (< 50 Zeilen), der die Domain-Slices aus `src/store/slices/` aggregiert (`furnitureSlice.ts`, `wallSlice.ts`, `rugSlice.ts`, `presetSlice.ts`) und `propagateAttachedChildren` re-exportiert.
    * `src/store/slices/`:
      * `furnitureSlice.ts`: Möbel-CRUD, Katalog-Reset, Reale Möbel und Hierarchische Objektkopplung (`propagateAttachedChildren`).
-     * `wallSlice.ts`: Wände, Ecken, Öffnungen und Raum-Labels.
-     * `rugSlice.ts`: Teppich-Verwaltung (`AreaRug`).
-     * `presetSlice.ts`: Preset-Laden und DIN 18040 Laufwege-Heatmap.
-   * `view.ts`: Ansicht, Werkzeug, Kamera, Licht, Maßband und Raster.
-   * `history.ts`: Undo, Redo, LocalStorage und JSON, dazu Unterleger und Kalibrierung. `importJson` ruft `parsePlanJson` aus `planImport.ts` und schreibt das Ergebnis wie bisher, inklusive Unterleger, `attachedToId` und `roomLabels[].flooringType`.
-   * `planImport.ts`: `parsePlanJson`. Ein `visual` bleibt nur, wenn es in `VALID_FURNITURE_VISUAL_TYPES` steht. Sonst bleibt das Feld leer. Ungültiges JSON oder fehlende Arrays ergeben `null`.
-   * Der Store hält `corners`, `walls`, `openings`, `furniture`, `backgroundImage`, `overlayError`, `calibrationPoints`, `showPassageHeatmap`, `passageReport`, Auswahl, `viewMode` und `activeTool`.
-   * `setWithCollisions` ist der eine Weg, der Kollision und Laufwege zusammen schreibt und danach `gcOverlays` ruft. Ist die Heatmap an, kommt `passageReport` aus `evaluatePassageClearances` ohne eigene Distanz. Es gilt `DEFAULT_MAX_PASSAGE_DISTANCE_CM` (120) aus `ergonomicsEngine.ts`. Die zweite Signatur der Funktion bleibt.
-   * Undo und Redo schieben nur den Schnappschuss und rufen `setWithCollisions` mit `recordHistory = false`.
-   * `setShowPassageHeatmap` ruft `set`, nicht `setWithCollisions`. Einschalten rechnet die Laufwege einmal und schreibt keinen Verlauf. Ausschalten setzt `passageReport` auf null.
-   * Verlauf, Export und `wohnung_autosave` speichern die Unterleger-Lage und `imageId`, keine Pixel.
-3. **`src/components/` (Synchronisierte Views):**
-   * `layout/TopBar.tsx` bleibt die öffentliche Leiste: Ansicht, Werkzeug, Preset, Cutaway, Unterleger-Upload, Laufwege-Taste und die Dialoge. Die Laufwege-Zahl kommt aus `passageReport`. Ein Speicherfehler des Unterlegers steht als Satz neben der Taste. Exportiert bleiben `formatTimeOfDay`, `MOOD_PRESET_BUTTONS`, `capture3DCanvasSnapshot` und `handleOverlayImageFile`. `CameraPreset` wird von hier weitergegeben.
-   * `layout/LightingControls.tsx`, `layout/PlanExportDialog.tsx`, `layout/JsonPlanDialog.tsx`: Licht, Planexport und JSON-Dialog. Der Zustand der Dialoge bleibt in der Leiste.
-   * `editor2d/FloorplanCanvas2D.tsx` behält Zeiger, Zoom, Ziehen und den Kalibrierdialog. `editor2d/FloorplanSvg2D.tsx` zeichnet Raster, Unterleger, Wände, Türsymbol, Möbel und die Laufwege.
-   * `editor2d/BackgroundOverlayControls.tsx`: Schwebende Werkzeugleiste im 2D-Canvas zur Steuerung des Unterlegers (Deckkraft-Schieberegler 10%–100%, Sperren/Entsperren, Sichtbarkeit, Kalibrier-Auslöser, Löschen).
-   * `viewer3d/Scene3D.tsx`, `WallMesh3D.tsx`, `FurnitureMesh3D.tsx`: React-Three-Fiber-Szene mit umschaltbarer Orthographic-/Perspective-Kamera, prozeduralen Wand-Meshes inkl. Tür-/Fenster-Ausschnitten, 3D-Möbel-Dragging auf der XZ-Ebene und HTML-Maß-/Kollisions-Badges.
-   * `viewer3d/DoorLeaf3D.tsx` zeichnet das Türblatt, `viewer3d/WindowFrame3D.tsx` den 3D-Fensterrahmen mit Mittelpfosten, Griff und Fensterbank. `WallMesh3D` bindet beide ein. Die Türrechnung bleibt in `src/core/doorLeaf.ts`. `WallMesh3D` gibt `DOOR_SWING_LINE_COLOR` (`#c9bfb2`) und `DOOR_SWING_LINE_WIDTH_CM` (`1.2`) weiter.
-   * `computeWallCaps(Wandhöhe, Wandstärke, Wandstücke)` behält die Stücke, deren Oberkante auf der Wandhöhe liegt. `computeCutawayCaps` bekommt Wandlänge, Wandstärke und die Öffnungen. Eine Öffnung teilt die Schnittkappe nur bei einer Brüstung unter 5 cm. Farbe `#2e2a26`, Höhe `1.5` cm, die Kappe ist `0.4` cm dicker als die Wand. Die Schnittkante liegt auf `30` cm. Die Einzelheiten stehen in [wall-graph-topology.md](../concepts/wall-graph-topology.md).
-   * `viewer3d/furniture/furnitureRegistry.tsx` hält `FURNITURE_MODELS`, eine Komponente je `FurnitureVisualType`. `ArchitecturalFurniture3D` zeichnet den Eintrag. Die Auflöser `resolveFurnitureModelType` und `resolveGenericFurnitureSubType` lesen den Katalog und liefern dieselben Schlüssel wie vorher (`sofa`, `generic`, `desk`, `musterring-sorrent` und die übrigen). Name, Marke und Maße wählen kein Modell.
-   * `viewer3d/PassageClearance3D.tsx`: 3D-Ergonomie-Visualisierung auf dem Raumboden ($Y = 0.4\text{ cm}$, `depthWrite={false}`) mit mitdrehenden R3F Drei-`<Html>`-Badges. `Scene3D` importiert die Datei unter diesem Namen.
-   * `sidebar/InspectorSidebar.tsx` bleibt die öffentliche Seitenleiste und exportiert `filterCatalogTemplates` und `CatalogFilterTab`. `WallInspector.tsx`, `OpeningInspector.tsx`, `FurnitureInspector.tsx`, `RoomInspector.tsx` und `RugInspector.tsx` zeichnen Wand, Öffnung (inkl. Bauart-Umschaltung `door` | `window` | `sliding-door` | `passage` | `balcony-door`), Möbel, Raum (inkl. Bodenbelags-Wahl `parquet` | `microcement` | `tile` und Objekt-Kopplung `attachedToId`) sowie Teppiche (`AreaRug` mit `addRug`, `updateRug`, `moveRug`, `removeRug` und `RUG_COLOR_PRESETS`). Osaka und Masterlift stehen im Möbel-Inspektor. Die Bildauswahl kommt aus `FURNITURE_VISUAL_OPTIONS`. Der leere Eintrag heißt „Auto (Katalog / Kategorie)“ und schreibt `visual: undefined`.
+   * `wallSlice.ts`: Wände (inkl. Wandstärken-Sync auf gesnappte Möbel & Kinder), Ecken, Öffnungen, `RoofSlope`-CRUD (`addRoofSlope`, `updateRoofSlope`, `removeRoofSlope`) und Raum-Labels.
+   * `rugSlice.ts`: Teppich-Verwaltung (`AreaRug`).
+   * `presetSlice.ts`: Preset-Laden, DIN 18040 Laufwege-Heatmap (`passageReport`) und Ergonomie-Scorecard (`ergonomicsScorecard`).
+   * `view.ts`: Ansicht, Werkzeug, Kamera (`cameraEyeLevelCm`), `showDecor`, `alignSunWithWindows`, `roomLightsActive`, Licht, Maßband und Raster.
+   * `history.ts` & `planImport.ts`: Undo/Redo, LocalStorage/Dev-Autosave (`planFile.ts`), JSON inkl. `roofSlopes`, `attachedToId` und `roomLabels[].flooringType`.
+   * `setWithCollisions` aktualisiert Kollisionen (`collisionReports`) sowie bei aktivem `showPassageHeatmap` gleichzeitig `passageReport` und `ergonomicsScorecard`, gefolgt von `gcOverlays`.
+3. **`src/components/` (Synchronisierte Views) & E2E (`e2e/`):**
+   * `layout/TopBar.tsx`, `LightingControls.tsx`, `PlanExportDialog.tsx` (SVG, DXF, BOM CSV/Markdown), `JsonPlanDialog.tsx`, `KeyboardShortcutsDialog.tsx`, `MobileNoticeBanner.tsx`.
+   * `editor2d/FloorplanCanvas2D.tsx`, `FloorplanSvg2D.tsx` und `editor2d/layers/` (`RoomsAndBackgroundLayers.tsx`, `WallsOpeningsRugsLayers.tsx`, `FurnitureAndOverlaysLayers.tsx` inkl. 150-cm-Wendekreis & 1m/2m-Dachschrägenlinien) plus `BackgroundOverlayControls.tsx`.
+   * `viewer3d/Scene3D.tsx`, `WallMesh3D.tsx`, `RoofSlopeMesh3D.tsx`, `DoorLeaf3D.tsx`, `WindowFrame3D.tsx`, `FurnitureMesh3D.tsx`, `PassageClearance3D.tsx`, `PostFX3D.tsx`.
+   * `sidebar/InspectorSidebar.tsx`, `WallInspector.tsx` (inkl. Dachschrägen-Editor), `OpeningInspector.tsx`, `FurnitureInspector.tsx`, `RoomInspector.tsx` (inkl. WoFlV-Bilanz), `RugInspector.tsx`, `ErgonomicsScorecardSection.tsx`.
+   * `e2e/app.spec.ts` & `playwright.config.ts`: Automatisierte Headless-Chromium-Tests (WebGL-Smoke, 2D-Drag + `clientToWorldCm` + Undo/Redo, SVG-Export-Download, Dachschrägen-Erstellung).
 
 ---
 

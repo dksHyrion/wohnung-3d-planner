@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { Corner, Wall, WallOpening } from '../../core/types';
@@ -6,107 +6,16 @@ import { getWallGeometry, shouldCutawayWall } from '../../core/wallMath';
 import { interpolateMood } from '../../core/lighting/moodPresets';
 import { DoorLeaf3D } from './DoorLeaf3D';
 import { WindowFrame3D } from './WindowFrame3D';
+import {
+  computeWallSubSegments,
+  type WallSubSegment,
+} from '../../core/wallSubSegments';
+import {
+  createMiteredPrismGeometry,
+  type WallMiterExtents,
+} from '../../core/wallMiter';
 
-export interface WallSubSegment {
-  key: string;
-  centerAlongCm: number;
-  widthCm: number;
-  centerYCm: number;
-  heightCm: number;
-}
-
-/**
- * Splits a wall of `wallLengthCm` x `wallHeightCm` into exact rectangular box segments
- * around any doors or windows on the wall.
- */
-export function computeWallSubSegments(
-  wallLengthCm: number,
-  wallHeightCm: number,
-  openings: WallOpening[]
-): WallSubSegment[] {
-  if (openings.length === 0) {
-    return [
-      {
-        key: 'full',
-        centerAlongCm: wallLengthCm / 2,
-        widthCm: wallLengthCm,
-        centerYCm: wallHeightCm / 2,
-        heightCm: wallHeightCm,
-      },
-    ];
-  }
-
-  const sorted = [...openings]
-    .map((op) => ({
-      ...op,
-      start: Math.max(0, Math.min(wallLengthCm, op.offsetFromStartCm)),
-      end: Math.max(
-        0,
-        Math.min(wallLengthCm, op.offsetFromStartCm + op.widthCm)
-      ),
-    }))
-    .filter((op) => op.end - op.start > 1)
-    .sort((a, b) => a.start - b.start);
-
-  const segments: WallSubSegment[] = [];
-  let cursor = 0;
-
-  for (const op of sorted) {
-    if (op.start > cursor + 0.5) {
-      const segW = op.start - cursor;
-      segments.push({
-        key: `left-${op.id}`,
-        centerAlongCm: cursor + segW / 2,
-        widthCm: segW,
-        centerYCm: wallHeightCm / 2,
-        heightCm: wallHeightCm,
-      });
-    }
-
-    const opW = op.end - op.start;
-    const opCenterAlong = op.start + opW / 2;
-
-    // Sill below opening (e.g. window sill)
-    if (op.sillHeightCm > 0.5) {
-      const sillH = Math.min(wallHeightCm, op.sillHeightCm);
-      segments.push({
-        key: `sill-${op.id}`,
-        centerAlongCm: opCenterAlong,
-        widthCm: opW,
-        centerYCm: sillH / 2,
-        heightCm: sillH,
-      });
-    }
-
-    // Lintel above opening
-    const opTop = op.sillHeightCm + op.heightCm;
-    if (opTop < wallHeightCm - 0.5) {
-      const lintelH = wallHeightCm - opTop;
-      segments.push({
-        key: `lintel-${op.id}`,
-        centerAlongCm: opCenterAlong,
-        widthCm: opW,
-        centerYCm: opTop + lintelH / 2,
-        heightCm: lintelH,
-      });
-    }
-
-    cursor = Math.max(cursor, op.end);
-  }
-
-  if (cursor < wallLengthCm - 0.5) {
-    const rightW = wallLengthCm - cursor;
-    segments.push({
-      key: 'right-end',
-      centerAlongCm: cursor + rightW / 2,
-      widthCm: rightW,
-      centerYCm: wallHeightCm / 2,
-      heightCm: wallHeightCm,
-    });
-  }
-
-  return segments;
-}
+export { computeWallSubSegments, type WallSubSegment };
 
 export interface WallMesh3DProps {
   wall: Wall;
@@ -119,6 +28,73 @@ export interface WallMesh3DProps {
   onSelectWall: (wallId: string) => void;
   onSelectOpening: (openingId: string) => void;
   isCutaway?: boolean;
+  miter?: WallMiterExtents;
+  capMiter?: WallMiterExtents;
+  skirtingMiter?: WallMiterExtents;
+}
+
+const MiteredBoxGeometry: React.FC<{
+  xStartPos: number;
+  xStartNeg: number;
+  xEndPos: number;
+  xEndNeg: number;
+  thicknessZ: number;
+  heightY: number;
+}> = ({ xStartPos, xStartNeg, xEndPos, xEndNeg, thicknessZ, heightY }) => {
+  const isPlainBox =
+    Math.abs(xStartPos - xStartNeg) < 1e-3 &&
+    Math.abs(xEndPos - xEndNeg) < 1e-3;
+
+  const customGeom = useMemo(() => {
+    if (isPlainBox) return null;
+    return createMiteredPrismGeometry(
+      xStartPos,
+      xStartNeg,
+      xEndPos,
+      xEndNeg,
+      thicknessZ,
+      heightY
+    );
+  }, [isPlainBox, xStartPos, xStartNeg, xEndPos, xEndNeg, thicknessZ, heightY]);
+
+  useEffect(() => {
+    return () => {
+      customGeom?.dispose();
+    };
+  }, [customGeom]);
+
+  if (!customGeom) {
+    return <boxGeometry args={[xEndPos - xStartPos, heightY, thicknessZ]} />;
+  }
+  return <primitive object={customGeom} attach="geometry" />;
+};
+
+function computeSegmentFaces(
+  segStartCm: number,
+  segWidthCm: number,
+  wallLengthCm: number,
+  miter?: WallMiterExtents
+): { xStartPos: number; xStartNeg: number; xEndPos: number; xEndNeg: number } {
+  const halfW = segWidthCm / 2;
+  if (!miter) {
+    return { xStartPos: -halfW, xStartNeg: -halfW, xEndPos: halfW, xEndNeg: halfW };
+  }
+  const touchesStart = segStartCm < 0.5;
+  const touchesEnd = segStartCm + segWidthCm > wallLengthCm - 0.5;
+  const rawStartPos = -halfW - (touchesStart ? miter.startPosExt : 0);
+  const rawStartNeg = -halfW - (touchesStart ? miter.startNegExt : 0);
+  const rawEndPos = halfW + (touchesEnd ? miter.endPosExt : 0);
+  const rawEndNeg = halfW + (touchesEnd ? miter.endNegExt : 0);
+
+  if (rawEndPos - rawStartPos < 0.5 || rawEndNeg - rawStartNeg < 0.5) {
+    return { xStartPos: -halfW, xStartNeg: -halfW, xEndPos: halfW, xEndNeg: halfW };
+  }
+  return {
+    xStartPos: rawStartPos,
+    xStartNeg: rawStartNeg,
+    xEndPos: rawEndPos,
+    xEndNeg: rawEndNeg,
+  };
 }
 
 export const WALL_CAP_COLOR = '#2e2a26';
@@ -288,6 +264,9 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
     isSelected,
     onSelectWall,
     onSelectOpening,
+    miter,
+    capMiter,
+    skirtingMiter,
   } = props;
   const [internalCutaway, setInternalCutaway] = useState(false);
   const isCutaway = props.isCutaway ?? internalCutaway;
@@ -365,6 +344,22 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
       const segY = SKIRTING_HEIGHT_CM / 2;
       const frontZ = wall.thicknessCm / 2 + SKIRTING_THICKNESS_CM / 2;
       const backZ = -(wall.thicknessCm / 2 + SKIRTING_THICKNESS_CM / 2);
+      const halfL = seg.lengthCm / 2;
+      const touchesStart = seg.startCm < 0.5;
+      const touchesEnd = seg.startCm + seg.lengthCm > geom.lengthCm - 0.5;
+
+      const frontStartPos = -halfL - (touchesStart && skirtingMiter ? skirtingMiter.startPosExt : 0);
+      const frontStartNeg = -halfL - (touchesStart && miter ? miter.startPosExt : 0);
+      const frontEndPos = halfL + (touchesEnd && skirtingMiter ? skirtingMiter.endPosExt : 0);
+      const frontEndNeg = halfL + (touchesEnd && miter ? miter.endPosExt : 0);
+
+      const backStartPos = -halfL - (touchesStart && miter ? miter.startNegExt : 0);
+      const backStartNeg = -halfL - (touchesStart && skirtingMiter ? skirtingMiter.startNegExt : 0);
+      const backEndPos = halfL + (touchesEnd && miter ? miter.endNegExt : 0);
+      const backEndNeg = halfL + (touchesEnd && skirtingMiter ? skirtingMiter.endNegExt : 0);
+
+      const validFront = frontEndPos - frontStartPos >= 0.5 && frontEndNeg - frontStartNeg >= 0.5;
+      const validBack = backEndPos - backStartPos >= 0.5 && backEndNeg - backStartNeg >= 0.5;
 
       return (
         <React.Fragment key={seg.key}>
@@ -375,12 +370,13 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
             castShadow
             receiveShadow
           >
-            <boxGeometry
-              args={[
-                seg.lengthCm,
-                SKIRTING_HEIGHT_CM,
-                SKIRTING_THICKNESS_CM,
-              ]}
+            <MiteredBoxGeometry
+              xStartPos={validFront ? frontStartPos : -halfL}
+              xStartNeg={validFront ? frontStartNeg : -halfL}
+              xEndPos={validFront ? frontEndPos : halfL}
+              xEndNeg={validFront ? frontEndNeg : halfL}
+              thicknessZ={SKIRTING_THICKNESS_CM}
+              heightY={SKIRTING_HEIGHT_CM}
             />
             <meshStandardMaterial
               color={SKIRTING_COLOR}
@@ -394,12 +390,13 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
             castShadow
             receiveShadow
           >
-            <boxGeometry
-              args={[
-                seg.lengthCm,
-                SKIRTING_HEIGHT_CM,
-                SKIRTING_THICKNESS_CM,
-              ]}
+            <MiteredBoxGeometry
+              xStartPos={validBack ? backStartPos : -halfL}
+              xStartNeg={validBack ? backStartNeg : -halfL}
+              xEndPos={validBack ? backEndPos : halfL}
+              xEndNeg={validBack ? backEndNeg : halfL}
+              thicknessZ={SKIRTING_THICKNESS_CM}
+              heightY={SKIRTING_HEIGHT_CM}
             />
             <meshStandardMaterial
               color={SKIRTING_COLOR}
@@ -411,51 +408,71 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
     });
 
   const renderCaps = () =>
-    activeCaps.map((cap) => (
-      <React.Fragment key={cap.key}>
-        <mesh
-          name="wall-cap"
-          position={[
-            cap.centerAlongCm - geom.lengthCm / 2,
-            cap.centerYCm,
-            0,
-          ]}
-          onClick={handleWallClick}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry
-            args={[cap.widthCm, cap.heightCm, cap.thicknessCm]}
-          />
-          <meshStandardMaterial
-            color={cap.color}
-            roughness={0.5}
-            metalness={0.1}
-          />
-        </mesh>
-
-        {glowingWallCaps && renderTheme === 'studio' && (
+    activeCaps.map((cap) => {
+      const capFaces = computeSegmentFaces(
+        cap.centerAlongCm - cap.widthCm / 2,
+        cap.widthCm,
+        geom.lengthCm,
+        capMiter ?? miter
+      );
+      return (
+        <React.Fragment key={cap.key}>
           <mesh
-            name="wall-cap-glow"
+            name="wall-cap"
             position={[
               cap.centerAlongCm - geom.lengthCm / 2,
-              cap.centerYCm + cap.heightCm / 2 + 0.2,
+              cap.centerYCm,
               0,
             ]}
             onClick={handleWallClick}
+            castShadow
+            receiveShadow
           >
-            <boxGeometry args={[cap.widthCm, 0.4, cap.thicknessCm + 0.05]} />
+            <MiteredBoxGeometry
+              xStartPos={capFaces.xStartPos}
+              xStartNeg={capFaces.xStartNeg}
+              xEndPos={capFaces.xEndPos}
+              xEndNeg={capFaces.xEndNeg}
+              thicknessZ={cap.thicknessCm}
+              heightY={cap.heightCm}
+            />
             <meshStandardMaterial
-              color={mood.wallCapGlowColor}
-              emissive={mood.wallCapGlowColor}
-              emissiveIntensity={mood.wallCapGlowIntensity}
-              toneMapped={false}
-              roughness={0.2}
+              color={cap.color}
+              roughness={0.5}
+              metalness={0.1}
             />
           </mesh>
-        )}
-      </React.Fragment>
-    ));
+
+          {glowingWallCaps && renderTheme === 'studio' && (
+            <mesh
+              name="wall-cap-glow"
+              position={[
+                cap.centerAlongCm - geom.lengthCm / 2,
+                cap.centerYCm + cap.heightCm / 2 + 0.2,
+                0,
+              ]}
+              onClick={handleWallClick}
+            >
+              <MiteredBoxGeometry
+                xStartPos={capFaces.xStartPos}
+                xStartNeg={capFaces.xStartNeg}
+                xEndPos={capFaces.xEndPos}
+                xEndNeg={capFaces.xEndNeg}
+                thicknessZ={cap.thicknessCm + 0.05}
+                heightY={0.4}
+              />
+              <meshStandardMaterial
+                color={mood.wallCapGlowColor}
+                emissive={mood.wallCapGlowColor}
+                emissiveIntensity={mood.wallCapGlowIntensity}
+                toneMapped={false}
+                roughness={0.2}
+              />
+            </mesh>
+          )}
+        </React.Fragment>
+      );
+    });
 
   return (
     <group
@@ -463,47 +480,75 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
       rotation={[0, -geom.angleRad, 0]}
     >
       {isCutaway ? (
-        cutawaySegments.map((seg) => (
-          <mesh
-            key={seg.key}
-            name="wall-body"
-            position={[seg.centerAlongCm - geom.lengthCm / 2, seg.centerYCm, 0]}
-            onClick={handleWallClick}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[seg.widthCm, seg.heightCm, wall.thicknessCm]} />
-            <meshStandardMaterial
-              color={wallColor}
-              transparent={false}
-              opacity={1.0}
-              roughness={WALL_MATERIAL_ROUGHNESS}
-            />
-          </mesh>
-        ))
+        cutawaySegments.map((seg) => {
+          const faces = computeSegmentFaces(
+            seg.centerAlongCm - seg.widthCm / 2,
+            seg.widthCm,
+            geom.lengthCm,
+            miter
+          );
+          return (
+            <mesh
+              key={seg.key}
+              name="wall-body"
+              position={[seg.centerAlongCm - geom.lengthCm / 2, seg.centerYCm, 0]}
+              onClick={handleWallClick}
+              castShadow
+              receiveShadow
+            >
+              <MiteredBoxGeometry
+                xStartPos={faces.xStartPos}
+                xStartNeg={faces.xStartNeg}
+                xEndPos={faces.xEndPos}
+                xEndNeg={faces.xEndNeg}
+                thicknessZ={wall.thicknessCm}
+                heightY={seg.heightCm}
+              />
+              <meshStandardMaterial
+                color={wallColor}
+                transparent={false}
+                opacity={1.0}
+                roughness={WALL_MATERIAL_ROUGHNESS}
+              />
+            </mesh>
+          );
+        })
       ) : (
-        subSegments.map((seg) => (
-          <mesh
-            key={seg.key}
-            name="wall-body"
-            position={[
-              seg.centerAlongCm - geom.lengthCm / 2,
-              seg.centerYCm,
-              0,
-            ]}
-            onClick={handleWallClick}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry
-              args={[seg.widthCm, seg.heightCm, wall.thicknessCm]}
-            />
-            <meshStandardMaterial
-              color={wallColor}
-              roughness={WALL_MATERIAL_ROUGHNESS}
-            />
-          </mesh>
-        ))
+        subSegments.map((seg) => {
+          const faces = computeSegmentFaces(
+            seg.centerAlongCm - seg.widthCm / 2,
+            seg.widthCm,
+            geom.lengthCm,
+            miter
+          );
+          return (
+            <mesh
+              key={seg.key}
+              name="wall-body"
+              position={[
+                seg.centerAlongCm - geom.lengthCm / 2,
+                seg.centerYCm,
+                0,
+              ]}
+              onClick={handleWallClick}
+              castShadow
+              receiveShadow
+            >
+              <MiteredBoxGeometry
+                xStartPos={faces.xStartPos}
+                xStartNeg={faces.xStartNeg}
+                xEndPos={faces.xEndPos}
+                xEndNeg={faces.xEndNeg}
+                thicknessZ={wall.thicknessCm}
+                heightY={seg.heightCm}
+              />
+              <meshStandardMaterial
+                color={wallColor}
+                roughness={WALL_MATERIAL_ROUGHNESS}
+              />
+            </mesh>
+          );
+        })
       )}
 
       {renderCaps()}

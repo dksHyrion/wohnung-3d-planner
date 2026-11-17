@@ -1,11 +1,9 @@
 import React from 'react';
-import * as THREE from 'three';
 import { FurnitureModelProps } from './SofaModel';
 
 export const BathtubModel: React.FC<FurnitureModelProps> = ({
   item,
   hasCollision = false,
-  isSelected = false,
 }) => {
   const { widthCm: width, heightCm: height, depthCm: depth } = item;
 

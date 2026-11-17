@@ -49,8 +49,8 @@ Beim Zeichnen von Wänden rastet die Führungslinie automatisch auf die 4 orthog
 - Beim Verschieben eines Möbels mit aktivem `snapToWallEnabled` rastet `computeFurnitureAlignment` innerhalb von `DEFAULT_FURNITURE_SNAP_THRESHOLD_CM = 8 cm` bündig Kante an Kante (`0 cm` Spalt auf derselben Wand, `kind: 'flush'`) sowie auf Mittelachsen (`kind: 'center'`) und Fluchtkanten (`kind: 'edge'`) im Raum ein.
 - Aktive Hilfslinien (`activeAlignmentGuides`) werden im 2D-SVG-Editor und im 3D-Viewport gezeichnet und beim Loslassen der Maustaste via `clearAlignmentGuides()` geleert.
 
-### D. Ehrliche Flächenterminologie
-Gemäß Befund 6 des externen Architektur-Reviews wurde die unzutreffende Bezeichnung „Wohnfläche nach WoFlV“ (die Putzabzüge von 3 %, lichte Höhenabzüge unter Schrägen und Balkonanteile vorschreibt) konsequent bereinigt. Sämtliche 2D-Raumstempel, Tooltips und Dokumentationen weisen nun wahrheitsgemäß die **„Lichte Innenfläche“ / „Innenfläche (m²)“** aus.
+### D. Ehrliche Flächenterminologie & optionale WoFlV bei Dachschrägen
+Standardmäßig weisen alle Raumstempel und Exporte wahrheitsgemäß die **„Lichte Innenfläche“ (`netAreaSqM`)** aus (ohne geschätzte Putz- oder Pauschalabzüge). Erst wenn an mindestens einer Wand explizit eine **Dachschräge (`RoofSlope`)** gepflegt wird, berechnet [`roofSlopeMath.ts`](../../src/core/roofSlopeMath.ts) zusätzlich die **WoFlV-Wohnfläche (`woflvAreaSqM`)** mit exakter `100 %` / `50 %` / `0 %`-Aufschlüsselung (`1,00 m`- und `2,00 m`-Höhenlinien in 2D und im Raum-Inspektor).
 
 ---
 
@@ -74,9 +74,9 @@ Gemäß Befund 6 des externen Architektur-Reviews wurde die unzutreffende Bezeic
 
 ---
 
-## 4. Maßstabsgetreuer 2D-Plan-Export (SVG 1:50 / 1:100) (`planSvgExport.ts`)
+## 4. Maßstabsgetreuer CAD-, DXF-, SVG- & Stücklisten-Export (`planSvgExport.ts`, `dxfExport.ts`, `bomExport.ts`)
 
-Für Bauherren, Vermieter und Handwerker generiert [`planSvgExport.ts`](../../src/core/export/planSvgExport.ts) druckfertige Architektur-Vektordokumente nach DIN 1356.
+Für Bauherren, Vermieter und Handwerker generiert [`planSvgExport.ts`](../../src/core/export/planSvgExport.ts) druckfertige Architektur-Vektordokumente nach DIN 1356, ergänzt durch AutoCAD-DXF (`dxfExport.ts`) und Stück-/Flächenlisten (`bomExport.ts`).
 
 ### A. Maßstabs- und Papiermathematik
 Da SVG-Dokumente mit Millimeter-Einheiten (`width="297mm"`, `viewBox="0 0 297 210"`) arbeiten, entspricht 1 SVG-User-Unit genau 1 physikalischem Millimeter auf Papier:
@@ -86,18 +86,19 @@ Da SVG-Dokumente mit Millimeter-Einheiten (`width="297mm"`, `viewBox="0 0 297 21
   $$k = 0{,}1\text{ mm pro cm} \quad (100\text{ cm Natur} \to 10\text{ mm Papier} = 1\text{ cm Papier})$$
 - Unterstützt DIN A4 (297 × 210 mm) und DIN A3 (420 × 297 mm) in Quer- oder Hochformat.
 
-### B. Architektur-Elemente im Plan
-1. **Wandkonturen mit Schnittfüllung:** Doppelwandige Innen- und Außenkanten mit architektonischem Solid-Dark-Stroke (`#0f172a`, Stärke 0.7 mm) und schraffierter/gedeckter Füllung.
+### B. Architektur-Elemente im SVG-Plan
+1. **Gehrungs- und öffnungsgeschnittene Wandpolygone (`wallExportPolygons.ts`):** `computeWallPlanPolygons` zerlegt jede Wand um alle Öffnungsintervalle in auf Gehrung geschnittene `.arch-wall`-`<polygon>`-Segmente mit diagonaler Schraffur (`#arch-wall-hatch`) — ganz ohne überdeckende Weiß-Aussparungen, sodass Bodenpolygone unter Türen sichtbar bleiben.
 2. **Öffnungen (5 Bauarten):**
    - Fenster (`arch-window`) als dreilinige Parallelen mit Rahmen und Glasebene.
-   - Drehtüren (`arch-door`) und verglaste Balkontüren (`arch-balcony-door`) mit Türblatt und gestricheltem 90°-Aufschlagschwung-Kreisbogen. Im 3D-Bild steht dasselbe Blatt 72° offen in der gewählten Richtung, mit Zarge und Griff. Der 2D-Plan zeigt das Blatt 4 cm dick im 90°-Symbol. Der Schnitt der Wand blendet das Blatt nicht aus.
+   - Drehtüren (`arch-door`) und verglaste Balkontüren (`arch-balcony-door`) mit Türblatt und gestricheltem 90°-Aufschlagschwung-Kreisbogen. Im 3D-Bild steht dasselbe Blatt 72° offen in der gewählten Richtung, mit Zarge und Griff.
    - Schiebetüren (`arch-sliding-door`) mit Laufschiene und parallel zur Wand versetztem Schiebeflügel ohne 90°-Schwenkbogen.
    - Offene Wanddurchgänge (`arch-passage`) mit gestrichelten Laibungslinien ohne Türblatt und ohne Schwenkbogen.
-3. **Teppiche (`arch-rug`) & Möbelkonturen (`arch-furniture`):** Exakt ausgerichtete 2D-Grundrisse aller Teppiche (`data-rug-name`) und Möbelstücke mit Beschriftung (`includeFurniture`).
-4. **Außen-Bemaßungsketten:** DIN-gerechte Maßlinien mit 45°-Schrägstrichen (Ticks) und Maßzahlen in cm (`includeDimensions`).
-5. **Raumstempel:** Raumbezeichnung und zentrierter Flächennachweis mit Netto-Innenfläche (`m²`).
-6. **Normierter Plankopf (Title Block):** DIN-konformes Schriftfeld unten rechts mit Projektname, Maßstabsangabe (`M 1 : 50` / `M 1 : 100`), Erstelldatum, Autor und Gesamt-Nettofläche.
-7. **Grafische Maßstabsleiste (Scale Bar):** Millimetergenau geteilter Kontrollbalken (0 m – 1 m – 2 m – 5 m) zur visuellen Maßstabskontrolle bei verkleinerten oder vergrößerten Ausdrucken.
+3. **Teppiche (`arch-rug`) & 2D-CAD-Möbelsymbole (`arch-furniture`):** Exakt ausgerichtete 2D-Grundrisse anhand von `item.visual` und `layoutFurnitureParts` inklusive architektonischer Symboldetails (`data-cad="*"`: Kopfteil/Kissen/Decke beim Bett, Klosettbecken/Spülkasten, Badewannen-Becken/Ablauf, Duschkreuz, Küchenspüle/Kochfeld, Osaka-Klappfalz).
+4. **Außen-Bemaßungsketten, Raumstempel, Plankopf & Maßstabsleiste:** DIN-gerechte Maßlinien (`dimensionMath.ts`), Raumstempel mit lichter Nettofläche (`m²`), Plankopf und Kontrollbalken.
+
+### C. Offline AutoCAD R12 DXF-Export (`dxfExport.ts`) & BOM-Stückliste (`bomExport.ts`)
+- **`exportFloorplanDxf`:** Reiner Offline-ASCII-DXF-Generator (`$ACADVER AC1009`, `1 DXF-Einheit = 1 cm`, `dxfY = -z` für ungespiegelte Draufsicht) mit dedizierten Layern (`WALLS`, `OPENINGS`, `FURNITURE`, `RUGS`, `DIMENSIONS`, `TEXT`).
+- **`exportFurnitureBomCsv` & `exportFurnitureBomMarkdown`:** Stückliste mit Raumzuordnung (`isPointInRoom`), `isRealFurniture`-Kennzeichnung, Marke/Modell/Artikelnummer, Katalog- vs. Ist-Maßen inkl. Abweichungsmarkierung sowie Netto-/Brutto-/Möbel-Stellflächen- und optionaler WoFlV-Bilanz.
 
 ---
 

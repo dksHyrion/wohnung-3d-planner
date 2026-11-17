@@ -32,7 +32,6 @@ export const ArtemideTolomeoModel = React.memo<FurnitureModelProps>(
     const mood = useMemo(() => interpolateMood(timeOfDay), [timeOfDay]);
     const isLightOn = roomLightsActive || mood.lampsActive;
 
-    const width = item.widthCm || 45;
     const height = item.heightCm || 90;
     const depth = item.depthCm || 150;
 

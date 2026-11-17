@@ -37,6 +37,11 @@ import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import { EditorTool, ViewMode } from '../../core/types';
 import { exportScaledFloorplanSvg } from '../../core/export/planSvgExport';
+import { exportFloorplanDxf } from '../../core/export/dxfExport';
+import {
+  exportFurnitureBomCsv,
+  exportFurnitureBomMarkdown,
+} from '../../core/export/bomExport';
 import { fitOverlayToViewport } from '../../core/tracingMath';
 import { computeFitViewBox } from '../../core/wallMath';
 import { prepareOverlayImage } from '../../core/overlayImageStore';
@@ -173,28 +178,63 @@ export const TopBar: React.FC = () => {
 
   const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleDownloadPlanSvg = () => {
-    const { corners, walls, openings, furniture, rugs } = useFloorplanStore.getState();
-    const svg = exportScaledFloorplanSvg(
-      { corners, walls, openings, furniture, rugs },
-      {
-        scale: planScale,
-        paperSize: planPaper,
-        orientation: planOrientation,
-        includeFurniture: planIncludeFurniture,
-        includeDimensions: planIncludeDimensions,
-        projectTitle: planTitle.trim() || (language === 'en' ? 'Floorplan Plan' : 'Grundriss Plan'),
-        language,
-      }
-    );
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const triggerDownload = (content: string, mimeType: string, filename: string) => {
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `plan-${planScale.replace(':', '_')}-${selectedPreset}.svg`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
     setPlanExportModalOpen(false);
+  };
+
+  const getPlanExportData = () => {
+    const { corners, walls, openings, furniture, rugs, roomLabels } = useFloorplanStore.getState();
+    return { corners, walls, openings, furniture, rugs, roomLabels };
+  };
+
+  const handleDownloadPlanSvg = () => {
+    const data = getPlanExportData();
+    const svg = exportScaledFloorplanSvg(data, {
+      scale: planScale,
+      paperSize: planPaper,
+      orientation: planOrientation,
+      includeFurniture: planIncludeFurniture,
+      includeDimensions: planIncludeDimensions,
+      projectTitle: planTitle.trim() || (language === 'en' ? 'Floorplan Plan' : 'Grundriss Plan'),
+      language,
+    });
+    triggerDownload(
+      svg,
+      'image/svg+xml;charset=utf-8',
+      `plan-${planScale.replace(':', '_')}-${selectedPreset}.svg`
+    );
+  };
+
+  const handleDownloadPlanDxf = () => {
+    const data = getPlanExportData();
+    const dxf = exportFloorplanDxf(data, {
+      includeFurniture: planIncludeFurniture,
+      includeDimensions: planIncludeDimensions,
+      language,
+    });
+    triggerDownload(dxf, 'application/dxf;charset=utf-8', `plan-${selectedPreset}.dxf`);
+  };
+
+  const handleDownloadBomCsv = () => {
+    const data = getPlanExportData();
+    const csv = exportFurnitureBomCsv(data, { language });
+    triggerDownload(csv, 'text/csv;charset=utf-8', `stueckliste-${selectedPreset}.csv`);
+  };
+
+  const handleDownloadBomMd = () => {
+    const data = getPlanExportData();
+    const md = exportFurnitureBomMarkdown(data, {
+      projectTitle: planTitle.trim() || undefined,
+      language,
+    });
+    triggerDownload(md, 'text/markdown;charset=utf-8', `stueckliste-${selectedPreset}.md`);
   };
 
   const handleExportSnapshot = () => {
@@ -631,6 +671,9 @@ export const TopBar: React.FC = () => {
         planTitle={planTitle}
         setPlanTitle={setPlanTitle}
         handleDownloadPlanSvg={handleDownloadPlanSvg}
+        handleDownloadPlanDxf={handleDownloadPlanDxf}
+        handleDownloadBomCsv={handleDownloadBomCsv}
+        handleDownloadBomMd={handleDownloadBomMd}
       />
       <KeyboardShortcutsDialog />
     </>

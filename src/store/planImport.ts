@@ -7,6 +7,7 @@ import {
   FloorplanData,
   FurnitureCategory,
   FurnitureItem,
+  RoofSlope,
   RoomLabel,
   Wall,
   WallOpening,
@@ -19,6 +20,7 @@ export interface ParsedPlan {
   furniture: FurnitureItem[];
   rugs: AreaRug[];
   roomLabels: RoomLabel[];
+  roofSlopes: RoofSlope[];
   backgroundImage: BackgroundImageOverlay | null;
   importedWasDataUrl: boolean;
 }
@@ -362,6 +364,26 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       }
     }
 
+    const roofSlopes: RoofSlope[] = [];
+    if (Array.isArray(parsed.roofSlopes)) {
+      const seenSlopeIds = new Set<string>();
+      const validWallIds = new Set(walls.map((w) => w.id));
+      for (const s of parsed.roofSlopes.slice(0, MAX_ENTITIES_PER_TYPE)) {
+        if (!s || typeof s.wallId !== 'string' || !validWallIds.has(s.wallId)) continue;
+        const id = dedupeId(typeof s.id === 'string' ? s.id : '', seenSlopeIds, 'roof');
+        const kneeWallHeightCm = clamp(finiteOr(s.kneeWallHeightCm, 100), 0, 250);
+        const pitchDeg = clamp(finiteOr(s.pitchDeg, 45), 5, 75);
+        const side = s.side === 'pos' || s.side === 'neg' ? s.side : undefined;
+        roofSlopes.push({
+          id,
+          wallId: s.wallId,
+          kneeWallHeightCm,
+          pitchDeg,
+          ...(side ? { side } : {}),
+        });
+      }
+    }
+
     return {
       corners,
       walls,
@@ -369,6 +391,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       furniture,
       rugs,
       roomLabels,
+      roofSlopes,
       backgroundImage,
       importedWasDataUrl,
     };

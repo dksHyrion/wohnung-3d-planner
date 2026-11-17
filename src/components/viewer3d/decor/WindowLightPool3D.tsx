@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { WallOpening } from '../../../core/types';
 import {
+  computeWindowSunPolygon,
   windowLightPoolCenter,
   windowLightPoolOpacity,
   windowLightPoolRotation,
@@ -38,11 +39,13 @@ export interface WindowLightPool3DProps {
   inwardSign: 1 | -1;
   color: string;
   intensity: number;
+  wallAngleRad?: number;
+  sunDirToRoom?: { x: number; y: number; z: number };
 }
 
 /**
- * Weicher Fleck auf dem Boden. Die Farbe ist die Sonne, nicht das Himmelsblau im Fenster.
- * Hell an der Fensterwand, zu den Seiten und in den Raum auslaufend.
+ * Projiziertes Sonnenlicht-Trapez am Boden (y = 1.2 cm) abhängig von Tageszeit
+ * und Sonnenvektor; fällt ohne Sonnenvektor auf den weichen Standard-Fleck zurück.
  */
 export const WindowLightPool3D: React.FC<WindowLightPool3DProps> = ({
   opening,
@@ -51,8 +54,96 @@ export const WindowLightPool3D: React.FC<WindowLightPool3DProps> = ({
   inwardSign,
   color,
   intensity,
+  wallAngleRad,
+  sunDirToRoom,
 }) => {
   const opacity = windowLightPoolOpacity(intensity);
+  const texture = useMemo(() => getPoolTexture(), []);
+
+  const sunPolygon = useMemo(() => {
+    if (wallAngleRad === undefined || !sunDirToRoom) return undefined;
+    return computeWindowSunPolygon({
+      offsetFromStartCm: opening.offsetFromStartCm,
+      widthCm: opening.widthCm,
+      sillHeightCm: opening.sillHeightCm,
+      heightCm: opening.heightCm,
+      wallLengthCm,
+      wallThicknessCm,
+      inwardSign,
+      wallAngleRad,
+      sunDirToRoom,
+    });
+  }, [
+    opening.offsetFromStartCm,
+    opening.widthCm,
+    opening.sillHeightCm,
+    opening.heightCm,
+    wallLengthCm,
+    wallThicknessCm,
+    inwardSign,
+    wallAngleRad,
+    sunDirToRoom,
+  ]);
+
+  const sunQuadGeom = useMemo(() => {
+    if (!sunPolygon) return null;
+    const { nearLeft, nearRight, farRight, farLeft } = sunPolygon;
+    // Double-sided flat floor quad at y = 0 in local space (mesh placed at y = 1.2)
+    const positions = new Float32Array([
+      nearLeft.x, 0, nearLeft.z,
+      nearRight.x, 0, nearRight.z,
+      farRight.x, 0, farRight.z,
+      nearLeft.x, 0, nearLeft.z,
+      farRight.x, 0, farRight.z,
+      farLeft.x, 0, farLeft.z,
+    ]);
+    // UV v=1 at near (sill) edge -> bright texture top; v=0 at far edge -> soft fade
+    const uvs = new Float32Array([
+      0, 1,
+      1, 1,
+      1, 0,
+      0, 1,
+      1, 0,
+      0, 0,
+    ]);
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geom.computeVertexNormals();
+    return geom;
+  }, [sunPolygon]);
+
+  useEffect(() => {
+    return () => {
+      sunQuadGeom?.dispose();
+    };
+  }, [sunQuadGeom]);
+
+  if (opacity <= 0.01) return null;
+
+  // When sun direction is known and window faces away from sun, skip direct sunlight patch
+  if (sunPolygon === null) return null;
+
+  if (sunQuadGeom) {
+    return (
+      <mesh
+        name="window-light-pool"
+        position={[0, 1.2, 0]}
+        raycast={() => null}
+      >
+        <primitive object={sunQuadGeom} attach="geometry" />
+        <meshBasicMaterial
+          color={color}
+          map={texture ?? undefined}
+          transparent
+          opacity={opacity}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    );
+  }
+
   const center = windowLightPoolCenter({
     offsetFromStartCm: opening.offsetFromStartCm,
     widthCm: opening.widthCm,
@@ -61,9 +152,6 @@ export const WindowLightPool3D: React.FC<WindowLightPool3DProps> = ({
     inwardSign,
   });
   const rotation = windowLightPoolRotation(inwardSign);
-  const texture = useMemo(() => getPoolTexture(), []);
-
-  if (opacity <= 0.01) return null;
 
   return (
     <mesh

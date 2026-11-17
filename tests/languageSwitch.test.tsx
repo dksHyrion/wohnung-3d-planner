@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { useFloorplanStore } from '../src/store/useFloorplanStore';
 import { LanguageSwitch } from '../src/components/layout/LanguageSwitch';

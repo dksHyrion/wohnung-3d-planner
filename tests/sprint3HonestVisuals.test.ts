@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { MOOD_PRESETS, presetToHour, MoodPresetKey } from '../src/core/lighting/moodPresets';
-import { useFloorplanStore, CameraPreset } from '../src/store/useFloorplanStore';
+import { MOOD_PRESETS, presetToHour } from '../src/core/lighting/moodPresets';
+import { useFloorplanStore } from '../src/store/useFloorplanStore';
 import { Corner, Wall, WallOpening, FurnitureItem } from '../src/core/types';
 import {
   computeDominantWindowDirection,

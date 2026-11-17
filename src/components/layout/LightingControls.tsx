@@ -1,4 +1,3 @@
-import React from 'react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { formatTimeOfDay } from './TopBar';

@@ -1,9 +1,10 @@
-import { FloorplanData, Corner, Wall, WallOpening, FurnitureItem } from '../types';
+import { FloorplanData, Corner, FurnitureItem, FurnitureVisualType } from '../types';
 import { getWallGeometry, computeFloorPolygons, applyRoomLabels } from '../wallMath';
 import { computeExteriorDimensionChains } from '../dimensionMath';
-import { layoutFurnitureParts } from '../furnitureShapes';
+import { layoutFurnitureParts, bedHeadboardDepthCm, isOsakaOpen } from '../furnitureShapes';
 import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { resolveFurnitureVisual } from '../furnitureVisual';
+import { computeWallPlanPolygons } from './wallExportPolygons';
 import type { Language } from '../../i18n/types';
 
 export interface PlanExportOptions {
@@ -207,16 +208,22 @@ export function exportScaledFloorplanSvg(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${paperW}mm" height="${paperH}mm" viewBox="0 0 ${paperW} ${paperH}" data-scale="${effectiveScale}" data-fits="${fitInfo.fits}">`
   );
   parts.push(`  <defs>
+    <pattern id="arch-wall-hatch" width="2.4" height="2.4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="2.4" height="2.4" fill="#cbd5e1" />
+      <line x1="0" y1="0" x2="0" y2="2.4" stroke="#475569" stroke-width="0.45" />
+    </pattern>
     <style>
       .arch-paper-bg { fill: #ffffff; }
       .arch-frame { fill: none; stroke: #0f172a; stroke-width: 0.5; }
-      .arch-wall { stroke: #0f172a; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+      .arch-wall { fill: url(#arch-wall-hatch); stroke: #0f172a; stroke-width: 0.35; stroke-linejoin: miter; }
       .arch-door-leaf { stroke: #0f172a; stroke-width: 0.5; fill: none; }
       .arch-door-arc { stroke: #64748b; stroke-width: 0.35; stroke-dasharray: 1 1; fill: none; }
       .arch-window-frame { stroke: #0f172a; stroke-width: 0.4; }
       .arch-window-glass { stroke: #0284c7; stroke-width: 0.3; }
       .arch-rug-rect { fill: #f8fafc; stroke: #94a3b8; stroke-width: 0.3; stroke-dasharray: 1.2 0.8; }
       .arch-furniture-rect { fill: #f1f5f9; stroke: #475569; stroke-width: 0.4; }
+      .arch-furniture-detail { fill: none; stroke: #475569; stroke-width: 0.25; }
+      .arch-furniture-detail-fill { fill: #ffffff; stroke: #475569; stroke-width: 0.25; }
       .arch-furniture-text { font-family: system-ui, -apple-system, sans-serif; font-size: 2.2px; fill: #334155; text-anchor: middle; font-weight: 500; }
       .arch-room-polygon { fill: #f8fafc; stroke: none; }
       .arch-room-badge { fill: #ffffff; stroke: #94a3b8; stroke-width: 0.3; }
@@ -242,29 +249,29 @@ export function exportScaledFloorplanSvg(
   if (rooms.length > 0) {
     parts.push(`  <!-- Room Polygons -->`);
     for (const r of rooms) {
-      const pts = r.corners
-        .map((c) => `${toPaperX(c.x)},${toPaperY(c.z)}`)
-        .join(' ');
-      parts.push(`  <polygon class="arch-room-polygon" points="${pts}" />`);
+      if (r.holes && r.holes.length > 0) {
+        const d = [
+          `M ${r.corners.map((c) => `${toPaperX(c.x)},${toPaperY(c.z)}`).join(' L ')} Z`,
+          ...r.holes.map(
+            (hole) => `M ${hole.map((c) => `${toPaperX(c.x)},${toPaperY(c.z)}`).join(' L ')} Z`
+          ),
+        ].join(' ');
+        parts.push(`  <path class="arch-room-polygon" fill-rule="evenodd" d="${d}" />`);
+      } else {
+        const pts = r.corners
+          .map((c) => `${toPaperX(c.x)},${toPaperY(c.z)}`)
+          .join(' ');
+        parts.push(`  <polygon class="arch-room-polygon" points="${pts}" />`);
+      }
     }
   }
 
-  // Walls
+  // Walls (mitered & split around openings so room floors remain visible inside doorways)
   parts.push(`  <!-- Walls -->`);
-  for (const wall of data.walls) {
-    const start = cornerMap.get(wall.startCornerId);
-    const end = cornerMap.get(wall.endCornerId);
-    if (!start || !end) continue;
-
-    const sx = toPaperX(start.x);
-    const sy = toPaperY(start.z);
-    const ex = toPaperX(end.x);
-    const ey = toPaperY(end.z);
-    const thicknessMm = Number((wall.thicknessCm * scaleRatio).toFixed(2));
-
-    parts.push(
-      `  <line class="arch-wall" x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke-width="${thicknessMm}" />`
-    );
+  const wallPolygons = computeWallPlanPolygons(data.corners, data.walls, data.openings);
+  for (const wp of wallPolygons) {
+    const pts = wp.polygon.map((p) => `${toPaperX(p.x)},${toPaperY(p.z)}`).join(' ');
+    parts.push(`  <polygon class="arch-wall" data-wall-id="${escapeXml(wp.wallId)}" points="${pts}" />`);
   }
 
   // Openings (Doors & Windows)
@@ -290,10 +297,6 @@ export function exportScaledFloorplanSvg(
 
     if (op.type === 'window') {
       parts.push(`  <g class="arch-window">`);
-      // Gap in wall
-      parts.push(
-        `    <line x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" stroke="#ffffff" stroke-width="${wallThickMm + 0.2}" />`
-      );
       // Window frame lines (outer and inner jamb lines)
       const nx = geom.normal.x * (wallThickMm / 2);
       const ny = geom.normal.z * (wallThickMm / 2);
@@ -313,9 +316,6 @@ export function exportScaledFloorplanSvg(
       const ny = geom.normal.z * (wallThickMm / 2);
       parts.push(`  <g class="arch-passage">`);
       parts.push(
-        `    <line x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" stroke="#ffffff" stroke-width="${wallThickMm + 0.2}" />`
-      );
-      parts.push(
         `    <line class="arch-door-arc" x1="${pStartX - nx}" y1="${pStartY - ny}" x2="${pEndX - nx}" y2="${pEndY - ny}" />`
       );
       parts.push(
@@ -329,9 +329,6 @@ export function exportScaledFloorplanSvg(
       const ny = geom.normal.z * offsetMm;
       parts.push(`  <g class="arch-sliding-door">`);
       parts.push(
-        `    <line x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" stroke="#ffffff" stroke-width="${wallThickMm + 0.2}" />`
-      );
-      parts.push(
         `    <line class="arch-door-arc" x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" />`
       );
       parts.push(
@@ -342,10 +339,6 @@ export function exportScaledFloorplanSvg(
       // Door or Balcony Door
       const cls = op.type === 'balcony-door' ? 'arch-door arch-balcony-door' : 'arch-door';
       parts.push(`  <g class="${cls}">`);
-      // Clear wall line
-      parts.push(
-        `    <line x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" stroke="#ffffff" stroke-width="${wallThickMm + 0.2}" />`
-      );
       if (op.type === 'balcony-door') {
         parts.push(
           `    <line class="arch-window-glass" x1="${pStartX}" y1="${pStartY}" x2="${pEndX}" y2="${pEndY}" />`
@@ -420,6 +413,8 @@ export function exportScaledFloorplanSvg(
           `    <rect class="arch-furniture-rect" data-part="${escapeXml(lp.id)}" x="${pxMm}" y="${pyMm}" width="${pwMm}" height="${pdMm}" rx="1" />`
         );
       }
+
+      parts.push(...renderFurnitureCadDetailsSvg(f, visual, scaleRatio));
 
       // Furniture front line indicator
       parts.push(
@@ -596,4 +591,179 @@ export function escapeXml(unsafe: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+function fmtMm(v: number): number {
+  return Number(v.toFixed(2));
+}
+
+function renderFurnitureCadDetailsSvg(
+  f: FurnitureItem,
+  visual: FurnitureVisualType,
+  scaleRatio: number
+): string[] {
+  const out: string[] = [];
+  const wMm = f.widthCm * scaleRatio;
+  const dMm = f.depthCm * scaleRatio;
+  const hw = wMm / 2;
+  const hd = dMm / 2;
+
+  switch (visual) {
+    case 'bed': {
+      const hbMm = bedHeadboardDepthCm(f.depthCm) * scaleRatio;
+      const hbBottom = -hd + hbMm;
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="bed-headboard" x1="${fmtMm(-hw)}" y1="${fmtMm(hbBottom)}" x2="${fmtMm(hw)}" y2="${fmtMm(hbBottom)}" />`
+      );
+      const pillowH = Math.min(dMm * 0.2, 36 * scaleRatio);
+      const pillowW = f.widthCm >= 130 ? (wMm - 6 * scaleRatio) / 2 - 2 * scaleRatio : wMm * 0.65;
+      const pillowY = hbBottom + 3 * scaleRatio;
+      if (f.widthCm >= 130) {
+        const gap = 2 * scaleRatio;
+        out.push(
+          `    <rect class="arch-furniture-detail-fill" data-cad="bed-pillow" x="${fmtMm(-gap / 2 - pillowW)}" y="${fmtMm(pillowY)}" width="${fmtMm(pillowW)}" height="${fmtMm(pillowH)}" rx="0.5" />`
+        );
+        out.push(
+          `    <rect class="arch-furniture-detail-fill" data-cad="bed-pillow" x="${fmtMm(gap / 2)}" y="${fmtMm(pillowY)}" width="${fmtMm(pillowW)}" height="${fmtMm(pillowH)}" rx="0.5" />`
+        );
+      } else {
+        out.push(
+          `    <rect class="arch-furniture-detail-fill" data-cad="bed-pillow" x="${fmtMm(-pillowW / 2)}" y="${fmtMm(pillowY)}" width="${fmtMm(pillowW)}" height="${fmtMm(pillowH)}" rx="0.5" />`
+        );
+      }
+      const blanketY = fmtMm(pillowY + pillowH + 4 * scaleRatio);
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="bed-blanket" x1="${fmtMm(-hw)}" y1="${blanketY}" x2="${fmtMm(hw)}" y2="${blanketY}" />`
+      );
+      break;
+    }
+    case 'sofa':
+    case 'sectional-sofa': {
+      const backMm = Math.min(18, f.depthCm * 0.22) * scaleRatio;
+      const armMm = Math.min(15, f.widthCm * 0.1) * scaleRatio;
+      const backY = fmtMm(-hd + backMm);
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="sofa-backrest" x1="${fmtMm(-hw)}" y1="${backY}" x2="${fmtMm(hw)}" y2="${backY}" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="sofa-arm" x1="${fmtMm(-hw + armMm)}" y1="${backY}" x2="${fmtMm(-hw + armMm)}" y2="${fmtMm(hd)}" />`
+      );
+      if (visual === 'sofa') {
+        out.push(
+          `    <line class="arch-furniture-detail" data-cad="sofa-arm" x1="${fmtMm(hw - armMm)}" y1="${backY}" x2="${fmtMm(hw - armMm)}" y2="${fmtMm(hd)}" />`
+        );
+      }
+      break;
+    }
+    case 'boconcept-osaka': {
+      const backMm = 16 * scaleRatio;
+      const armMm = 12 * scaleRatio;
+      const open = isOsakaOpen(f);
+      const seatTop = -hd + backMm;
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="osaka-backrest" x1="${fmtMm(-hw)}" y1="${fmtMm(seatTop)}" x2="${fmtMm(hw)}" y2="${fmtMm(seatTop)}" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="osaka-arm" x1="${fmtMm(-hw + armMm)}" y1="${fmtMm(seatTop)}" x2="${fmtMm(-hw + armMm)}" y2="${fmtMm(seatTop + 72 * scaleRatio)}" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="osaka-arm" x1="${fmtMm(hw - armMm)}" y1="${fmtMm(seatTop)}" x2="${fmtMm(hw - armMm)}" y2="${fmtMm(seatTop + 72 * scaleRatio)}" />`
+      );
+      if (open) {
+        const foldY = fmtMm(seatTop + 72 * scaleRatio);
+        out.push(
+          `    <line class="arch-furniture-detail" data-cad="osaka-fold" stroke-dasharray="1 0.8" x1="${fmtMm(-hw + armMm)}" y1="${foldY}" x2="${fmtMm(hw - armMm)}" y2="${foldY}" />`
+        );
+      }
+      break;
+    }
+    case 'toilet': {
+      const cisternY = fmtMm(-hd + Math.min(18, f.depthCm * 0.28) * scaleRatio);
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="toilet-cistern" x1="${fmtMm(-hw)}" y1="${cisternY}" x2="${fmtMm(hw)}" y2="${cisternY}" />`
+      );
+      const bowlCy = fmtMm(cisternY + (hd - cisternY) * 0.52);
+      const bowlRx = fmtMm(hw * 0.72);
+      const bowlRy = fmtMm((hd - cisternY) * 0.42);
+      out.push(
+        `    <ellipse class="arch-furniture-detail-fill" data-cad="toilet-bowl" cx="0" cy="${bowlCy}" rx="${bowlRx}" ry="${bowlRy}" />`
+      );
+      break;
+    }
+    case 'bathtub': {
+      const margin = Math.min(wMm, dMm) * 0.14;
+      out.push(
+        `    <rect class="arch-furniture-detail-fill" data-cad="bathtub-basin" x="${fmtMm(-hw + margin)}" y="${fmtMm(-hd + margin)}" width="${fmtMm(wMm - margin * 2)}" height="${fmtMm(dMm - margin * 2)}" rx="${fmtMm(Math.min(wMm, dMm) * 0.22)}" />`
+      );
+      const drainCy = fmtMm(-hd + dMm * 0.26);
+      out.push(
+        `    <circle class="arch-furniture-detail" data-cad="bathtub-drain" cx="0" cy="${drainCy}" r="${fmtMm(Math.max(0.45, 2.5 * scaleRatio))}" />`
+      );
+      break;
+    }
+    case 'shower': {
+      const pad = 2 * scaleRatio;
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="shower-cross" x1="${fmtMm(-hw + pad)}" y1="${fmtMm(-hd + pad)}" x2="${fmtMm(hw - pad)}" y2="${fmtMm(hd - pad)}" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="shower-cross" x1="${fmtMm(hw - pad)}" y1="${fmtMm(-hd + pad)}" x2="${fmtMm(-hw + pad)}" y2="${fmtMm(hd - pad)}" />`
+      );
+      out.push(
+        `    <circle class="arch-furniture-detail-fill" data-cad="shower-drain" cx="0" cy="0" r="${fmtMm(Math.max(0.5, 3 * scaleRatio))}" />`
+      );
+      break;
+    }
+    case 'vanity': {
+      const basinW = Math.min(wMm * 0.65, 52 * scaleRatio);
+      const basinD = Math.min(dMm * 0.62, 34 * scaleRatio);
+      out.push(
+        `    <rect class="arch-furniture-detail-fill" data-cad="vanity-basin" x="${fmtMm(-basinW / 2)}" y="${fmtMm(-basinD / 2 + 2 * scaleRatio)}" width="${fmtMm(basinW)}" height="${fmtMm(basinD)}" rx="0.6" />`
+      );
+      out.push(
+        `    <circle class="arch-furniture-detail" data-cad="vanity-tap" cx="0" cy="${fmtMm(-hd + 4 * scaleRatio)}" r="${fmtMm(Math.max(0.35, 1.8 * scaleRatio))}" />`
+      );
+      break;
+    }
+    case 'kitchen-unit':
+    case 'kitchen-island': {
+      const sinkW = Math.min(wMm * 0.28, 48 * scaleRatio);
+      const sinkD = dMm * 0.65;
+      const sinkX = -hw + wMm * 0.08;
+      out.push(
+        `    <rect class="arch-furniture-detail-fill" data-cad="kitchen-sink" x="${fmtMm(sinkX)}" y="${fmtMm(-sinkD / 2)}" width="${fmtMm(sinkW)}" height="${fmtMm(sinkD)}" rx="0.5" />`
+      );
+      if (wMm >= 95 * scaleRatio) {
+        const hobCx = hw - wMm * 0.22;
+        const dx = Math.min(wMm * 0.08, 12 * scaleRatio);
+        const dy = Math.min(dMm * 0.2, 11 * scaleRatio);
+        const r = fmtMm(Math.max(0.5, 5.5 * scaleRatio));
+        for (const sx of [-1, 1]) {
+          for (const sy of [-1, 1]) {
+            out.push(
+              `    <circle class="arch-furniture-detail" data-cad="kitchen-burner" cx="${fmtMm(hobCx + sx * dx)}" cy="${fmtMm(sy * dy)}" r="${r}" />`
+            );
+          }
+        }
+      }
+      break;
+    }
+    case 'plant': {
+      const r = fmtMm(Math.min(hw, hd) * 0.78);
+      out.push(
+        `    <circle class="arch-furniture-detail-fill" data-cad="plant-crown" cx="0" cy="0" r="${r}" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="plant-leaf" x1="${fmtMm(-r * 0.7)}" y1="0" x2="${fmtMm(r * 0.7)}" y2="0" />`
+      );
+      out.push(
+        `    <line class="arch-furniture-detail" data-cad="plant-leaf" x1="0" y1="${fmtMm(-r * 0.7)}" x2="0" y2="${fmtMm(r * 0.7)}" />`
+      );
+      break;
+    }
+    default:
+      break;
+  }
+
+  return out;
 }

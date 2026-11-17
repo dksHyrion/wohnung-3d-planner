@@ -4,7 +4,6 @@ import ReactDOMServer from 'react-dom/server';
 import { FurnitureItem } from '../src/core/types';
 import {
   resolveFurnitureModelType,
-  ArchitecturalFurniture3D,
 } from '../src/components/viewer3d/furniture/ArchitecturalFurniture3D';
 import {
   ArtemideTolomeoModel,

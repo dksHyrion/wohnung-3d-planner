@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   evaluatePassageClearances,
-  PassageClearance,
-  PassageClearanceReport,
-  DEFAULT_MAX_PASSAGE_DISTANCE_CM,
   classifyPassageSeverity,
   isVerticallySeparated,
 } from '../src/core/ergonomicsEngine';

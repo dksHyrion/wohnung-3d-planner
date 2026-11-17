@@ -7,9 +7,10 @@ import {
   Point2D,
   EPSILON_CM,
 } from './types';
-import { getWallGeometry } from './wallMath';
 import { layoutFurnitureParts, LocalPart } from './furnitureShapes';
+import { segmentsIntersect2D } from './geometry2d';
 
+export { segmentsIntersect2D };
 export type { Point2D };
 
 export function formatMeasureDimension(cm: number): string {
@@ -204,23 +205,6 @@ export function computeFurnitureClearanceCm(
 
 function ccw(p1: Point2D, p2: Point2D, p3: Point2D): number {
   return (p2.x - p1.x) * (p3.z - p1.z) - (p2.z - p1.z) * (p3.x - p1.x);
-}
-
-export function segmentsIntersect2D(
-  a1: Point2D,
-  a2: Point2D,
-  b1: Point2D,
-  b2: Point2D
-): boolean {
-  const d1 = ccw(a1, a2, b1);
-  const d2 = ccw(a1, a2, b2);
-  const d3 = ccw(b1, b2, a1);
-  const d4 = ccw(b1, b2, a2);
-
-  return (
-    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-  );
 }
 
 export function isPointInsideConvexPolygon(pt: Point2D, poly: Point2D[]): boolean {

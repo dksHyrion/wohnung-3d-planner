@@ -10,12 +10,14 @@ import {
   EditorTool,
   AreaRug,
   RoomLabel,
+  RoofSlope,
   BackgroundImageOverlay,
   Point2D,
   AlignmentGuide,
 } from '../core/types';
 import { MoodPresetKey, QualityMode } from '../core/lighting/moodPresets';
 import { PassageClearanceReport } from '../core/ergonomicsEngine';
+import type { ErgonomicsScorecardReport } from '../core/ergonomicsScorecard';
 import type { Language } from '../i18n/types';
 
 export type { Language };
@@ -38,11 +40,13 @@ export interface FloorplanState {
   furniture: FurnitureItem[];
   rugs: AreaRug[];
   roomLabels: RoomLabel[];
+  roofSlopes: RoofSlope[];
   backgroundImage: BackgroundImageOverlay | null;
   overlayError: string | null;
   persistenceError: string | null;
   showPassageHeatmap: boolean;
   passageReport: PassageClearanceReport | null;
+  ergonomicsScorecard: ErgonomicsScorecardReport | null;
   activeAlignmentGuides: AlignmentGuide[];
   clearAlignmentGuides: () => void;
   calibrationPoints: { p1: Point2D | null; p2: Point2D | null };
@@ -116,6 +120,10 @@ export interface FloorplanState {
     start: { x: number; z: number },
     end: { x: number; z: number }
   ) => string;
+  splitWallAt: (
+    wallId: string,
+    point?: { x: number; z: number }
+  ) => string | null;
   removeWall: (wallId: string) => void;
   moveCorner: (
     cornerId: string,
@@ -134,6 +142,12 @@ export interface FloorplanState {
     patch: Partial<Omit<WallOpening, 'id'>>
   ) => void;
   removeOpening: (openingId: string) => void;
+  addRoofSlope: (slope: Omit<RoofSlope, 'id'>) => string;
+  updateRoofSlope: (
+    slopeId: string,
+    patch: Partial<Omit<RoofSlope, 'id' | 'wallId'>>
+  ) => void;
+  removeRoofSlope: (slopeId: string) => void;
   addFurniture: (item: Omit<FurnitureItem, 'id'>) => string;
   updateFurniture: (
     furnitureId: string,

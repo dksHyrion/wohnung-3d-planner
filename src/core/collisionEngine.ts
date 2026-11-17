@@ -9,9 +9,17 @@ import {
   FurnitureCollisionReport,
   EPSILON_CM,
 } from './types';
-import { getWallGeometry, checkWallFitCm } from './wallMath';
+import { getWallGeometry, checkWallFitCm, computeFloorPolygons } from './wallMath';
 import { doorHingeOnRight, doorSwingsInward, openingHasSwingArc } from './doorLeaf';
 import { layoutFurnitureParts } from './furnitureShapes';
+import { segmentsIntersect2D } from './geometry2d';
+import { computeWallSubSegments } from './wallSubSegments';
+import {
+  getEffectiveCeilingHeightAt,
+  resolveRoofSlopePlanes,
+} from './roofSlopeMath';
+
+export { segmentsIntersect2D };
 
 export function computeFurnitureClearanceOBB(
   item: FurnitureItem,
@@ -89,6 +97,86 @@ export function computeWallOBB(
   return new OBB(center, halfSize, basis);
 }
 
+/**
+ * Computes 3D OBBs for the solid masonry sub-segments of a wall,
+ * leaving openings (doors, windows, passages) hollow.
+ */
+export function computeWallSegmentOBBs(
+  start: Corner,
+  end: Corner,
+  wall: Wall,
+  wallOpenings: WallOpening[],
+  shrinkCm: number = EPSILON_CM
+): OBB[] {
+  const geom = getWallGeometry(start, end);
+  if (geom.lengthCm < 1) return [];
+
+  const rotMatrix = new THREE.Matrix4().makeRotationY(-geom.angleRad);
+  const basis = new THREE.Matrix3().setFromMatrix4(rotMatrix);
+  const halfThickness = Math.max(0.5, wall.thicknessCm / 2 - shrinkCm);
+
+  const subSegments = computeWallSubSegments(geom.lengthCm, wall.heightCm, wallOpenings);
+  const obbs: OBB[] = [];
+
+  for (const seg of subSegments) {
+    if (seg.widthCm <= 2 * shrinkCm || seg.heightCm <= 2 * shrinkCm) continue;
+    const center = new THREE.Vector3(
+      start.x + geom.tangent.x * seg.centerAlongCm,
+      seg.centerYCm,
+      start.z + geom.tangent.z * seg.centerAlongCm
+    );
+    const halfSize = new THREE.Vector3(
+      Math.max(0.25, seg.widthCm / 2 - shrinkCm),
+      Math.max(0.25, seg.heightCm / 2 - shrinkCm),
+      halfThickness
+    );
+    obbs.push(new OBB(center, halfSize, basis));
+  }
+
+  return obbs;
+}
+
+/**
+ * Computes the 3D OBB occupying the opening aperture itself (inside the wall thickness)
+ * for non-passage openings (doors, sliding doors, balcony doors, windows).
+ */
+export function computeOpeningThresholdOBB(
+  start: Corner,
+  end: Corner,
+  wall: Wall,
+  opening: WallOpening,
+  shrinkCm: number = EPSILON_CM
+): OBB | null {
+  if (opening.type === 'passage') return null;
+  const geom = getWallGeometry(start, end);
+  if (geom.lengthCm < 1) return null;
+
+  const opStart = Math.max(0, Math.min(geom.lengthCm, opening.offsetFromStartCm));
+  const opEnd = Math.max(0, Math.min(geom.lengthCm, opening.offsetFromStartCm + opening.widthCm));
+  const opWidth = opEnd - opStart;
+  if (opWidth <= 1) return null;
+
+  const opTop = Math.min(wall.heightCm, opening.sillHeightCm + opening.heightCm);
+  const opHeight = opTop - opening.sillHeightCm;
+  if (opHeight <= 1) return null;
+
+  const centerAlong = opStart + opWidth / 2;
+  const center = new THREE.Vector3(
+    start.x + geom.tangent.x * centerAlong,
+    opening.sillHeightCm + opHeight / 2,
+    start.z + geom.tangent.z * centerAlong
+  );
+  const halfSize = new THREE.Vector3(
+    Math.max(0.25, opWidth / 2 - shrinkCm),
+    Math.max(0.25, opHeight / 2 - shrinkCm),
+    Math.max(0.5, wall.thicknessCm / 2 - shrinkCm)
+  );
+  const rotMatrix = new THREE.Matrix4().makeRotationY(-geom.angleRad);
+  const basis = new THREE.Matrix3().setFromMatrix4(rotMatrix);
+
+  return new OBB(center, halfSize, basis);
+}
+
 export function computeDoorSwingOBB(
   start: Corner,
   end: Corner,
@@ -135,53 +223,6 @@ export interface DoorSwingSector {
   maxY: number;
   openingId: string;
   widthCm: number;
-}
-
-function ccw(
-  a: { x: number; z: number },
-  b: { x: number; z: number },
-  c: { x: number; z: number }
-): number {
-  return (c.z - a.z) * (b.x - a.x) - (b.z - a.z) * (c.x - a.x);
-}
-
-function onSegment(
-  p: { x: number; z: number },
-  a: { x: number; z: number },
-  b: { x: number; z: number }
-): boolean {
-  return (
-    p.x >= Math.min(a.x, b.x) - 1e-4 &&
-    p.x <= Math.max(a.x, b.x) + 1e-4 &&
-    p.z >= Math.min(a.z, b.z) - 1e-4 &&
-    p.z <= Math.max(a.z, b.z) + 1e-4
-  );
-}
-
-export function segmentsIntersect2D(
-  p1: { x: number; z: number },
-  p2: { x: number; z: number },
-  q1: { x: number; z: number },
-  q2: { x: number; z: number }
-): boolean {
-  const d1 = ccw(q1, q2, p1);
-  const d2 = ccw(q1, q2, p2);
-  const d3 = ccw(p1, p2, q1);
-  const d4 = ccw(p1, p2, q2);
-
-  if (
-    ((d1 > 1e-5 && d2 < -1e-5) || (d1 < -1e-5 && d2 > 1e-5)) &&
-    ((d3 > 1e-5 && d4 < -1e-5) || (d3 < -1e-5 && d4 > 1e-5))
-  ) {
-    return true;
-  }
-
-  if (Math.abs(d1) <= 1e-5 && onSegment(p1, q1, q2)) return true;
-  if (Math.abs(d2) <= 1e-5 && onSegment(p2, q1, q2)) return true;
-  if (Math.abs(d3) <= 1e-5 && onSegment(q1, p1, p2)) return true;
-  if (Math.abs(d4) <= 1e-5 && onSegment(q2, p1, p2)) return true;
-
-  return false;
 }
 
 export function computeDoorSwingSector(
@@ -392,6 +433,13 @@ export function evaluateFloorplanCollisions(
     furnitureBoxes.set(item.id, enclosingBox(obbs));
   }
 
+  const openingsByWall = new Map<string, WallOpening[]>();
+  for (const op of data.openings) {
+    const list = openingsByWall.get(op.wallId);
+    if (list) list.push(op);
+    else openingsByWall.set(op.wallId, [op]);
+  }
+
   const wallEntries: Array<{ wall: Wall; start: Corner; end: Corner; obb: OBB; box: THREE.Box3 }> = [];
   for (const wall of data.walls) {
     const start = cornerMap.get(wall.startCornerId);
@@ -399,8 +447,30 @@ export function evaluateFloorplanCollisions(
     if (!start || !end) continue;
     const geom = getWallGeometry(start, end);
     if (geom.lengthCm < 1) continue;
-    const obb = computeWallOBB(start, end, wall, EPSILON_CM);
-    wallEntries.push({ wall, start, end, obb, box: enclosingBox([obb]) });
+    const wallOpenings = openingsByWall.get(wall.id) ?? [];
+    const obbs = computeWallSegmentOBBs(start, end, wall, wallOpenings, EPSILON_CM);
+    for (const obb of obbs) {
+      wallEntries.push({ wall, start, end, obb, box: enclosingBox([obb]) });
+    }
+  }
+
+  const openingThresholdEntries: Array<{
+    opening: WallOpening;
+    wall: Wall;
+    obb: OBB;
+    box: THREE.Box3;
+  }> = [];
+  for (const op of data.openings) {
+    if (op.type === 'passage') continue;
+    const wall = wallMap.get(op.wallId);
+    if (!wall) continue;
+    const start = cornerMap.get(wall.startCornerId);
+    const end = cornerMap.get(wall.endCornerId);
+    if (!start || !end) continue;
+    const obb = computeOpeningThresholdOBB(start, end, wall, op, EPSILON_CM);
+    if (obb) {
+      openingThresholdEntries.push({ opening: op, wall, obb, box: enclosingBox([obb]) });
+    }
   }
 
   const doorSwingEntries: Array<{
@@ -419,6 +489,21 @@ export function evaluateFloorplanCollisions(
   }
 
   const reports: Record<string, FurnitureCollisionReport> = {};
+
+  const roofSlopes = data.roofSlopes ?? [];
+  const roofPlanes =
+    roofSlopes.length > 0
+      ? resolveRoofSlopePlanes(
+          data.corners,
+          data.walls,
+          roofSlopes,
+          computeFloorPolygons(data.corners, data.walls)
+        )
+      : [];
+  const maxCeilingCm =
+    data.walls.length > 0
+      ? Math.max(250, ...data.walls.map((w) => w.heightCm))
+      : 250;
 
   for (const item of data.furniture) {
     const itemOBBs = furnitureOBBs.get(item.id)!;
@@ -485,6 +570,38 @@ export function evaluateFloorplanCollisions(
       }
     }
 
+    // 3b. Check intersections against non-passage opening apertures inside the wall thickness
+    for (const entry of openingThresholdEntries) {
+      const op = entry.opening;
+      if (
+        op.type === 'window' &&
+        item.category === 'decor' &&
+        item.elevationCm >= op.sillHeightCm - EPSILON_CM
+      ) {
+        continue;
+      }
+      if (!itemBox.intersectsBox(entry.box)) continue;
+      if (itemOBBs.some((obb) => obb.intersectsOBB(entry.obb))) {
+        const alreadyBlocked = report.issues.some(
+          (i) => i.type === 'opening-blocked' && i.targetId === op.id
+        );
+        if (!alreadyBlocked) {
+          report.issues.push({
+            type: 'opening-blocked',
+            targetId: op.id,
+            message:
+              op.type === 'door'
+                ? `Blockiert Türöffnung (${op.widthCm} cm).`
+                : op.type === 'sliding-door'
+                ? `Blockiert Schiebetür (${op.widthCm} cm).`
+                : op.type === 'balcony-door'
+                ? `Blockiert Balkontür (${op.widthCm} cm).`
+                : `Verdeckt Fenster (Brüstung ${op.sillHeightCm} cm).`,
+          });
+        }
+      }
+    }
+
     // 4. Check clearance zone intersections
     const clearanceOBB = computeFurnitureClearanceOBB(item, EPSILON_CM);
     if (clearanceOBB) {
@@ -542,6 +659,52 @@ export function evaluateFloorplanCollisions(
             report.hasCollision = true;
           }
         }
+      }
+    }
+
+    if (roofPlanes.length > 0) {
+      let maxOverflow = 0;
+      let worstCeilingY = maxCeilingCm;
+      let worstTopY = 0;
+      let worstSlopeId: string | null = null;
+
+      for (const obb of itemOBBs) {
+        const topY = obb.center.y + obb.halfSize.y;
+        const e = obb.rotation.elements;
+        const hx = obb.halfSize.x;
+        const hz = obb.halfSize.z;
+        const samplePts = [
+          { x: obb.center.x, z: obb.center.z },
+          { x: obb.center.x + hx * e[0] + hz * e[6], z: obb.center.z + hx * e[2] + hz * e[8] },
+          { x: obb.center.x - hx * e[0] + hz * e[6], z: obb.center.z - hx * e[2] + hz * e[8] },
+          { x: obb.center.x + hx * e[0] - hz * e[6], z: obb.center.z + hx * e[2] - hz * e[8] },
+          { x: obb.center.x - hx * e[0] - hz * e[6], z: obb.center.z - hx * e[2] - hz * e[8] },
+        ];
+        for (const pt of samplePts) {
+          const { ceilingYCm, limitingSlopeId } = getEffectiveCeilingHeightAt(
+            pt.x,
+            pt.z,
+            roofPlanes,
+            maxCeilingCm
+          );
+          const overflow = topY - ceilingYCm;
+          if (limitingSlopeId && overflow > EPSILON_CM && overflow > maxOverflow) {
+            maxOverflow = overflow;
+            worstCeilingY = ceilingYCm;
+            worstTopY = topY;
+            worstSlopeId = limitingSlopeId;
+          }
+        }
+      }
+
+      if (worstSlopeId && maxOverflow > EPSILON_CM) {
+        report.issues.push({
+          type: 'roof-slope-exceeded',
+          targetId: worstSlopeId,
+          overflowCm: Math.round(maxOverflow * 10) / 10,
+          message: `"${item.name}" ragt ${Math.round(maxOverflow)} cm in die Dachschräge (${Math.round(worstTopY)} cm > ${Math.round(worstCeilingY)} cm).`,
+        });
+        report.hasCollision = true;
       }
     }
 

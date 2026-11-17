@@ -10,7 +10,7 @@ import {
   DIMENSION_LINE_COLOR as COMP_DIM_COLOR,
   computeExteriorDimensionChains as compComputeExteriorDimensionChains,
 } from '../src/components/viewer3d/ArchitecturalDimensionLines3D';
-import { useFloorplanStore, CameraPreset } from '../src/store/useFloorplanStore';
+import { useFloorplanStore } from '../src/store/useFloorplanStore';
 import { PRESET_FLOORPLANS } from '../src/core/presets';
 import { Corner, Wall } from '../src/core/types';
 

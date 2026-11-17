@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { FurnitureItem } from '../../../core/types';
 import { sectionalSofaLayout } from '../../../core/furnitureShapes';
@@ -23,7 +22,6 @@ export interface FurnitureModelProps {
 export const SofaModel: React.FC<FurnitureModelProps> = ({
   item,
   hasCollision = false,
-  isSelected = false,
 }) => {
   const { widthCm: width, heightCm: height, depthCm: depth } = item;
 

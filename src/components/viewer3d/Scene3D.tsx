@@ -11,7 +11,11 @@ import {
 } from '@react-three/drei';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import { WallMesh3D } from './WallMesh3D';
+import { WallMesh3D, SKIRTING_THICKNESS_CM, WALL_CAP_THICKNESS_OFFSET_CM } from './WallMesh3D';
+import { RoofSlopeMesh3D } from './RoofSlopeMesh3D';
+import { resolveRoofSlopePlanes } from '../../core/roofSlopeMath';
+import { computeWallMiterMap, type WallMiterExtents } from '../../core/wallMiter';
+import { computeEffectiveSunLight } from '../../core/windowLight';
 import { FurnitureMesh3D } from './FurnitureMesh3D';
 import { StudioStage3D } from './StudioStage3D';
 import { RugMesh3D } from './RugMesh3D';
@@ -93,6 +97,32 @@ export const getFloorMaterialProps = (
   polygonOffsetFactor: -1,
   polygonOffsetUnits: -1,
 });
+
+const DemandRenderController: React.FC = () => {
+  const { invalidate, controls } = useThree();
+
+  useEffect(() => {
+    invalidate();
+    const raf = requestAnimationFrame(() => invalidate());
+    const unsub = useFloorplanStore.subscribe(() => invalidate());
+    return () => {
+      cancelAnimationFrame(raf);
+      unsub();
+    };
+  }, [invalidate]);
+
+  useEffect(() => {
+    if (!controls || !('addEventListener' in controls)) return;
+    const orbit = controls as unknown as OrbitControlsLike;
+    const onChange = () => invalidate();
+    orbit.addEventListener('change', onChange);
+    return () => {
+      orbit.removeEventListener('change', onChange);
+    };
+  }, [controls, invalidate]);
+
+  return null;
+};
 
 const RendererConfigController: React.FC<{
   isBeauty: boolean;
@@ -232,7 +262,7 @@ export const CameraController: React.FC<{
     cz: number;
   };
 }> = ({ roomBounds }) => {
-  const { camera, controls } = useThree();
+  const { camera, controls, invalidate } = useThree();
   const cameraPreset = useFloorplanStore((s) => s.cameraPreset);
   const cameraPresetNonce = useFloorplanStore((s) => s.cameraPresetNonce);
   const cameraEyeLevelCm = useFloorplanStore((s) => s.cameraEyeLevelCm);
@@ -295,6 +325,7 @@ export const CameraController: React.FC<{
       camera.updateProjectionMatrix();
       transitionRef.current.active = false;
     }
+    invalidate();
   });
 
   useEffect(() => {
@@ -384,6 +415,7 @@ export const CameraController: React.FC<{
     transitionRef.current.goalPos.set(goalX, goalY, goalZ);
     transitionRef.current.goalTarget.set(targetX, targetY, targetZ);
     transitionRef.current.active = true;
+    invalidate();
   }, [
     cameraPreset,
     cameraPresetNonce,
@@ -399,6 +431,7 @@ export const CameraController: React.FC<{
     setViewMode,
     camera,
     controls,
+    invalidate,
     roomBounds,
   ]);
 
@@ -414,6 +447,10 @@ export interface WallGroup3DProps {
   cutawayEnabled: boolean;
   isSelected: boolean;
   showDecor?: boolean;
+  miter?: WallMiterExtents;
+  capMiter?: WallMiterExtents;
+  skirtingMiter?: WallMiterExtents;
+  sunDirToRoom?: { x: number; y: number; z: number };
   onSelectWall: (wallId: string) => void;
   onSelectOpening: (openingId: string) => void;
 }
@@ -431,6 +468,10 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
   cutawayEnabled,
   isSelected,
   showDecor,
+  miter,
+  capMiter,
+  skirtingMiter,
+  sunDirToRoom,
   onSelectWall,
   onSelectOpening,
 }) => {
@@ -439,9 +480,12 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
   const [isCutaway, setIsCutaway] = useState(false);
   const lastCamRef = useRef({ x: NaN, y: NaN, z: NaN });
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, invalidate }) => {
     if (!cutawayEnabled) {
-      if (isCutaway) setIsCutaway(false);
+      if (isCutaway) {
+        setIsCutaway(false);
+        invalidate();
+      }
       return;
     }
     const cx = camera.position.x;
@@ -458,6 +502,7 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
     const nextCut = shouldCutawayWall(start, end, camera.position, roomCenter);
     if (nextCut !== isCutaway) {
       setIsCutaway(nextCut);
+      invalidate();
     }
   });
 
@@ -495,6 +540,9 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
         cutawayEnabled={cutawayEnabled}
         isCutaway={isCutaway}
         isSelected={isSelected}
+        miter={miter}
+        capMiter={capMiter}
+        skirtingMiter={skirtingMiter}
         onSelectWall={onSelectWall}
         onSelectOpening={onSelectOpening}
       />
@@ -513,6 +561,8 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
               inwardSign={inward.sign}
               color={mood.sunColor}
               intensity={mood.sunIntensity}
+              wallAngleRad={geom.angleRad}
+              sunDirToRoom={sunDirToRoom}
             />
           ))}
           {effectiveShowDecor && windowOpenings.length > 0 && (
@@ -545,6 +595,7 @@ export const Scene3D: React.FC = () => {
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
+  const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs =
     useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
@@ -559,6 +610,7 @@ export const Scene3D: React.FC = () => {
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const qualityMode = useFloorplanStore((s) => s.qualityMode);
+  const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
 
   const mood = useMemo(() => interpolateMood(timeOfDay), [timeOfDay]);
   const isBeauty = qualityMode === 'beauty' && renderTheme === 'studio';
@@ -624,12 +676,26 @@ export const Scene3D: React.FC = () => {
 
   const roomFloorShapes = useMemo(() => {
     return rooms.map((room, idx) => {
+      const poly = room.netCorners.length >= 3 ? room.netCorners : room.corners;
       const shape = new THREE.Shape();
-      shape.moveTo(room.corners[0].x, -room.corners[0].z);
-      for (let i = 1; i < room.corners.length; i++) {
-        shape.lineTo(room.corners[i].x, -room.corners[i].z);
+      shape.moveTo(poly[0].x, -poly[0].z);
+      for (let i = 1; i < poly.length; i++) {
+        shape.lineTo(poly[i].x, -poly[i].z);
       }
       shape.closePath();
+      const roomHoles = room.netHoles ?? room.holes;
+      if (roomHoles) {
+        for (const hole of roomHoles) {
+          if (hole.length < 3) continue;
+          const holePath = new THREE.Path();
+          holePath.moveTo(hole[0].x, -hole[0].z);
+          for (let i = 1; i < hole.length; i++) {
+            holePath.lineTo(hole[i].x, -hole[i].z);
+          }
+          holePath.closePath();
+          shape.holes.push(holePath);
+        }
+      }
       return {
         id: room.id,
         shape,
@@ -641,6 +707,64 @@ export const Scene3D: React.FC = () => {
       };
     });
   }, [rooms]);
+
+  const wallMiterMap = useMemo(
+    () => computeWallMiterMap(corners, walls),
+    [corners, walls]
+  );
+  const roofSlopePlanes = useMemo(
+    () => resolveRoofSlopePlanes(corners, walls, roofSlopes, rooms),
+    [corners, walls, roofSlopes, rooms]
+  );
+  const maxCeilingCm = useMemo(
+    () => (walls.length > 0 ? Math.max(250, ...walls.map((w) => w.heightCm)) : 250),
+    [walls]
+  );
+  const capMiterMap = useMemo(
+    () =>
+      computeWallMiterMap(
+        corners,
+        walls.map((w) => ({
+          ...w,
+          thicknessCm: w.thicknessCm + WALL_CAP_THICKNESS_OFFSET_CM,
+        }))
+      ),
+    [corners, walls]
+  );
+  const skirtingMiterMap = useMemo(
+    () =>
+      computeWallMiterMap(
+        corners,
+        walls.map((w) => ({
+          ...w,
+          thicknessCm: w.thicknessCm + SKIRTING_THICKNESS_CM * 2,
+        }))
+      ),
+    [corners, walls]
+  );
+  const effectiveSun = useMemo(
+    () =>
+      computeEffectiveSunLight({
+        corners,
+        walls,
+        openings,
+        roomCenter: { cx: roomBounds.cx, cz: roomBounds.cz },
+        sunElevationDeg: mood.sunElevationDeg,
+        sunAzimuthDeg: mood.sunAzimuthDeg,
+        alignSunWithWindows: renderTheme === 'studio' && alignSunWithWindows,
+      }),
+    [
+      corners,
+      walls,
+      openings,
+      roomBounds.cx,
+      roomBounds.cz,
+      mood.sunElevationDeg,
+      mood.sunAzimuthDeg,
+      renderTheme,
+      alignSunWithWindows,
+    ]
+  );
 
   const floorTextures = useMemo(() => {
     // Architectural scale: repeats mapped in centimeter space
@@ -784,6 +908,7 @@ export const Scene3D: React.FC = () => {
       </div>
 
       <Canvas
+        frameloop="demand"
         shadows="soft"
         dpr={qualityMode === 'performance' ? 1 : [1, 1.5]}
         gl={CANVAS_GL_CONFIG}
@@ -792,6 +917,7 @@ export const Scene3D: React.FC = () => {
           selectEntity(null, null);
         }}
       >
+        <DemandRenderController />
         <RendererConfigController isBeauty={isBeauty} exposure={mood.exposure} />
         <CameraController roomBounds={roomBounds} />
         <color
@@ -857,7 +983,7 @@ export const Scene3D: React.FC = () => {
         />
 
         {/* Room Hardwood/Tile/Microcement Floor Meshes */}
-        {roomFloorShapes.map(({ id, shape, idx, flooringType }) => {
+        {roomFloorShapes.map(({ id, shape, flooringType }) => {
           const isStudio = renderTheme === 'studio';
           const texture = isStudio ? floorTextures[flooringType] : null;
           const bumpTexture = isStudio
@@ -955,11 +1081,25 @@ export const Scene3D: React.FC = () => {
               cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
               isSelected={selectedType === 'wall' && selectedId === wall.id}
               showDecor={showDecor}
+              miter={wallMiterMap.get(wall.id)}
+              capMiter={capMiterMap.get(wall.id)}
+              skirtingMiter={skirtingMiterMap.get(wall.id)}
+              sunDirToRoom={renderTheme === 'studio' ? effectiveSun.dirToRoom : undefined}
               onSelectWall={handleSelectWall}
               onSelectOpening={handleSelectOpening}
             />
           );
         })}
+
+        {/* 3D Roof Slopes (Dachschrägen) */}
+        {roofSlopePlanes.map((plane) => (
+          <RoofSlopeMesh3D
+            key={plane.slopeId}
+            plane={plane}
+            maxCeilingCm={maxCeilingCm}
+            theme={renderTheme}
+          />
+        ))}
 
         {/* 3D Furniture Items */}
 

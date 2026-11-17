@@ -10,6 +10,7 @@ import {
   FloorplanData,
   AreaRug,
   RoomLabel,
+  RoofSlope,
   BackgroundImageOverlay,
 } from '../core/types';
 import { evaluateFloorplanCollisions } from '../core/collisionEngine';
@@ -18,7 +19,10 @@ import { nextFloorplanStoreGeneration, rememberPristinePlan } from './autosave';
 import { createGeometryActions } from './geometry';
 import { createHistoryActions } from './history';
 import { createViewActions } from './view';
-import { evaluatePassageClearances } from '../core/ergonomicsEngine';
+import {
+  evaluatePassageClearances,
+  evaluateErgonomicsScorecard,
+} from '../core/ergonomicsEngine';
 import {
   backgroundImageForExport,
   deleteOverlayBlobs,
@@ -49,6 +53,7 @@ function cloneFloorplanData(data: FloorplanData): FloorplanData {
     furniture: data.furniture.map((f) => ({ ...f })),
     rugs: (data.rugs ?? []).map((r) => ({ ...r })),
     roomLabels: (data.roomLabels ?? []).map((label) => ({ ...label })),
+    roofSlopes: (data.roofSlopes ?? []).map((s) => ({ ...s })),
     backgroundImage: backgroundImageForExport(data.backgroundImage),
   };
 }
@@ -70,6 +75,7 @@ function captureFloorplanSnapshot(state: {
   furniture: FurnitureItem[];
   rugs?: AreaRug[];
   roomLabels?: RoomLabel[];
+  roofSlopes?: RoofSlope[];
   backgroundImage?: BackgroundImageOverlay | null;
 }): FloorplanData {
   return cloneFloorplanData({
@@ -79,6 +85,7 @@ function captureFloorplanSnapshot(state: {
     furniture: state.furniture,
     rugs: state.rugs ?? [],
     roomLabels: state.roomLabels ?? [],
+    roofSlopes: state.roofSlopes ?? [],
     backgroundImage: backgroundImageForExport(state.backgroundImage),
   });
 }
@@ -114,6 +121,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       (patch.furniture !== undefined && patch.furniture !== state.furniture) ||
       (patch.rugs !== undefined && patch.rugs !== state.rugs) ||
       (patch.roomLabels !== undefined && patch.roomLabels !== state.roomLabels) ||
+      (patch.roofSlopes !== undefined && patch.roofSlopes !== state.roofSlopes) ||
       (patch.backgroundImage !== undefined && patch.backgroundImage !== state.backgroundImage);
 
     const historyPatch = recordHistory && hasDataChanged ? pushHistory() : {};
@@ -121,14 +129,16 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     const walls = patch.walls ?? state.walls;
     const openings = patch.openings ?? state.openings;
     const furniture = patch.furniture ?? state.furniture;
+    const roomLabels = patch.roomLabels ?? state.roomLabels;
+    const roofSlopes = patch.roofSlopes ?? state.roofSlopes;
 
     // Rug, label, overlay and selection patches do not affect collisions; keep the old
     // report references so subscribers do not re-render.
     const layoutChanged =
       corners !== state.corners || walls !== state.walls || furniture !== state.furniture;
     const collisionReports =
-      layoutChanged || openings !== state.openings
-        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture })
+      layoutChanged || openings !== state.openings || roofSlopes !== state.roofSlopes
+        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture, roofSlopes })
         : state.collisionReports;
     const showPassageHeatmap = patch.showPassageHeatmap ?? state.showPassageHeatmap;
     const passageReport = !showPassageHeatmap
@@ -136,11 +146,22 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       : layoutChanged || !state.passageReport
         ? evaluatePassageClearances(furniture, walls, corners)
         : state.passageReport;
+    const scorecardChanged =
+      layoutChanged || openings !== state.openings || roomLabels !== state.roomLabels;
+    const ergonomicsScorecard = !showPassageHeatmap
+      ? null
+      : scorecardChanged || !state.ergonomicsScorecard
+        ? evaluateErgonomicsScorecard(
+            { corners, walls, openings, furniture, roomLabels },
+            passageReport
+          )
+        : state.ergonomicsScorecard;
 
     set({
       ...historyPatch,
       ...patch,
       passageReport,
+      ergonomicsScorecard,
       collisionReports,
     });
     gcOverlays();
@@ -190,11 +211,13 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     furniture: initialData.furniture,
     rugs: initialData.rugs ?? [],
     roomLabels: initialData.roomLabels ?? [],
+    roofSlopes: initialData.roofSlopes ?? [],
     backgroundImage: initialData.backgroundImage ?? null,
     overlayError: null,
     persistenceError: null,
     showPassageHeatmap: false,
     passageReport: null,
+    ergonomicsScorecard: null,
     activeAlignmentGuides: [],
     calibrationPoints: { p1: null, p2: null },
     collisionReports: evaluateFloorplanCollisions(initialData),
