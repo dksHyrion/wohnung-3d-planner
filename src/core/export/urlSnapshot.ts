@@ -36,15 +36,21 @@ function base64UrlToBytes(b64url: string): Uint8Array | null {
   }
 }
 
+async function pipeBytesThroughTransform(
+  bytes: Uint8Array,
+  transform: ReadableWritablePair<Uint8Array, BufferSource>
+): Promise<Uint8Array> {
+  const readable = new Blob([new Uint8Array(bytes)])
+    .stream()
+    .pipeThrough(transform);
+  const buf = await new Response(readable).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
 async function gzipCompressBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
   if (typeof CompressionStream === 'undefined') return null;
   try {
-    const cs = new CompressionStream('gzip');
-    const writer = cs.writable.getWriter();
-    await writer.write(new Uint8Array(bytes));
-    await writer.close();
-    const buf = await new Response(cs.readable).arrayBuffer();
-    return new Uint8Array(buf);
+    return await pipeBytesThroughTransform(bytes, new CompressionStream('gzip'));
   } catch {
     return null;
   }
@@ -53,12 +59,7 @@ async function gzipCompressBytes(bytes: Uint8Array): Promise<Uint8Array | null> 
 async function gzipDecompressBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
   if (typeof DecompressionStream === 'undefined') return null;
   try {
-    const ds = new DecompressionStream('gzip');
-    const writer = ds.writable.getWriter();
-    await writer.write(new Uint8Array(bytes));
-    await writer.close();
-    const buf = await new Response(ds.readable).arrayBuffer();
-    return new Uint8Array(buf);
+    return await pipeBytesThroughTransform(bytes, new DecompressionStream('gzip'));
   } catch {
     return null;
   }
