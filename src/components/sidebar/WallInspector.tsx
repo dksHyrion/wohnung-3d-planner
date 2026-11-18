@@ -1,10 +1,19 @@
 import React from 'react';
-import { DoorOpen, AppWindow, Sliders, Trash2, Scissors } from 'lucide-react';
+import {
+  DoorOpen,
+  AppWindow,
+  Sliders,
+  Trash2,
+  Scissors,
+  Paintbrush,
+  ArrowLeftRight,
+} from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { getWallGeometry } from '../../core/wallMath';
 import { createDefaultFixture, WALL_FIXTURE_TYPES } from '../../core/mepFixtures';
-import type { Wall } from '../../core/types';
+import { WALL_FINISH_TYPES } from '../../core/materials/wallFinishes';
+import type { Wall, WallFinishType } from '../../core/types';
 
 export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const { t } = useTranslation();
@@ -320,6 +329,111 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Per-Side Wall Finishes (pos / neg) */}
+      <div
+        style={{
+          marginTop: '8px',
+          paddingTop: '8px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span
+            className="form-label"
+            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Paintbrush size={12} />
+            <span>{t('inspector.wall.finishesTitle')}</span>
+          </span>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ padding: '2px 7px', fontSize: '0.68rem' }}
+            onClick={() =>
+              updateWallProps(selectedWall.id, {
+                posFinish: selectedWall.negFinish ?? { finish: 'plaster' },
+                negFinish: selectedWall.posFinish ?? { finish: 'plaster' },
+              })
+            }
+          >
+            <ArrowLeftRight size={11} />
+            <span>{t('inspector.wall.swapFinishes')}</span>
+          </button>
+        </div>
+
+        <div className="form-grid">
+          {(['pos', 'neg'] as const).map((side) => {
+            const current = side === 'pos' ? selectedWall.posFinish : selectedWall.negFinish;
+            const finishType = current?.finish ?? 'plaster';
+            const patchKey = side === 'pos' ? 'posFinish' : 'negFinish';
+            return (
+              <div
+                key={side}
+                className="form-field"
+                data-testid={`wall-finish-${side}`}
+              >
+                <label className="form-label">
+                  {side === 'pos'
+                    ? t('inspector.wall.posSide')
+                    : t('inspector.wall.negSide')}
+                </label>
+                <select
+                  className="select-input"
+                  value={finishType}
+                  onChange={(e) => {
+                    const nextType = e.target.value as WallFinishType;
+                    updateWallProps(selectedWall.id, {
+                      [patchKey]:
+                        nextType === 'plaster'
+                          ? { finish: 'plaster' }
+                          : {
+                              finish: nextType,
+                              color:
+                                nextType === 'accent-paint'
+                                  ? current?.color ?? '#475569'
+                                  : current?.color,
+                            },
+                    });
+                  }}
+                >
+                  {WALL_FINISH_TYPES.map((ft) => (
+                    <option key={ft} value={ft}>
+                      {t(`inspector.wall.finishes.${ft}`)}
+                    </option>
+                  ))}
+                </select>
+                {finishType !== 'plaster' && (
+                  <input
+                    type="color"
+                    aria-label={`${side}-${t('inspector.wall.finishColor')}`}
+                    className="number-input"
+                    style={{ height: '26px', padding: '1px 3px', marginTop: '4px' }}
+                    value={current?.color ?? (finishType === 'accent-paint' ? '#475569' : '#ffffff')}
+                    onChange={(e) =>
+                      updateWallProps(selectedWall.id, {
+                        [patchKey]: {
+                          finish: finishType,
+                          color: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Haustechnik / MEP Fixtures on this Wall */}

@@ -18,10 +18,12 @@ Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-Stat
    * `doorLeaf.ts`: Türblatt-Geometrie (`doorLeafPose`, `doorSwingFloorSegments`) sowie Öffnungstyp-Klassifikation (`OPENING_TYPE_LABELS`, `openingHasSwingArc`, `openingLetsLightThrough`, `openingIsWalkthrough`).
    * `collisionEngine.ts`: `THREE.OBB`-Erzeugung (inkl. hohler Wandöffnungen und `roof-slope-exceeded`-Höhenprüfung) und gesamter Kollisionsbericht (`evaluateFloorplanCollisions`). Die Möbelkästen kommen aus `furnitureShapes.ts`.
    * `ergonomicsEngine.ts` & `ergonomicsScorecard.ts`: Analytische DIN 18040 Engstellen-Analyse (`evaluatePassageClearances`) sowie Ergonomie 2.0 (`evaluateErgonomicsScorecard`: 2D-EDT-Erreichbarkeit, C-Space-Lieferweg, DIN 18040-2 150-cm-Wendekreis, Stuhl-Rückzugsraum, Klapp-Diff und Scorecard `A`–`D`).
-   * `export/` (`planSvgExport.ts`, `wallExportPolygons.ts`, `dxfExport.ts`, `bomExport.ts`): Gehrungs-/öffnungsgeschnittener SVG-Plan, AutoCAD R12 DXF-Export sowie CSV/Markdown-Stückliste & Flächen-/WoFlV-Bilanz.
+   * `export/` (`planSvgExport.ts`, `wallExportPolygons.ts`, `dxfExport.ts`, `bomExport.ts`, `scene3dExport.ts`, `urlSnapshot.ts`): Gehrungs-/öffnungsgeschnittener SVG-Plan, AutoCAD R12 DXF-Export, CSV/Markdown-Stückliste & Flächen-/WoFlV-Bilanz, `cm->m`-skalierter GLB/USDZ-3D/AR-Export sowie komprimierter URL-Hash-Snapshot.
+   * `groupTransformMath.ts`: Gruppen-Schwerpunkt, Pivot-Rotation und Compound-Marquee-Selektion.
    * `canvas2dMath.ts`: Pure 2D-SVG-Koordinatenprojektion, Zoom/Pan und Zoom-Grenzen (`clampViewBox`, `clientPointToSvgWorldCm`).
    * `furnitureShapes.ts`, `furnitureVisual.ts`, `furnitureVisualCatalog.ts`, `knownFurniture.ts`: Gemeinsames Compound-Layout, `visual`-Entkopplung, Katalog-Validierung und Osaka-/Masterlift-Spezifikationen.
    * `overlayImageStore.ts` & `tracingMath.ts`: IndexedDB-Bildspeicher und 2-Punkt-Referenzkalibrierung.
+   * `customModelStore.ts` & `materials/wallFinishes.ts`: IndexedDB-Speicher für hochgeladene Custom-`.glb`-Möbel samt Auto-cm-Einpassung sowie seitengetrennte Wandbeläge (`posFinish` / `negFinish`).
    * `catalog.ts`, `presets.ts`, `floorplans/`: Katalog und Grundriss-Presets.
 2. **`src/store/` (Single Source of Truth mit `Zustand`):**
    * `state.ts` hält `FloorplanState`, `CameraPreset` und `SelectableEntityType`. `geometry.ts`, `view.ts`, `history.ts` und `deps.ts` importieren den Typ von dort.

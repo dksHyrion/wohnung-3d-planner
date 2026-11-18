@@ -7,6 +7,7 @@ import {
   PackagePlus,
   Trash2,
   Link2,
+  RotateCw,
 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { WallInspector } from './WallInspector';
@@ -63,6 +64,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const rugs = useFloorplanStore((s) => s.rugs);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const selectedId = useFloorplanStore((s) => s.selectedId);
+  const selectedIds = useFloorplanStore((s) => s.selectedIds);
   const selectedType = useFloorplanStore((s) => s.selectedType);
 
   const moveCorner = useFloorplanStore((s) => s.moveCorner);
@@ -70,6 +72,8 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const removeCorner = useFloorplanStore((s) => s.removeCorner);
   const addFurniture = useFloorplanStore((s) => s.addFurniture);
   const updateFurniture = useFloorplanStore((s) => s.updateFurniture);
+  const rotateSelectedFurniture = useFloorplanStore((s) => s.rotateSelectedFurniture);
+  const removeSelectedFurniture = useFloorplanStore((s) => s.removeSelectedFurniture);
   const addRug = useFloorplanStore((s) => s.addRug);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
@@ -111,10 +115,18 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       ? openings.find((o) => o.id === selectedId) ?? null
       : null;
 
+  const multiSelectedFurniture = useMemo(
+    () =>
+      selectedType === 'furniture' && selectedIds.length > 1
+        ? furniture.filter((f) => selectedIds.includes(f.id))
+        : [],
+    [furniture, selectedIds, selectedType]
+  );
+
   const selectedFurniture =
     propSelectedFurniture !== undefined
       ? propSelectedFurniture
-      : selectedType === 'furniture'
+      : selectedType === 'furniture' && selectedIds.length <= 1
       ? furniture.find((f) => f.id === selectedId) ?? null
       : null;
 
@@ -296,6 +308,83 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
 
       {/* 4c. Selected Wall Fixture (MEP) Inspector */}
       {selectedFixture && <FixtureInspector selectedFixture={selectedFixture} />}
+
+      {/* 5a. Multi-Selection Group Inspector */}
+      {multiSelectedFurniture.length > 1 && (
+        <section
+          className="sidebar-section"
+          data-testid="multi-select-inspector"
+        >
+          <div className="sidebar-title">
+            <span>
+              {t('inspector.multiSelect.title', {
+                count: multiSelectedFurniture.length,
+              })}
+            </span>
+            <RotateCw size={14} color="#38bdf8" />
+          </div>
+          <p style={{ fontSize: '0.78rem', color: '#e2e8f0', margin: '0 0 6px' }}>
+            {t('inspector.multiSelect.summary', {
+              count: multiSelectedFurniture.length,
+            })}
+          </p>
+          <div
+            style={{
+              fontSize: '0.72rem',
+              color: '#94a3b8',
+              marginBottom: '8px',
+            }}
+          >
+            {multiSelectedFurniture.map((f) => f.name).join(' · ')}
+          </div>
+          <div className="form-grid">
+            <div className="form-field full">
+              <span className="form-label">
+                {t('inspector.multiSelect.rotateGroup')}
+              </span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[-90, -15, 15, 90].map((deg) => (
+                  <button
+                    key={deg}
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ flex: 1, padding: '4px 6px', fontSize: '0.74rem' }}
+                    onClick={() => rotateSelectedFurniture(selectedIds, deg)}
+                  >
+                    {deg > 0 ? `+${deg}°` : `${deg}°`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="form-field full" style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+                onClick={() => selectEntity(null, null)}
+              >
+                {t('inspector.multiSelect.clearSelection')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+                onClick={() => removeSelectedFurniture(selectedIds)}
+              >
+                <Trash2 size={14} />
+                <span>
+                  {t('inspector.multiSelect.deleteGroup', {
+                    count: multiSelectedFurniture.length,
+                  })}
+                </span>
+              </button>
+            </div>
+          </div>
+          <p style={{ fontSize: '0.7rem', color: '#64748b', margin: '8px 0 0' }}>
+            {t('inspector.multiSelect.hint')}
+          </p>
+        </section>
+      )}
 
       {/* 5. Selected Furniture Inspector + Surface Stacking */}
       {selectedFurniture && (

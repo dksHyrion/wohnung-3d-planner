@@ -7,6 +7,7 @@ export type VariantActions = Pick<
   FloorplanState,
   | 'saveLayoutVariant'
   | 'switchLayoutVariant'
+  | 'setGhostVariantId'
   | 'renameLayoutVariant'
   | 'deleteLayoutVariant'
 >;
@@ -73,12 +74,28 @@ export function createVariantSlice(deps: StoreDeps): VariantActions {
       setWithCollisions({
         layoutVariants: updatedVariants,
         activeVariantId: target.id,
+        ghostVariantId:
+          state.ghostVariantId === target.id ? null : state.ghostVariantId,
         furniture: loaded.furniture,
         rugs: loaded.rugs,
         selectedId: null,
         selectedType: null,
         activeAlignmentGuides: [],
       });
+    },
+
+    setGhostVariantId: (variantId) => {
+      const state = get();
+      if (variantId === null) {
+        if (state.ghostVariantId !== null) set({ ghostVariantId: null });
+        return;
+      }
+      if (variantId === state.activeVariantId) {
+        set({ ghostVariantId: null });
+        return;
+      }
+      const exists = state.layoutVariants.some((v) => v.id === variantId);
+      set({ ghostVariantId: exists ? variantId : null });
     },
 
     renameLayoutVariant: (variantId, name) => {
@@ -99,6 +116,8 @@ export function createVariantSlice(deps: StoreDeps): VariantActions {
         layoutVariants: next,
         activeVariantId:
           state.activeVariantId === variantId ? null : state.activeVariantId,
+        ghostVariantId:
+          state.ghostVariantId === variantId ? null : state.ghostVariantId,
       });
     },
   };

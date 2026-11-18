@@ -133,3 +133,19 @@ Analysiert alle Engstellen und Durchgangsbreiten nach DIN 18040 / Neufert:
   - **Wann gerechnet wird:** `setWithCollisions` schreibt `collisionReports` und, solange die Heatmap an ist, `passageReport`. Der Aufruf übergibt keine eigene Distanz. Es gilt `DEFAULT_MAX_PASSAGE_DISTANCE_CM` (120) in `ergonomicsEngine.ts`. `setShowPassageHeatmap` geht über `set`: einmal rechnen beim Einschalten, `null` beim Ausschalten, kein Undo und keine neue Kollision. Undo und Redo schieben nur den Schnappschuss und rufen `setWithCollisions` mit `recordHistory = false`. Ist die Heatmap aus, bleibt `passageReport` null, damit das Ziehen der Möbel nicht jedes Mal die Abstände rechnet.
   - **Anzeige:** `FloorplanCanvas2D`, `PassageClearance3D` und die TopBar lesen nur dieses Ergebnis. Sie rufen `evaluatePassageClearances` nicht selbst auf.
   - **TopBar:** Die Taste heißt „Laufwege“. Die Zahl kritischer Engstellen steht daran, sobald die Heatmap an ist und der Bericht welche enthält.
+
+---
+
+## 6. 3D-/AR-Export, URL-Snapshot-Sharing & Varianten-Ghost-Diff (`Sprint 7`)
+
+### A. `.glb` & `.usdz` (AR Quick Look) Export (`scene3dExport.ts`)
+- **Maßstabs-Konversion (`CM_TO_METERS_SCALE = 0.01`):** Da die Szene global in Zentimetern (`1 Unit = 1 cm`) rechnet, glTF und Apple AR Quick Look (`.usdz`) jedoch Meter erwarten, klont `prepareExportSceneGroup` die `exportable-architecture-root`-Gruppe in `Scene3D.tsx` und skaliert sie einheitlich auf `0.01`.
+- **Material- & Helper-Bereinigung:** Unsichtbare Raycast-Boxen, Editor-Overlays (`userData.exportIgnore === true`), Linien-Helfer sowie Lichter/Kameras werden entfernt; Nicht-`MeshStandardMaterial`-Materialien werden temporär in `MeshStandardMaterial` überführt, damit `USDZExporter` warnungsfrei exportiert.
+
+### B. Komprimierter URL-Hash-Snapshot (`urlSnapshot.ts`)
+- **`encodeFloorplanToUrlHash` / `decodeFloorplanFromUrlHash`:** Serialisiert `FloorplanData` ohne nicht-portable `backgroundImage`-Referenzen mittels Browser-`CompressionStream('gzip')` + Base64URL (`#plan=gz:...`, mit `#plan=b64:`-Fallback) bis `DEFAULT_MAX_SHARE_HASH_LENGTH = 32768`.
+- **Boot-Vorrang (`App.tsx`):** Enthält `window.location.hash` beim Start einen gültigen `#plan=...`-Parameter, wird dieser vor `restoreAutosaveForGeneration` und `adoptPlanFileIfBrowserHasOnlyExample` geladen.
+
+### C. Visueller Varianten-Ghost-Diff (`layoutVariants.ts`)
+- **`computeVariantDiff`:** Vergleicht aktiven Grundriss und gewählte `ghostVariantId` (`variantSlice.ts`) nach Objekt-IDs (`ghostOnlyFurniture`, `activeOnlyFurniture`, `movedFurniture` mit `distanceCm` und `deltaRotDeg`, sowie Teppiche).
+- **2D/3D-Darstellung:** `VariantGhostLayer` in `FurnitureAndOverlaysLayers.tsx` (gestrichelte violette Umrisse + Delta-Pfeile) und `GhostVariantOverlay3D` in `Scene3D.tsx` (außerhalb der Export-Gruppe).

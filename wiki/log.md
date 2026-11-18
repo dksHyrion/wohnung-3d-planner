@@ -4,6 +4,36 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-18] Sprint 9 — Seitengetrennte Wandbeläge & Custom-`.glb`-Möbelimport
+
+- **Action:** `FEATURE`, `MATERIALS`, `3D_IMPORT`, `STORAGE`
+- **Seitengetrennte Wandbeläge (`src/core/materials/wallFinishes.ts`, `WallMesh3D.tsx`, `WallInspector.tsx`):**
+  - `WallFinishType` (`plaster`, `accent-paint`, `wood-slats`, `tile`, `microcement`, `marble`) als `posFinish` / `negFinish` auf `Wall` (inkl. `splitWallsAtCorner`-Vererbung und `planImport.ts`-Sanitizing).
+  - Gehrungs- und öffnungsgeschnittene `WallFinishFacePanel`-Meshes in Vollwand- & Cutaway-Ansicht sowie Seiten-Tausch im `WallInspector`.
+- **Custom-`.glb`-Möbelimport (`src/core/customModelStore.ts`, `CustomGlbModel.tsx`, `FurnitureInspector.tsx`):**
+  - Offline-IndexedDB-Speicher (`wohnung-custom-models`) mit In-Memory-Cache, `GLTFLoader`-Parsing + automatischer Meter→cm-Maßerfassung (`parseGlbSceneAndDimensionsCm`), passgenauer Box-Einpassung (`computeCustomModelFitTransform`) und Garbage Collection (`gcCustomModels`) in `useFloorplanStore.ts`.
+
+## [2026-11-18] Sprint 8 — Multi-Selektion, 2D-Marquee, Gruppen-Transformation & 3D-Gizmos
+
+- **Action:** `FEATURE`, `UX`, `3D_INTERACTION`, `STATE_MANAGEMENT`
+- **Gruppen-Mathematik (`src/core/groupTransformMath.ts`):**
+  - `computeGroupCentroidXZ`, `rotatePointAroundPivotXZ` und `selectFurnitureIdsInMarquee` (compound-polygon-basiert über `layoutFurnitureParts`).
+- **Store & Slices (`state.ts`, `view.ts`, `furnitureSlice.ts`, `useFloorplanStore.ts`, `history.ts`):**
+  - `selectedIds: string[]`, `toggleSelectFurniture`, `selectMultipleFurniture`, `moveSelectedFurniture`, `rotateSelectedFurniture`, `removeSelectedFurniture` sowie automatische `selectedIds`-Synchronisation in `setWithCollisions` und `{ recordHistory?: boolean }` in `updateFurniture`.
+- **2D / 3D / Sidebar (`FloorplanCanvas2D.tsx`, `FurnitureAndOverlaysLayers.tsx`, `Scene3D.tsx`, `InspectorSidebar.tsx`):**
+  - 2D-`Shift+Klick` & `Shift+Drag`-Marquee-Auswahlrahmen samt verlustfreiem Frame-throttled Gruppen-Drag.
+  - 3D-Y-Rotations-Ring & vertikaler `elevationCm`-Handle (`furniture-transform-gizmo-3d` mit `userData.exportIgnore = true`), plus Multi-Select-Inspektor-Karte und `Delete`-Gruppenlöschung in `App.tsx`.
+
+## [2026-11-18] Sprint 7 — 3D/AR-Export (`.glb`/`.usdz`), URL-Snapshot-Sharing & Varianten-Ghost-Diff
+
+- **Action:** `FEATURE`, `EXPORT`, `SHARING`, `VARIANTS`
+- **3D/AR-Export (`src/core/export/scene3dExport.ts`, `Scene3D.tsx`, `PlanExportDialog.tsx`):**
+  - `prepareExportSceneGroup`, `exportSceneToGlb` (`GLTFExporter`) und `exportSceneToUsdz` (`USDZExporter`) mit `CM_TO_METERS_SCALE = 0.01`, Ausschluss von Raycast-/Editor-Overlays (`exportIgnore`) und Material-Normalisierung auf `MeshStandardMaterial`.
+- **URL-Snapshot (`src/core/export/urlSnapshot.ts`, `App.tsx`, `TopBar.tsx`, `JsonPlanDialog.tsx`):**
+  - Gzip-/Base64URL-Kodierung (`#plan=gz:...` / `#plan=b64:...`) unter Ausschluss von `backgroundImage`, Boot-Priorität vor Autosave/Example-Adoption und Share-Link-Buttons.
+- **Varianten-Ghost-Diff (`src/core/layoutVariants.ts`, `variantSlice.ts`, `LayoutVariantsSection.tsx`, `FurnitureAndOverlaysLayers.tsx`, `Scene3D.tsx`):**
+  - `computeVariantDiff`, `ghostVariantId` / `setGhostVariantId` sowie 2D-/3D-Ghost-Overlays inkl. Bewegungs-Delta-Linien und Diff-Zusammenfassung.
+
 ## [2026-11-17] Paket 3F — Stellproben-Varianten (Layout-Snapshots A/B)
 
 - **Action:** `FEATURE`, `STATE_MANAGEMENT`, `ERGONOMICS`

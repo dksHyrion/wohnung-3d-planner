@@ -107,3 +107,111 @@ export function compareLayoutVariants(
     recommendedVariantId: sorted[0]?.variantId ?? null,
   };
 }
+
+export interface MovedVariantItem<T> {
+  ghost: T;
+  active: T;
+  distanceCm: number;
+  deltaRotDeg: number;
+}
+
+export interface VariantDiffResult {
+  ghostOnlyFurniture: FurnitureItem[];
+  activeOnlyFurniture: FurnitureItem[];
+  movedFurniture: MovedVariantItem<FurnitureItem>[];
+  unchangedCount: number;
+  ghostOnlyRugs: AreaRug[];
+  activeOnlyRugs: AreaRug[];
+  movedRugs: MovedVariantItem<AreaRug>[];
+}
+
+function normalizeRotDeltaDeg(aDeg: number, bDeg: number): number {
+  let diff = ((aDeg - bDeg) % 360 + 540) % 360 - 180;
+  if (Math.abs(diff) < 0.01) diff = 0;
+  return diff;
+}
+
+/**
+ * Computes structural differences between the currently active layout and a ghost variant
+ * (items present only in ghost/active, and items moved > 0.5 cm or rotated > 0.5 deg).
+ */
+export function computeVariantDiff(
+  active: { furniture: FurnitureItem[]; rugs: AreaRug[] },
+  ghost: { furniture: FurnitureItem[]; rugs: AreaRug[] }
+): VariantDiffResult {
+  const activeFMap = new Map(active.furniture.map((f) => [f.id, f]));
+  const ghostFMap = new Map(ghost.furniture.map((f) => [f.id, f]));
+
+  const ghostOnlyFurniture: FurnitureItem[] = [];
+  const activeOnlyFurniture: FurnitureItem[] = [];
+  const movedFurniture: MovedVariantItem<FurnitureItem>[] = [];
+  let unchangedCount = 0;
+
+  for (const g of ghost.furniture) {
+    const a = activeFMap.get(g.id);
+    if (!a) {
+      ghostOnlyFurniture.push(g);
+      continue;
+    }
+    const distanceCm = Math.hypot(a.x - g.x, a.z - g.z);
+    const deltaRotDeg = normalizeRotDeltaDeg(a.rotationYDeg, g.rotationYDeg);
+    const movedZ = Math.abs(a.elevationCm - g.elevationCm);
+    if (distanceCm > 0.5 || Math.abs(deltaRotDeg) > 0.5 || movedZ > 0.5) {
+      movedFurniture.push({
+        ghost: g,
+        active: a,
+        distanceCm: Math.round(distanceCm * 10) / 10,
+        deltaRotDeg,
+      });
+    } else {
+      unchangedCount++;
+    }
+  }
+
+  for (const a of active.furniture) {
+    if (!ghostFMap.has(a.id)) {
+      activeOnlyFurniture.push(a);
+    }
+  }
+
+  const activeRMap = new Map(active.rugs.map((r) => [r.id, r]));
+  const ghostRMap = new Map(ghost.rugs.map((r) => [r.id, r]));
+
+  const ghostOnlyRugs: AreaRug[] = [];
+  const activeOnlyRugs: AreaRug[] = [];
+  const movedRugs: MovedVariantItem<AreaRug>[] = [];
+
+  for (const g of ghost.rugs) {
+    const a = activeRMap.get(g.id);
+    if (!a) {
+      ghostOnlyRugs.push(g);
+      continue;
+    }
+    const distanceCm = Math.hypot(a.x - g.x, a.z - g.z);
+    const deltaRotDeg = normalizeRotDeltaDeg(a.rotationYDeg ?? 0, g.rotationYDeg ?? 0);
+    if (distanceCm > 0.5 || Math.abs(deltaRotDeg) > 0.5) {
+      movedRugs.push({
+        ghost: g,
+        active: a,
+        distanceCm: Math.round(distanceCm * 10) / 10,
+        deltaRotDeg,
+      });
+    }
+  }
+
+  for (const a of active.rugs) {
+    if (!ghostRMap.has(a.id)) {
+      activeOnlyRugs.push(a);
+    }
+  }
+
+  return {
+    ghostOnlyFurniture,
+    activeOnlyFurniture,
+    movedFurniture,
+    unchangedCount,
+    ghostOnlyRugs,
+    activeOnlyRugs,
+    movedRugs,
+  };
+}

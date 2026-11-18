@@ -30,12 +30,27 @@ export interface Corner {
   z: number; // cm
 }
 
+export type WallFinishType =
+  | 'plaster'
+  | 'accent-paint'
+  | 'wood-slats'
+  | 'tile'
+  | 'microcement'
+  | 'marble';
+
+export interface WallSideFinish {
+  finish: WallFinishType;
+  color?: string;
+}
+
 export interface Wall {
   id: string;
   startCornerId: string;
   endCornerId: string;
   thicknessCm: number;
   heightCm: number;
+  posFinish?: WallSideFinish;
+  negFinish?: WallSideFinish;
 }
 
 export type OpeningType =
@@ -141,6 +156,9 @@ export interface FurnitureItem {
   pose?: 'closed' | 'open';
   /** Optionale Verknüpfung mit einem Träger-Möbel (z. B. Monitor steht auf Schreibtisch). */
   attachedToId?: string | null;
+  /** Lokale IndexedDB-Referenz auf ein hochgeladenes Custom-.glb-Modell. */
+  customModelId?: string;
+  customModelFilename?: string;
 }
 
 export type CollisionIssueType =

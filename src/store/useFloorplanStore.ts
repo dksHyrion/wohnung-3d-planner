@@ -31,6 +31,10 @@ import {
   memoryOverlayIds,
   runtimeUrlForOverlay,
 } from '../core/overlayImageStore';
+import {
+  deleteCustomModelBlobs,
+  memoryCustomModelIds,
+} from '../core/customModelStore';
 import { getGlobalLanguage, subscribeLanguage } from '../i18n/i18n';
 import type {
   CameraPreset,
@@ -177,14 +181,21 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
           )
         : state.ergonomicsScorecard;
 
+    const syncedSelectionPatch =
+      patch.selectedId !== undefined && patch.selectedIds === undefined
+        ? { selectedIds: patch.selectedId ? [patch.selectedId] : [] }
+        : {};
+
     set({
       ...historyPatch,
       ...patch,
+      ...syncedSelectionPatch,
       passageReport,
       ergonomicsScorecard,
       collisionReports,
     });
     gcOverlays();
+    gcCustomModels();
   };
 
   const gcOverlays = () => {
@@ -198,6 +209,23 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     for (const snap of state.redoStack) add(snap.backgroundImage);
     const stale = memoryOverlayIds().filter((id) => !keep.has(id));
     if (stale.length > 0) void deleteOverlayBlobs(stale).catch(() => {});
+  };
+
+  const gcCustomModels = () => {
+    const state = get();
+    const keep = new Set<string>();
+    const collect = (items?: FurnitureItem[]) => {
+      if (!items) return;
+      for (const f of items) {
+        if (f.customModelId) keep.add(f.customModelId);
+      }
+    };
+    collect(state.furniture);
+    for (const snap of state.undoStack) collect(snap.furniture);
+    for (const snap of state.redoStack) collect(snap.furniture);
+    for (const variant of state.layoutVariants) collect(variant.furniture);
+    const stale = memoryCustomModelIds().filter((id) => !keep.has(id));
+    if (stale.length > 0) void deleteCustomModelBlobs(stale).catch(() => {});
   };
 
   const withRuntimeImage = (
@@ -235,6 +263,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     fixtures: initialData.fixtures ?? [],
     layoutVariants: initialData.variants ?? [],
     activeVariantId: initialData.activeVariantId ?? null,
+    ghostVariantId: null,
     backgroundImage: initialData.backgroundImage ?? null,
     overlayError: null,
     persistenceError: null,
@@ -253,6 +282,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     cameraPreset: 'axonometric',
     cameraPresetNonce: 0,
     selectedId: null,
+    selectedIds: [],
     selectedType: null,
     selectedRoomId: null,
     timeOfDay: 8.0,

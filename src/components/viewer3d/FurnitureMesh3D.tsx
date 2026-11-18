@@ -47,6 +47,7 @@ export const FurnitureMesh3D: React.FC<FurnitureMesh3DProps> = ({
       {/* 3D Clearance zone ground plane rectangle and outline */}
       {showClearanceZone && (
         <mesh
+          userData={{ exportIgnore: true }}
           position={[
             0,
             -item.heightCm / 2 + 0.1,
@@ -71,6 +72,7 @@ export const FurnitureMesh3D: React.FC<FurnitureMesh3DProps> = ({
 
       {/* Invisible bounding hit mesh for ultra-fast 12-triangle pointer raycasting (no child recursion) */}
       <mesh
+        userData={{ exportIgnore: true }}
         onPointerDown={(e) => {
           e.stopPropagation();
           onStartDrag(item, e.point, e);

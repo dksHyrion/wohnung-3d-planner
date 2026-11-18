@@ -7,6 +7,7 @@ import {
   CornersLayer,
   FurnitureLayer,
   OverlaysAndGuidesLayer,
+  VariantGhostLayer,
 } from './layers/FurnitureAndOverlaysLayers';
 
 export type { CanvasViewBox };
@@ -19,6 +20,8 @@ export type CanvasDragState =
       furnitureId: string;
       offsetX: number;
       offsetZ: number;
+      anchorStartX?: number;
+      anchorStartZ?: number;
       hasMoved?: boolean;
     }
   | {
@@ -30,6 +33,7 @@ export type CanvasDragState =
     }
   | { type: 'draw-wall'; startX: number; startZ: number; currentX: number; currentZ: number }
   | { type: 'measure'; startX: number; startZ: number; currentX: number; currentZ: number }
+  | { type: 'marquee'; startX: number; startZ: number; currentX: number; currentZ: number }
   | { type: 'background-image'; offsetX: number; offsetZ: number; hasMoved: boolean }
   | null;
 
@@ -65,6 +69,7 @@ export function FloorplanSvg2D({
       <RugsLayer setDragState={setDragState} clientToWorldCm={clientToWorldCm} />
       <WallsAndOpeningsLayer cornerMap={cornerMap} handleWallClick={handleWallClick} />
       <FurnitureLayer setDragState={setDragState} clientToWorldCm={clientToWorldCm} />
+      <VariantGhostLayer />
       <OverlaysAndGuidesLayer
         dragState={dragState}
         calibrationHoverPt={calibrationHoverPt}

@@ -21,6 +21,8 @@ export interface PlanExportDialogProps {
   handleDownloadPlanDxf?: () => void;
   handleDownloadBomCsv?: () => void;
   handleDownloadBomMd?: () => void;
+  handleDownloadGlb?: () => void;
+  handleDownloadUsdz?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -44,6 +46,8 @@ export function PlanExportDialog({
   handleDownloadPlanDxf,
   handleDownloadBomCsv,
   handleDownloadBomMd,
+  handleDownloadGlb,
+  handleDownloadUsdz,
   isOpen,
   onClose,
 }: PlanExportDialogProps) {
@@ -308,6 +312,26 @@ export function PlanExportDialog({
                 >
                   <Download size={14} />
                   <span>{t('dialogs.export.downloadDxf')}</span>
+                </button>
+              )}
+              {handleDownloadGlb && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleDownloadGlb}
+                >
+                  <Download size={14} />
+                  <span>{t('dialogs.export.downloadGlb')}</span>
+                </button>
+              )}
+              {handleDownloadUsdz && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleDownloadUsdz}
+                >
+                  <Download size={14} />
+                  <span>{t('dialogs.export.downloadUsdz')}</span>
                 </button>
               )}
               <button

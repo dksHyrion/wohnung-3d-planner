@@ -30,6 +30,8 @@ type ViewActions = Pick<
   | 'setCameraPreset'
   | 'selectEntity'
   | 'selectRoom'
+  | 'toggleSelectFurniture'
+  | 'selectMultipleFurniture'
   | 'setLanguage'
 >;
 
@@ -104,6 +106,7 @@ export function createViewActions(deps: StoreDeps): ViewActions {
   selectEntity: (id, type) =>
     set({
       selectedId: id,
+      selectedIds: id ? [id] : [],
       selectedType: id ? type : null,
       selectedRoomId: id && type === 'room' ? id : null,
     }),
@@ -111,8 +114,36 @@ export function createViewActions(deps: StoreDeps): ViewActions {
   selectRoom: (roomId) =>
     set({
       selectedId: roomId,
+      selectedIds: roomId ? [roomId] : [],
       selectedType: roomId ? 'room' : null,
       selectedRoomId: roomId,
+    }),
+
+  toggleSelectFurniture: (furnitureId) =>
+    set((state) => {
+      const currentIds =
+        state.selectedType === 'furniture' ? state.selectedIds : [];
+      const exists = currentIds.includes(furnitureId);
+      const nextIds = exists
+        ? currentIds.filter((id) => id !== furnitureId)
+        : [...currentIds, furnitureId];
+      return {
+        selectedIds: nextIds,
+        selectedId: nextIds[0] ?? null,
+        selectedType: nextIds.length > 0 ? 'furniture' : null,
+        selectedRoomId: null,
+      };
+    }),
+
+  selectMultipleFurniture: (furnitureIds) =>
+    set(() => {
+      const uniqueIds = Array.from(new Set(furnitureIds));
+      return {
+        selectedIds: uniqueIds,
+        selectedId: uniqueIds[0] ?? null,
+        selectedType: uniqueIds.length > 0 ? 'furniture' : null,
+        selectedRoomId: null,
+      };
     }),
 
   setLanguage: (lang: Language) => {

@@ -25,6 +25,7 @@ import {
   FileUp,
   Footprints,
   HelpCircle,
+  Share2,
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -42,6 +43,7 @@ import {
   exportFurnitureBomCsv,
   exportFurnitureBomMarkdown,
 } from '../../core/export/bomExport';
+import { buildSharePlanUrl } from '../../core/export/urlSnapshot';
 import { fitOverlayToViewport } from '../../core/tracingMath';
 import { computeFitViewBox } from '../../core/wallMath';
 import { prepareOverlayImage } from '../../core/overlayImageStore';
@@ -175,6 +177,7 @@ export const TopBar: React.FC = () => {
   const [planIncludeFurniture, setPlanIncludeFurniture] = useState<boolean>(true);
   const [planIncludeDimensions, setPlanIncludeDimensions] = useState<boolean>(true);
   const [planTitle, setPlanTitle] = useState<string>('Grundriss Plan');
+  const [shareCopiedFeedback, setShareCopiedFeedback] = useState<boolean>(false);
 
   const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -253,6 +256,60 @@ export const TopBar: React.FC = () => {
       setTimeout(triggerSnapshot, 250);
     } else {
       triggerSnapshot();
+    }
+  };
+
+  const trigger3dModelExport = (format: 'glb' | 'usdz', filename: string) => {
+    const dispatchExport = () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('wohnung-export-3d', {
+            detail: { format, filename },
+          })
+        );
+      }
+    };
+    setPlanExportModalOpen(false);
+    if (viewMode === '2d') {
+      setViewMode('3d-persp');
+      setTimeout(dispatchExport, 250);
+    } else {
+      dispatchExport();
+    }
+  };
+
+  const handleDownloadGlb = () => {
+    trigger3dModelExport('glb', `wohnung-${selectedPreset}.glb`);
+  };
+
+  const handleDownloadUsdz = () => {
+    trigger3dModelExport('usdz', `wohnung-${selectedPreset}.usdz`);
+  };
+
+  const handleCopyShareLink = async (): Promise<'copied' | 'too-large' | 'error'> => {
+    const s = useFloorplanStore.getState();
+    const baseUrl =
+      typeof window !== 'undefined' ? window.location.href : 'https://localhost/';
+    const res = await buildSharePlanUrl(baseUrl, {
+      corners: s.corners,
+      walls: s.walls,
+      openings: s.openings,
+      furniture: s.furniture,
+      rugs: s.rugs,
+      roomLabels: s.roomLabels,
+      roofSlopes: s.roofSlopes,
+      fixtures: s.fixtures,
+      variants: s.layoutVariants,
+      activeVariantId: s.activeVariantId,
+    });
+    if (!res.ok) return 'too-large';
+    try {
+      await navigator.clipboard?.writeText(res.url);
+      setShareCopiedFeedback(true);
+      setTimeout(() => setShareCopiedFeedback(false), 2000);
+      return 'copied';
+    } catch {
+      return 'error';
     }
   };
 
@@ -613,6 +670,20 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             className="btn btn-outline"
+            onClick={() => void handleCopyShareLink()}
+            title={t('dialogs.json.copyShareLink')}
+          >
+            <Share2 size={14} />
+            <span>
+              {shareCopiedFeedback
+                ? t('dialogs.json.shareCopied')
+                : t('dialogs.json.copyShareLink')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-outline"
             onClick={toggleKeyboardShortcuts}
             title={t('topbar.actions.shortcuts')}
             aria-label={t('topbar.actions.shortcuts')}
@@ -654,6 +725,7 @@ export const TopBar: React.FC = () => {
         importError={importError}
         handleDownloadJson={handleDownloadJson}
         handleConfirmImport={handleConfirmImport}
+        handleCopyShareLink={handleCopyShareLink}
       />
       <PlanExportDialog
         planExportModalOpen={planExportModalOpen}
@@ -674,6 +746,8 @@ export const TopBar: React.FC = () => {
         handleDownloadPlanDxf={handleDownloadPlanDxf}
         handleDownloadBomCsv={handleDownloadBomCsv}
         handleDownloadBomMd={handleDownloadBomMd}
+        handleDownloadGlb={handleDownloadGlb}
+        handleDownloadUsdz={handleDownloadUsdz}
       />
       <KeyboardShortcutsDialog />
     </>

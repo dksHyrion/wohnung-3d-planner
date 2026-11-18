@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
-import { Corner, Wall, WallOpening } from '../../core/types';
+import { Corner, Wall, WallOpening, WallSideFinish } from '../../core/types';
 import { getWallGeometry, shouldCutawayWall } from '../../core/wallMath';
+import { resolveWallSideFinishProps } from '../../core/materials/wallFinishes';
 import { interpolateMood } from '../../core/lighting/moodPresets';
 import { DoorLeaf3D } from './DoorLeaf3D';
 import { WindowFrame3D } from './WindowFrame3D';
@@ -253,6 +254,91 @@ export function computeCutawayCaps(
   }));
 }
 
+const WallFinishFacePanel: React.FC<{
+  side: 'pos' | 'neg';
+  sideFinish: WallSideFinish;
+  segKey: string;
+  segCenterX: number;
+  segCenterY: number;
+  segHeightCm: number;
+  faceStartX: number;
+  faceEndX: number;
+  wallThicknessCm: number;
+  isSelected: boolean;
+  renderTheme: 'studio' | 'blueprint';
+  onClick: (e: ThreeEvent<MouseEvent>) => void;
+}> = ({
+  side,
+  sideFinish,
+  segKey,
+  segCenterX,
+  segCenterY,
+  segHeightCm,
+  faceStartX,
+  faceEndX,
+  wallThicknessCm,
+  isSelected,
+  renderTheme,
+  onClick,
+}) => {
+  const faceWidth = faceEndX - faceStartX;
+  const props = useMemo(
+    () => resolveWallSideFinishProps(sideFinish, isSelected, renderTheme),
+    [sideFinish, isSelected, renderTheme]
+  );
+
+  const scaledMap = useMemo(() => {
+    if (!props.map) return null;
+    const tex = props.map.clone();
+    tex.repeat.set(Math.max(0.2, faceWidth / 120), Math.max(0.2, segHeightCm / 120));
+    tex.needsUpdate = true;
+    return tex;
+  }, [props.map, faceWidth, segHeightCm]);
+
+  const scaledBump = useMemo(() => {
+    if (!props.bumpMap) return null;
+    const tex = props.bumpMap.clone();
+    tex.repeat.set(Math.max(0.2, faceWidth / 120), Math.max(0.2, segHeightCm / 120));
+    tex.needsUpdate = true;
+    return tex;
+  }, [props.bumpMap, faceWidth, segHeightCm]);
+
+  useEffect(() => {
+    return () => {
+      scaledMap?.dispose();
+      scaledBump?.dispose();
+    };
+  }, [scaledMap, scaledBump]);
+
+  if (faceWidth < 0.5 || segHeightCm < 0.5) return null;
+
+  const faceCenterX = segCenterX + (faceStartX + faceEndX) / 2;
+  const zOffset =
+    side === 'pos' ? wallThicknessCm / 2 + 0.08 : -(wallThicknessCm / 2 + 0.08);
+  const rotY = side === 'pos' ? 0 : Math.PI;
+
+  return (
+    <mesh
+      key={`finish-${side}-${segKey}`}
+      name={`wall-finish-${side}`}
+      position={[faceCenterX, segCenterY, zOffset]}
+      rotation={[0, rotY, 0]}
+      onClick={onClick}
+      receiveShadow
+    >
+      <planeGeometry args={[faceWidth, segHeightCm]} />
+      <meshStandardMaterial
+        color={props.color}
+        map={scaledMap}
+        bumpMap={scaledBump}
+        bumpScale={props.bumpScale}
+        roughness={props.roughness}
+        metalness={props.metalness}
+      />
+    </mesh>
+  );
+};
+
 export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
   const {
     wall,
@@ -487,30 +573,64 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
             geom.lengthCm,
             miter
           );
+          const segCenterX = seg.centerAlongCm - geom.lengthCm / 2;
           return (
-            <mesh
-              key={seg.key}
-              name="wall-body"
-              position={[seg.centerAlongCm - geom.lengthCm / 2, seg.centerYCm, 0]}
-              onClick={handleWallClick}
-              castShadow
-              receiveShadow
-            >
-              <MiteredBoxGeometry
-                xStartPos={faces.xStartPos}
-                xStartNeg={faces.xStartNeg}
-                xEndPos={faces.xEndPos}
-                xEndNeg={faces.xEndNeg}
-                thicknessZ={wall.thicknessCm}
-                heightY={seg.heightCm}
-              />
-              <meshStandardMaterial
-                color={wallColor}
-                transparent={false}
-                opacity={1.0}
-                roughness={WALL_MATERIAL_ROUGHNESS}
-              />
-            </mesh>
+            <React.Fragment key={seg.key}>
+              <mesh
+                name="wall-body"
+                position={[segCenterX, seg.centerYCm, 0]}
+                onClick={handleWallClick}
+                castShadow
+                receiveShadow
+              >
+                <MiteredBoxGeometry
+                  xStartPos={faces.xStartPos}
+                  xStartNeg={faces.xStartNeg}
+                  xEndPos={faces.xEndPos}
+                  xEndNeg={faces.xEndNeg}
+                  thicknessZ={wall.thicknessCm}
+                  heightY={seg.heightCm}
+                />
+                <meshStandardMaterial
+                  color={wallColor}
+                  transparent={false}
+                  opacity={1.0}
+                  roughness={WALL_MATERIAL_ROUGHNESS}
+                />
+              </mesh>
+              {wall.posFinish && (
+                <WallFinishFacePanel
+                  side="pos"
+                  sideFinish={wall.posFinish}
+                  segKey={seg.key}
+                  segCenterX={segCenterX}
+                  segCenterY={seg.centerYCm}
+                  segHeightCm={seg.heightCm}
+                  faceStartX={faces.xStartPos}
+                  faceEndX={faces.xEndPos}
+                  wallThicknessCm={wall.thicknessCm}
+                  isSelected={isSelected}
+                  renderTheme={renderTheme}
+                  onClick={handleWallClick}
+                />
+              )}
+              {wall.negFinish && (
+                <WallFinishFacePanel
+                  side="neg"
+                  sideFinish={wall.negFinish}
+                  segKey={seg.key}
+                  segCenterX={segCenterX}
+                  segCenterY={seg.centerYCm}
+                  segHeightCm={seg.heightCm}
+                  faceStartX={faces.xStartNeg}
+                  faceEndX={faces.xEndNeg}
+                  wallThicknessCm={wall.thicknessCm}
+                  isSelected={isSelected}
+                  renderTheme={renderTheme}
+                  onClick={handleWallClick}
+                />
+              )}
+            </React.Fragment>
           );
         })
       ) : (
@@ -521,32 +641,62 @@ export const WallMesh3D = React.memo<WallMesh3DProps>((props) => {
             geom.lengthCm,
             miter
           );
+          const segCenterX = seg.centerAlongCm - geom.lengthCm / 2;
           return (
-            <mesh
-              key={seg.key}
-              name="wall-body"
-              position={[
-                seg.centerAlongCm - geom.lengthCm / 2,
-                seg.centerYCm,
-                0,
-              ]}
-              onClick={handleWallClick}
-              castShadow
-              receiveShadow
-            >
-              <MiteredBoxGeometry
-                xStartPos={faces.xStartPos}
-                xStartNeg={faces.xStartNeg}
-                xEndPos={faces.xEndPos}
-                xEndNeg={faces.xEndNeg}
-                thicknessZ={wall.thicknessCm}
-                heightY={seg.heightCm}
-              />
-              <meshStandardMaterial
-                color={wallColor}
-                roughness={WALL_MATERIAL_ROUGHNESS}
-              />
-            </mesh>
+            <React.Fragment key={seg.key}>
+              <mesh
+                name="wall-body"
+                position={[segCenterX, seg.centerYCm, 0]}
+                onClick={handleWallClick}
+                castShadow
+                receiveShadow
+              >
+                <MiteredBoxGeometry
+                  xStartPos={faces.xStartPos}
+                  xStartNeg={faces.xStartNeg}
+                  xEndPos={faces.xEndPos}
+                  xEndNeg={faces.xEndNeg}
+                  thicknessZ={wall.thicknessCm}
+                  heightY={seg.heightCm}
+                />
+                <meshStandardMaterial
+                  color={wallColor}
+                  roughness={WALL_MATERIAL_ROUGHNESS}
+                />
+              </mesh>
+              {wall.posFinish && (
+                <WallFinishFacePanel
+                  side="pos"
+                  sideFinish={wall.posFinish}
+                  segKey={seg.key}
+                  segCenterX={segCenterX}
+                  segCenterY={seg.centerYCm}
+                  segHeightCm={seg.heightCm}
+                  faceStartX={faces.xStartPos}
+                  faceEndX={faces.xEndPos}
+                  wallThicknessCm={wall.thicknessCm}
+                  isSelected={isSelected}
+                  renderTheme={renderTheme}
+                  onClick={handleWallClick}
+                />
+              )}
+              {wall.negFinish && (
+                <WallFinishFacePanel
+                  side="neg"
+                  sideFinish={wall.negFinish}
+                  segKey={seg.key}
+                  segCenterX={segCenterX}
+                  segCenterY={seg.centerYCm}
+                  segHeightCm={seg.heightCm}
+                  faceStartX={faces.xStartNeg}
+                  faceEndX={faces.xEndNeg}
+                  wallThicknessCm={wall.thicknessCm}
+                  isSelected={isSelected}
+                  renderTheme={renderTheme}
+                  onClick={handleWallClick}
+                />
+              )}
+            </React.Fragment>
           );
         })
       )}

@@ -2,6 +2,10 @@ import React, { useEffect, useLayoutEffect } from 'react';
 import { floorplanStoreGeneration, useFloorplanStore } from './store/useFloorplanStore';
 import { createAutosaveScheduler, restoreAutosaveForGeneration } from './store/autosave';
 import { adoptPlanFileIfBrowserHasOnlyExample } from './store/planFile';
+import {
+  decodeFloorplanFromUrlHash,
+  extractPlanHashParam,
+} from './core/export/urlSnapshot';
 import { TopBar } from './components/layout/TopBar';
 import { FloorplanCanvas2D } from './components/editor2d/FloorplanCanvas2D';
 import { Scene3D } from './components/viewer3d/Scene3D';
@@ -49,7 +53,11 @@ export const App: React.FC = () => {
         if (!state.selectedId || !state.selectedType) return;
         e.preventDefault();
         if (state.selectedType === 'furniture') {
-          state.removeFurniture(state.selectedId);
+          if (state.selectedIds.length > 1) {
+            state.removeSelectedFurniture(state.selectedIds);
+          } else {
+            state.removeFurniture(state.selectedId);
+          }
         } else if (state.selectedType === 'opening') {
           state.removeOpening(state.selectedId);
         } else if (state.selectedType === 'wall') {
@@ -79,14 +87,34 @@ export const App: React.FC = () => {
   }, [undo, redo]);
 
   useLayoutEffect(() => {
-    restoreAutosaveForGeneration(floorplanStoreGeneration, () =>
-      useFloorplanStore.getState().loadFromLocalStorage()
-    );
-    void adoptPlanFileIfBrowserHasOnlyExample({
-      exportJson: () => useFloorplanStore.getState().exportJson(),
-      importJson: (json) => useFloorplanStore.getState().importJson(json),
-      save: (json) => useFloorplanStore.getState().saveToLocalStorage(json),
-    });
+    let cancelled = false;
+    const rawHash = typeof window !== 'undefined' ? window.location.hash : '';
+    const hasSharedHash = extractPlanHashParam(rawHash) !== null;
+
+    const restoreLocalFallback = () => {
+      restoreAutosaveForGeneration(floorplanStoreGeneration, () =>
+        useFloorplanStore.getState().loadFromLocalStorage()
+      );
+      void adoptPlanFileIfBrowserHasOnlyExample({
+        exportJson: () => useFloorplanStore.getState().exportJson(),
+        importJson: (json) => useFloorplanStore.getState().importJson(json),
+        save: (json) => useFloorplanStore.getState().saveToLocalStorage(json),
+      });
+    };
+
+    if (hasSharedHash) {
+      void decodeFloorplanFromUrlHash(rawHash).then((sharedPlan) => {
+        if (cancelled) return;
+        if (sharedPlan) {
+          useFloorplanStore.getState().importJson(JSON.stringify(sharedPlan));
+          return;
+        }
+        restoreLocalFallback();
+      });
+    } else {
+      restoreLocalFallback();
+    }
+
     const scheduler = createAutosaveScheduler((json) => {
       useFloorplanStore.getState().saveToLocalStorage(json);
     });
@@ -103,6 +131,7 @@ export const App: React.FC = () => {
     window.addEventListener('beforeunload', writePlan);
     document.addEventListener('visibilitychange', handleHide);
     return () => {
+      cancelled = true;
       unsub();
       scheduler.flush();
       window.removeEventListener('beforeunload', writePlan);

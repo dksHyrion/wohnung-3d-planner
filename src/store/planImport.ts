@@ -1,5 +1,6 @@
 import { adoptOverlayImage } from '../core/overlayImageStore';
 import { isFurnitureVisualType } from '../core/furnitureVisual';
+import { sanitizeWallSideFinish } from '../core/materials/wallFinishes';
 import {
   AreaRug,
   BackgroundImageOverlay,
@@ -148,6 +149,15 @@ function sanitizeFurnitureList(
           : f.attachedToId === null
           ? null
           : undefined,
+      customModelId:
+        typeof f.customModelId === 'string' && f.customModelId.trim().length > 0
+          ? f.customModelId.trim().slice(0, 120)
+          : undefined,
+      customModelFilename:
+        typeof f.customModelFilename === 'string' &&
+        f.customModelFilename.trim().length > 0
+          ? f.customModelFilename.trim().slice(0, 200)
+          : undefined,
     });
   }
 
@@ -258,12 +268,16 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
         continue;
       }
       const id = dedupeId(w.id, seenWallIds, 'w');
+      const posFinish = sanitizeWallSideFinish(w.posFinish);
+      const negFinish = sanitizeWallSideFinish(w.negFinish);
       walls.push({
         id,
         startCornerId: w.startCornerId,
         endCornerId: w.endCornerId,
         thicknessCm: clamp(Number(w.thicknessCm), 5, 200),
         heightCm: clamp(Number(w.heightCm), 50, 1000),
+        ...(posFinish ? { posFinish } : {}),
+        ...(negFinish ? { negFinish } : {}),
       });
     }
 

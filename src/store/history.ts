@@ -77,6 +77,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         activeVariantId: previousSnapshot.activeVariantId ?? null,
         backgroundImage: withRuntimeImage(previousSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
+        selectedIds: keepSelection
+          ? state.selectedIds.filter((id) => validEntityIds.has(id))
+          : [],
         selectedType: keepSelection ? state.selectedType : null,
         activeAlignmentGuides: [],
         undoStack: nextUndo,
@@ -120,6 +123,9 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
         activeVariantId: nextSnapshot.activeVariantId ?? null,
         backgroundImage: withRuntimeImage(nextSnapshot.backgroundImage),
         selectedId: keepSelection ? state.selectedId : null,
+        selectedIds: keepSelection
+          ? state.selectedIds.filter((id) => validEntityIds.has(id))
+          : [],
         selectedType: keepSelection ? state.selectedType : null,
         activeAlignmentGuides: [],
         undoStack: nextUndo,
@@ -358,6 +364,7 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       ...plan,
       layoutVariants: variants,
       activeVariantId,
+      ghostVariantId: null,
       selectedId: null,
       selectedType: null,
     });

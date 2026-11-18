@@ -4,6 +4,7 @@ import { FurnitureCategory, FurnitureItem } from '../../../core/types';
 import { resolveFurnitureVisual } from '../../../core/furnitureVisual';
 import { FURNITURE_VISUAL_CATALOG } from '../../../core/furnitureVisualCatalog';
 import { FURNITURE_MODELS } from './furnitureRegistry';
+import { CustomGlbModel } from './CustomGlbModel';
 import type { FurnitureModelProps } from './SofaModel';
 
 export type ArchitecturalModelType =
@@ -106,7 +107,12 @@ export const ArchitecturalFurniture3D: React.FC<FurnitureModelProps> = React.mem
     ? '#38bdf8'
     : undefined;
 
-  const content = <Model {...props} />;
+  const parametric = <Model {...props} />;
+  const content = item.customModelId ? (
+    <CustomGlbModel item={item} fallback={parametric} />
+  ) : (
+    parametric
+  );
 
   return (
     <group>

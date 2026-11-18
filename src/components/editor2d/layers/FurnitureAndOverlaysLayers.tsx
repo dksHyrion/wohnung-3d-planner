@@ -5,6 +5,7 @@ import { resolveRoofSlopePlanes, computeRoofSlopeContourLines } from '../../../c
 import { evaluateWalkAndSightlines } from '../../../core/walkAndSightlines';
 import { computePointDistanceCm } from '../../../core/measureMath';
 import { bedHeadboardDepthCm, isOsakaOpen, layoutFurnitureParts } from '../../../core/furnitureShapes';
+import { computeVariantDiff } from '../../../core/layoutVariants';
 import { resolveFurnitureVisual } from '../../../core/furnitureVisual';
 import {
   PASSAGE_SEVERITY_COLORS,
@@ -23,9 +24,11 @@ export const FurnitureLayer = React.memo(function FurnitureLayer({
   const furniture = useFloorplanStore((s) => s.furniture);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const selectedId = useFloorplanStore((s) => s.selectedId);
+  const selectedIds = useFloorplanStore((s) => s.selectedIds);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+  const toggleSelectFurniture = useFloorplanStore((s) => s.toggleSelectFurniture);
 
   return (
     <>
@@ -35,7 +38,8 @@ export const FurnitureLayer = React.memo(function FurnitureLayer({
         const hasClearanceBlocked =
           report?.issues.some((i) => i.type === 'clearance-blocked') ?? false;
         const isSelected =
-          selectedType === 'furniture' && selectedId === item.id;
+          selectedType === 'furniture' &&
+          (selectedIds.includes(item.id) || selectedId === item.id);
         const visual = resolveFurnitureVisual(item);
         const parts = layoutFurnitureParts(item);
         const fillCol = hasCollision ? 'rgba(239, 68, 68, 0.38)' : item.color;
@@ -56,13 +60,27 @@ export const FurnitureLayer = React.memo(function FurnitureLayer({
             onPointerDown={(e) => {
               if (activeTool !== 'select') return;
               e.stopPropagation();
-              selectEntity(item.id, 'furniture');
+              if (e.shiftKey) {
+                toggleSelectFurniture(item.id);
+                return;
+              }
+              if (
+                !(
+                  selectedType === 'furniture' &&
+                  selectedIds.length > 1 &&
+                  selectedIds.includes(item.id)
+                )
+              ) {
+                selectEntity(item.id, 'furniture');
+              }
               const pt = clientToWorldCm(e.clientX, e.clientY);
               setDragState({
                 type: 'furniture',
                 furnitureId: item.id,
                 offsetX: pt.x - item.x,
                 offsetZ: pt.z - item.z,
+                anchorStartX: item.x,
+                anchorStartZ: item.z,
               });
             }}
           >
@@ -662,6 +680,21 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
           })}
         </g>
       )}
+
+      {dragState?.type === 'marquee' && (
+        <rect
+          data-testid="marquee-selection-rect"
+          x={Math.min(dragState.startX, dragState.currentX)}
+          y={Math.min(dragState.startZ, dragState.currentZ)}
+          width={Math.abs(dragState.currentX - dragState.startX)}
+          height={Math.abs(dragState.currentZ - dragState.startZ)}
+          fill="rgba(56, 189, 248, 0.14)"
+          stroke="#38bdf8"
+          strokeWidth={1.8}
+          strokeDasharray="6 3"
+          pointerEvents="none"
+        />
+      )}
     </>
   );
 });
@@ -701,5 +734,92 @@ export const CornersLayer = React.memo(function CornersLayer({
         );
       })}
     </>
+  );
+});
+
+export const VariantGhostLayer = React.memo(function VariantGhostLayer() {
+  const ghostVariantId = useFloorplanStore((s) => s.ghostVariantId);
+  const layoutVariants = useFloorplanStore((s) => s.layoutVariants);
+  const furniture = useFloorplanStore((s) => s.furniture);
+  const rugs = useFloorplanStore((s) => s.rugs);
+
+  const ghostVariant = ghostVariantId
+    ? layoutVariants.find((v) => v.id === ghostVariantId)
+    : undefined;
+
+  if (!ghostVariant) return null;
+
+  const diff = computeVariantDiff({ furniture, rugs }, ghostVariant);
+  const ghostItems = [
+    ...diff.ghostOnlyFurniture,
+    ...diff.movedFurniture.map((m) => m.ghost),
+  ];
+  const ghostRugs = [
+    ...diff.ghostOnlyRugs,
+    ...diff.movedRugs.map((m) => m.ghost),
+  ];
+
+  return (
+    <g data-testid="variant-ghost-layer-2d" pointerEvents="none">
+      {ghostRugs.map((rug) => (
+        <g
+          key={`ghost-rug-${rug.id}`}
+          transform={`translate(${rug.x}, ${rug.z}) rotate(${-(rug.rotationYDeg ?? 0)})`}
+        >
+          <rect
+            x={-rug.widthCm / 2}
+            y={-rug.depthCm / 2}
+            width={rug.widthCm}
+            height={rug.depthCm}
+            rx={3}
+            fill="rgba(168, 85, 247, 0.08)"
+            stroke="#a855f7"
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
+          />
+        </g>
+      ))}
+
+      {ghostItems.map((item) => {
+        const parts = layoutFurnitureParts(item);
+        return (
+          <g
+            key={`ghost-item-${item.id}`}
+            data-ghost-furniture-id={item.id}
+            transform={`translate(${item.x}, ${item.z}) rotate(${-item.rotationYDeg})`}
+          >
+            {parts.map((part) => (
+              <rect
+                key={part.id}
+                x={part.cx - part.widthCm / 2}
+                y={part.cz - part.depthCm / 2}
+                width={part.widthCm}
+                height={part.depthCm}
+                rx={3}
+                fill="rgba(168, 85, 247, 0.14)"
+                stroke="#a855f7"
+                strokeWidth={2}
+                strokeDasharray="5 3"
+              />
+            ))}
+          </g>
+        );
+      })}
+
+      {diff.movedFurniture.map(({ ghost, active }) => (
+        <g key={`ghost-delta-${ghost.id}`}>
+          <line
+            x1={ghost.x}
+            y1={ghost.z}
+            x2={active.x}
+            y2={active.z}
+            stroke="#c084fc"
+            strokeWidth={1.8}
+            strokeDasharray="4 3"
+          />
+          <circle cx={ghost.x} cy={ghost.z} r={3.5} fill="#a855f7" />
+        </g>
+      ))}
+    </g>
   );
 });

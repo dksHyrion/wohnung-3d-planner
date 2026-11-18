@@ -17,6 +17,7 @@ import {
   zoomViewBoxAtPoint,
 } from '../../core/canvas2dMath';
 import { Corner, Wall } from '../../core/types';
+import { selectFurnitureIdsInMarquee } from '../../core/groupTransformMath';
 import { BackgroundOverlayControls } from './BackgroundOverlayControls';
 import { CanvasDragState, FloorplanSvg2D } from './FloorplanSvg2D';
 import { createFrameThrottle } from '../../core/frameThrottle';
@@ -40,9 +41,14 @@ export const FloorplanCanvas2D: React.FC = () => {
   const cancelCalibration = useFloorplanStore((s) => s.cancelCalibration);
 
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+  const selectMultipleFurniture = useFloorplanStore((s) => s.selectMultipleFurniture);
+  const selectedIds = useFloorplanStore((s) => s.selectedIds);
+  const selectedType = useFloorplanStore((s) => s.selectedType);
+  const furniture = useFloorplanStore((s) => s.furniture);
   const setActiveTool = useFloorplanStore((s) => s.setActiveTool);
   const moveCorner = useFloorplanStore((s) => s.moveCorner);
   const moveFurniture = useFloorplanStore((s) => s.moveFurniture);
+  const moveSelectedFurniture = useFloorplanStore((s) => s.moveSelectedFurniture);
   const moveRug = useFloorplanStore((s) => s.moveRug);
   const clearAlignmentGuides = useFloorplanStore((s) => s.clearAlignmentGuides);
   const addWallWithCorners = useFloorplanStore((s) => s.addWallWithCorners);
@@ -299,6 +305,17 @@ export const FloorplanCanvas2D: React.FC = () => {
       return;
     }
 
+    if (activeTool === 'select' && e.shiftKey) {
+      setDragState({
+        type: 'marquee',
+        startX: pt.x,
+        startZ: pt.z,
+        currentX: pt.x,
+        currentZ: pt.z,
+      });
+      return;
+    }
+
     selectEntity(null, null);
     setDragState({
       type: 'pan',
@@ -310,6 +327,7 @@ export const FloorplanCanvas2D: React.FC = () => {
 
   // One store commit per animation frame while dragging; pointer up flushes the last position.
   const dragFrame = useRef(createFrameThrottle()).current;
+  const groupDragCommittedDeltaRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
 
   const handleSvgPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (activeTool === 'calibrate-scale' && calibrationPoints.p1 && !calibrationPoints.p2) {
@@ -369,11 +387,39 @@ export const FloorplanCanvas2D: React.FC = () => {
       if (!(dragState as { hasMoved?: boolean }).hasMoved) {
         pushUndoSnapshot();
         (dragState as { hasMoved?: boolean }).hasMoved = true;
+        groupDragCommittedDeltaRef.current = { x: 0, z: 0 };
       }
-      const { furnitureId } = dragState;
+      const { furnitureId, anchorStartX, anchorStartZ } = dragState;
       const x = pt.x - dragState.offsetX;
       const z = pt.z - dragState.offsetZ;
-      dragFrame.schedule(() => moveFurniture(furnitureId, x, z, { recordHistory: false }));
+      const isGroupDrag =
+        selectedType === 'furniture' &&
+        selectedIds.length > 1 &&
+        selectedIds.includes(furnitureId) &&
+        anchorStartX !== undefined &&
+        anchorStartZ !== undefined;
+      if (isGroupDrag) {
+        const idsSnapshot = selectedIds;
+        dragFrame.schedule(() => {
+          const totalDx = x - anchorStartX;
+          const totalDz = z - anchorStartZ;
+          const stepDx = totalDx - groupDragCommittedDeltaRef.current.x;
+          const stepDz = totalDz - groupDragCommittedDeltaRef.current.z;
+          groupDragCommittedDeltaRef.current = { x: totalDx, z: totalDz };
+          moveSelectedFurniture(idsSnapshot, stepDx, stepDz, { recordHistory: false });
+        });
+      } else {
+        dragFrame.schedule(() => moveFurniture(furnitureId, x, z, { recordHistory: false }));
+      }
+      return;
+    }
+
+    if (dragState.type === 'marquee') {
+      setDragState({
+        ...dragState,
+        currentX: pt.x,
+        currentZ: pt.z,
+      });
       return;
     }
 
@@ -482,8 +528,13 @@ export const FloorplanCanvas2D: React.FC = () => {
         );
       }
     }
+    if (dragState?.type === 'marquee') {
+      const ids = selectFurnitureIdsInMarquee(furniture, dragState);
+      selectMultipleFurniture(ids);
+    }
     if (dragState?.type === 'furniture' || dragState?.type === 'rug') {
       clearAlignmentGuides();
+      groupDragCommittedDeltaRef.current = { x: 0, z: 0 };
     }
     setDragState(null);
   };

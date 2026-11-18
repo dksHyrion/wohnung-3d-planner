@@ -1,8 +1,11 @@
 import React from 'react';
-import { Layers, Plus, Trash2, Star } from 'lucide-react';
+import { Layers, Plus, Trash2, Star, Eye, EyeOff } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import { compareLayoutVariants } from '../../core/layoutVariants';
+import {
+  compareLayoutVariants,
+  computeVariantDiff,
+} from '../../core/layoutVariants';
 
 export const LayoutVariantsSection: React.FC = () => {
   const { t } = useTranslation();
@@ -16,11 +19,20 @@ export const LayoutVariantsSection: React.FC = () => {
   const rugs = useFloorplanStore((s) => s.rugs);
   const layoutVariants = useFloorplanStore((s) => s.layoutVariants);
   const activeVariantId = useFloorplanStore((s) => s.activeVariantId);
+  const ghostVariantId = useFloorplanStore((s) => s.ghostVariantId);
   const saveLayoutVariant = useFloorplanStore((s) => s.saveLayoutVariant);
   const switchLayoutVariant = useFloorplanStore((s) => s.switchLayoutVariant);
+  const setGhostVariantId = useFloorplanStore((s) => s.setGhostVariantId);
   const deleteLayoutVariant = useFloorplanStore((s) => s.deleteLayoutVariant);
 
   const [draftName, setDraftName] = React.useState('');
+
+  const ghostDiff = React.useMemo(() => {
+    if (!ghostVariantId) return null;
+    const ghost = layoutVariants.find((v) => v.id === ghostVariantId);
+    if (!ghost) return null;
+    return computeVariantDiff({ furniture, rugs }, ghost);
+  }, [ghostVariantId, layoutVariants, furniture, rugs]);
 
   const comparison = React.useMemo(() => {
     if (layoutVariants.length === 0) return null;
@@ -83,6 +95,7 @@ export const LayoutVariantsSection: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {comparison.metrics.map((m) => {
             const isActive = m.variantId === activeVariantId;
+            const isGhost = m.variantId === ghostVariantId;
             const isBest =
               comparison.metrics.length > 1 && m.variantId === comparison.recommendedVariantId;
             return (
@@ -94,9 +107,15 @@ export const LayoutVariantsSection: React.FC = () => {
                   borderRadius: '6px',
                   background: isActive
                     ? 'rgba(56, 189, 248, 0.14)'
+                    : isGhost
+                    ? 'rgba(168, 85, 247, 0.14)'
                     : 'rgba(30, 41, 59, 0.5)',
                   border: `1px solid ${
-                    isActive ? '#38bdf8' : 'rgba(71, 85, 105, 0.4)'
+                    isActive
+                      ? '#38bdf8'
+                      : isGhost
+                      ? '#a855f7'
+                      : 'rgba(71, 85, 105, 0.4)'
                   }`,
                 }}
               >
@@ -117,7 +136,7 @@ export const LayoutVariantsSection: React.FC = () => {
                       flex: 1,
                       fontSize: '0.76rem',
                       fontWeight: 600,
-                      color: isActive ? '#38bdf8' : '#f8fafc',
+                      color: isActive ? '#38bdf8' : isGhost ? '#d8b4fe' : '#f8fafc',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
@@ -128,6 +147,25 @@ export const LayoutVariantsSection: React.FC = () => {
                       <Star size={11} color="#fbbf24" fill="#fbbf24" />
                     )}
                   </button>
+                  {!isActive && (
+                    <button
+                      type="button"
+                      className={`btn btn-outline${isGhost ? ' active' : ''}`}
+                      data-testid={`variant-ghost-toggle-${m.variantId}`}
+                      aria-pressed={isGhost}
+                      style={{ padding: '2px 5px' }}
+                      onClick={() =>
+                        setGhostVariantId(isGhost ? null : m.variantId)
+                      }
+                      title={
+                        isGhost
+                          ? t('inspector.variants.hideGhost')
+                          : t('inspector.variants.showGhost')
+                      }
+                    >
+                      {isGhost ? <EyeOff size={11} /> : <Eye size={11} />}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-danger"
@@ -161,6 +199,25 @@ export const LayoutVariantsSection: React.FC = () => {
               </div>
             );
           })}
+          {ghostDiff && (
+            <div
+              data-testid="variant-ghost-diff-summary"
+              style={{
+                fontSize: '0.7rem',
+                color: '#d8b4fe',
+                background: 'rgba(168, 85, 247, 0.12)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                borderRadius: '6px',
+                padding: '4px 8px',
+              }}
+            >
+              {t('inspector.variants.diffSummary', {
+                added: ghostDiff.ghostOnlyFurniture.length,
+                removed: ghostDiff.activeOnlyFurniture.length,
+                moved: ghostDiff.movedFurniture.length,
+              })}
+            </div>
+          )}
         </div>
       )}
     </section>

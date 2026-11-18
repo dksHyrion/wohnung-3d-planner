@@ -1,4 +1,8 @@
 import { computeFurnitureAlignment } from '../../core/alignmentMath';
+import {
+  computeGroupCentroidXZ,
+  rotatePointAroundPivotXZ,
+} from '../../core/groupTransformMath';
 import type { AlignmentGuide, FurnitureItem } from '../../core/types';
 import { findWallSnap } from '../../core/wallMath';
 import type { StoreDeps } from '../deps';
@@ -9,11 +13,32 @@ export type FurnitureActions = Pick<
   | 'addFurniture'
   | 'updateFurniture'
   | 'moveFurniture'
+  | 'moveSelectedFurniture'
+  | 'rotateSelectedFurniture'
   | 'removeFurniture'
+  | 'removeSelectedFurniture'
   | 'toggleFurnitureRealStatus'
   | 'setFurnitureRealStatus'
   | 'resetFurnitureToCatalogDimensions'
 >;
+
+function expandAttachedDescendants(
+  furniture: FurnitureItem[],
+  seedIds: string[]
+): Set<string> {
+  const expanded = new Set<string>(seedIds);
+  const queue = [...seedIds];
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    for (const item of furniture) {
+      if (item.attachedToId === parentId && !expanded.has(item.id)) {
+        expanded.add(item.id);
+        queue.push(item.id);
+      }
+    }
+  }
+  return expanded;
+}
 
 export function propagateAttachedChildren(
   beforeList: FurnitureItem[],
@@ -111,19 +136,23 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
         clearanceZoneCm: item.clearanceZoneCm,
         hasNightstands: item.hasNightstands,
         attachedToId: item.attachedToId,
+        customModelId: item.customModelId,
+        customModelFilename: item.customModelFilename,
       };
 
       const furniture = [...state.furniture, newFurniture];
       setWithCollisions({
         furniture,
         selectedId: newFurniture.id,
+        selectedIds: [newFurniture.id],
         selectedType: 'furniture',
       });
 
       return newFurniture.id;
     },
 
-    updateFurniture: (furnitureId, patch) => {
+    updateFurniture: (furnitureId, patch, options) => {
+      const recordHistory = options?.recordHistory ?? true;
       const state = get();
       const updatedList = state.furniture.map((f) => {
         if (f.id !== furnitureId) return f;
@@ -185,7 +214,7 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
         furnitureId
       );
 
-      setWithCollisions({ furniture });
+      setWithCollisions({ furniture }, recordHistory);
     },
 
     moveFurniture: (furnitureId, x, z, options) => {
@@ -247,6 +276,59 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
       );
     },
 
+    moveSelectedFurniture: (furnitureIds, dx, dz, options) => {
+      const recordHistory = options?.recordHistory ?? true;
+      if (furnitureIds.length === 0) return;
+      if (Math.abs(dx) < 1e-6 && Math.abs(dz) < 1e-6) return;
+      const state = get();
+      const moveSet = expandAttachedDescendants(state.furniture, furnitureIds);
+      const furniture = state.furniture.map((f) => {
+        if (!moveSet.has(f.id)) return f;
+        return {
+          ...f,
+          x: Number((f.x + dx).toFixed(2)),
+          z: Number((f.z + dz).toFixed(2)),
+          snappedWallId: null,
+        };
+      });
+      setWithCollisions({ furniture, activeAlignmentGuides: [] }, recordHistory);
+    },
+
+    rotateSelectedFurniture: (furnitureIds, deltaDeg, options) => {
+      const recordHistory = options?.recordHistory ?? true;
+      if (furnitureIds.length === 0 || Math.abs(deltaDeg) < 1e-6) return;
+      const state = get();
+      const idSet = new Set(furnitureIds);
+      const primaryItems = state.furniture.filter((f) => idSet.has(f.id));
+      if (primaryItems.length === 0) return;
+
+      const pivot = computeGroupCentroidXZ(primaryItems);
+      const rotateSet = expandAttachedDescendants(state.furniture, furnitureIds);
+
+      const furniture = state.furniture.map((f) => {
+        if (!rotateSet.has(f.id)) return f;
+        const nextPos = rotatePointAroundPivotXZ(
+          f.x,
+          f.z,
+          pivot.x,
+          pivot.z,
+          deltaDeg
+        );
+        const nextRot = Number(
+          ((((f.rotationYDeg + deltaDeg) % 360) + 360) % 360).toFixed(1)
+        );
+        return {
+          ...f,
+          x: nextPos.x,
+          z: nextPos.z,
+          rotationYDeg: nextRot,
+          snappedWallId: null,
+        };
+      });
+
+      setWithCollisions({ furniture, activeAlignmentGuides: [] }, recordHistory);
+    },
+
     removeFurniture: (furnitureId) => {
       const state = get();
       const furniture = state.furniture
@@ -254,10 +336,44 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
         .map((f) =>
           f.attachedToId === furnitureId ? { ...f, attachedToId: null } : f
         );
+      const nextIds =
+        state.selectedType === 'furniture'
+          ? state.selectedIds.filter((id) => id !== furnitureId)
+          : state.selectedIds;
+      const nextPrimary =
+        state.selectedType === 'furniture'
+          ? state.selectedId === furnitureId
+            ? nextIds[0] ?? null
+            : state.selectedId
+          : state.selectedId;
       setWithCollisions({
         furniture,
-        selectedId: state.selectedId === furnitureId ? null : state.selectedId,
-        selectedType: state.selectedId === furnitureId ? null : state.selectedType,
+        selectedIds: nextIds,
+        selectedId: nextPrimary,
+        selectedType:
+          state.selectedType === 'furniture' && nextIds.length === 0
+            ? null
+            : state.selectedType,
+      });
+    },
+
+    removeSelectedFurniture: (furnitureIds) => {
+      if (furnitureIds.length === 0) return;
+      const state = get();
+      const removeSet = new Set(furnitureIds);
+      const furniture = state.furniture
+        .filter((f) => !removeSet.has(f.id))
+        .map((f) =>
+          f.attachedToId && removeSet.has(f.attachedToId)
+            ? { ...f, attachedToId: null }
+            : f
+        );
+      setWithCollisions({
+        furniture,
+        selectedId: null,
+        selectedIds: [],
+        selectedType: null,
+        activeAlignmentGuides: [],
       });
     },
 

@@ -47,6 +47,7 @@ export interface FloorplanState {
   fixtures: WallFixture[];
   layoutVariants: LayoutVariant[];
   activeVariantId: string | null;
+  ghostVariantId: string | null;
   backgroundImage: BackgroundImageOverlay | null;
   overlayError: string | null;
   persistenceError: string | null;
@@ -66,6 +67,7 @@ export interface FloorplanState {
   cameraPreset: CameraPreset;
   cameraPresetNonce: number;
   selectedId: string | null;
+  selectedIds: string[];
   selectedType: SelectableEntityType;
   selectedRoomId: string | null;
   timeOfDay: number;
@@ -117,10 +119,12 @@ export interface FloorplanState {
   setGlowingWallCaps: (enabled: boolean) => void;
   selectEntity: (id: string | null, type: SelectableEntityType) => void;
   selectRoom: (roomId: string | null) => void;
+  toggleSelectFurniture: (furnitureId: string) => void;
+  selectMultipleFurniture: (furnitureIds: string[]) => void;
   updateWallLengthCm: (wallId: string, lengthCm: number) => void;
   updateWallProps: (
     wallId: string,
-    patch: Partial<Pick<Wall, 'thicknessCm' | 'heightCm'>>
+    patch: Partial<Pick<Wall, 'thicknessCm' | 'heightCm' | 'posFinish' | 'negFinish'>>
   ) => void;
   addWallWithCorners: (
     start: { x: number; z: number },
@@ -163,7 +167,8 @@ export interface FloorplanState {
   addFurniture: (item: Omit<FurnitureItem, 'id'>) => string;
   updateFurniture: (
     furnitureId: string,
-    patch: Partial<Omit<FurnitureItem, 'id'>>
+    patch: Partial<Omit<FurnitureItem, 'id'>>,
+    options?: { recordHistory?: boolean }
   ) => void;
   moveFurniture: (
     furnitureId: string,
@@ -171,7 +176,19 @@ export interface FloorplanState {
     z: number,
     options?: { recordHistory?: boolean }
   ) => void;
+  moveSelectedFurniture: (
+    furnitureIds: string[],
+    dx: number,
+    dz: number,
+    options?: { recordHistory?: boolean }
+  ) => void;
+  rotateSelectedFurniture: (
+    furnitureIds: string[],
+    deltaDeg: number,
+    options?: { recordHistory?: boolean }
+  ) => void;
   removeFurniture: (furnitureId: string) => void;
+  removeSelectedFurniture: (furnitureIds: string[]) => void;
   toggleFurnitureRealStatus: (id: string) => void;
   setFurnitureRealStatus: (
     id: string,
@@ -191,6 +208,7 @@ export interface FloorplanState {
   removeRug: (rugId: string) => void;
   saveLayoutVariant: (name?: string) => string;
   switchLayoutVariant: (variantId: string) => void;
+  setGhostVariantId: (variantId: string | null) => void;
   renameLayoutVariant: (variantId: string, name: string) => void;
   deleteLayoutVariant: (variantId: string) => void;
   loadPreset: (presetKey: string) => void;

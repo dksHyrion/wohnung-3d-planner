@@ -1,9 +1,13 @@
 import React from 'react';
-import { Trash2, RotateCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Trash2, RotateCw, CheckCircle2, AlertTriangle, Upload, X } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import type { FurnitureItem } from '../../core/types';
 import { isFurnitureVisualType, resolveFurnitureVisual } from '../../core/furnitureVisual';
+import {
+  parseGlbSceneAndDimensionsCm,
+  putCustomModelBlob,
+} from '../../core/customModelStore';
 import {
   FURNITURE_VISUAL_OPTIONS,
   getFurnitureVisualLabel,
@@ -50,6 +54,30 @@ export function FurnitureInspector({
   const idRotation = React.useId();
   const idColor = React.useId();
   const idClearanceZone = React.useId();
+  const glbInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [glbError, setGlbError] = React.useState<string | null>(null);
+
+  const handleGlbFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setGlbError(null);
+      const buffer = await file.arrayBuffer();
+      const parsed = await parseGlbSceneAndDimensionsCm(buffer);
+      const modelId = `glb-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      await putCustomModelBlob(modelId, file);
+      updateFurniture(selectedFurniture.id, {
+        customModelId: modelId,
+        customModelFilename: file.name,
+        widthCm: Math.round(parsed.widthCm),
+        heightCm: Math.round(parsed.heightCm),
+        depthCm: Math.round(parsed.depthCm),
+      });
+    } catch {
+      setGlbError(t('inspector.furniture.customGlb.error'));
+    }
+  };
 
   const report = collisionReports[selectedFurniture.id];
   const hasCollision = report?.hasCollision ?? false;
@@ -213,6 +241,73 @@ export function FurnitureInspector({
               </option>
             ))}
           </select>
+        </div>
+
+        <div
+          className="form-field full"
+          data-testid="custom-glb-upload-section"
+          style={{
+            padding: '8px',
+            borderRadius: '6px',
+            background: 'rgba(30, 41, 59, 0.45)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+          }}
+        >
+          <span className="form-label" style={{ margin: 0 }}>
+            {t('inspector.furniture.customGlb.title')}
+          </span>
+          <input
+            ref={glbInputRef}
+            type="file"
+            accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+            style={{ display: 'none' }}
+            onChange={(e) => void handleGlbFileChange(e)}
+          />
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              style={{ flex: 1, fontSize: '0.74rem' }}
+              onClick={() => glbInputRef.current?.click()}
+            >
+              <Upload size={13} />
+              <span>{t('inspector.furniture.customGlb.upload')}</span>
+            </button>
+            {selectedFurniture.customModelId && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ fontSize: '0.74rem' }}
+                onClick={() =>
+                  updateFurniture(selectedFurniture.id, {
+                    customModelId: undefined,
+                    customModelFilename: undefined,
+                  })
+                }
+              >
+                <X size={13} />
+                <span>{t('inspector.furniture.customGlb.remove')}</span>
+              </button>
+            )}
+          </div>
+          {selectedFurniture.customModelId && (
+            <div style={{ fontSize: '0.71rem', color: '#38bdf8' }}>
+              {t('inspector.furniture.customGlb.activeFile', {
+                filename: selectedFurniture.customModelFilename ?? selectedFurniture.customModelId,
+              })}
+            </div>
+          )}
+          <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+            {t('inspector.furniture.customGlb.hint')}
+          </div>
+          {glbError && (
+            <div className="diagnostic-box error" style={{ fontSize: '0.72rem' }}>
+              {glbError}
+            </div>
+          )}
         </div>
 
         <div className="form-field">

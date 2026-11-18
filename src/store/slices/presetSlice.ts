@@ -56,6 +56,7 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
         fixtures: cloned.fixtures ?? [],
         layoutVariants: cloned.variants ?? [],
         activeVariantId: cloned.activeVariantId ?? null,
+        ghostVariantId: null,
         backgroundImage: cloned.backgroundImage ?? null,
         activeAlignmentGuides: [],
         selectedId: null,

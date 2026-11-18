@@ -49,6 +49,12 @@ import {
   DEFAULT_WALK_SPEED_CM_PER_SEC,
   stepFirstPersonWalk,
 } from '../../core/walkAndSightlines';
+import {
+  exportSceneToGlb,
+  exportSceneToUsdz,
+} from '../../core/export/scene3dExport';
+import { computeVariantDiff } from '../../core/layoutVariants';
+import { computeGroupCentroidXZ } from '../../core/groupTransformMath';
 
 declare global {
   interface Window {
@@ -169,6 +175,121 @@ const RendererConfigController: React.FC<{
     };
   }, [gl, scene, camera, isBeauty, exposure]);
   return null;
+};
+
+const Export3DBridge: React.FC<{
+  exportRootRef: React.RefObject<THREE.Group | null>;
+}> = ({ exportRootRef }) => {
+  useEffect(() => {
+    const handleExport3d = (e: Event) => {
+      const root = exportRootRef.current;
+      if (!root) return;
+      const detail = (
+        e as CustomEvent<{ format?: 'glb' | 'usdz'; filename?: string } | undefined>
+      ).detail;
+      const format = detail?.format ?? 'glb';
+      const filename =
+        detail?.filename ?? (format === 'usdz' ? 'wohnung.usdz' : 'wohnung.glb');
+
+      void (async () => {
+        try {
+          const blob =
+            format === 'usdz'
+              ? new Blob([new Uint8Array(await exportSceneToUsdz(root))], {
+                  type: 'model/vnd.usdz+zip',
+                })
+              : new Blob([await exportSceneToGlb(root)], {
+                  type: 'model/gltf-binary',
+                });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          if (document.body) {
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else {
+            a.click();
+          }
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+          console.error('Failed to export 3D model:', err);
+        }
+      })();
+    };
+
+    window.addEventListener('wohnung-export-3d', handleExport3d);
+    return () => {
+      window.removeEventListener('wohnung-export-3d', handleExport3d);
+    };
+  }, [exportRootRef]);
+
+  return null;
+};
+
+const GhostVariantOverlay3D: React.FC = () => {
+  const ghostVariantId = useFloorplanStore((s) => s.ghostVariantId);
+  const layoutVariants = useFloorplanStore((s) => s.layoutVariants);
+  const furniture = useFloorplanStore((s) => s.furniture);
+  const rugs =
+    useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
+
+  const ghostVariant = useMemo(
+    () =>
+      ghostVariantId
+        ? layoutVariants.find((v) => v.id === ghostVariantId)
+        : undefined,
+    [ghostVariantId, layoutVariants]
+  );
+
+  const diff = useMemo(
+    () => (ghostVariant ? computeVariantDiff({ furniture, rugs }, ghostVariant) : null),
+    [ghostVariant, furniture, rugs]
+  );
+
+  if (!diff) return null;
+
+  const ghostItems = [
+    ...diff.ghostOnlyFurniture,
+    ...diff.movedFurniture.map((m) => m.ghost),
+  ];
+
+  return (
+    <group name="variant-ghost-overlay-3d" userData={{ exportIgnore: true }}>
+      {ghostItems.map((item) => (
+        <mesh
+          key={`ghost-3d-${item.id}`}
+          position={[item.x, item.elevationCm + item.heightCm / 2, item.z]}
+          rotation={[0, (item.rotationYDeg * Math.PI) / 180, 0]}
+          raycast={() => null}
+        >
+          <boxGeometry args={[item.widthCm, item.heightCm, item.depthCm]} />
+          <meshBasicMaterial
+            color="#a855f7"
+            transparent
+            opacity={0.24}
+            depthWrite={false}
+            wireframe={false}
+          />
+        </mesh>
+      ))}
+      {diff.movedFurniture.map(({ ghost, active }) => (
+        <Line
+          key={`ghost-3d-line-${ghost.id}`}
+          points={[
+            [ghost.x, 4, ghost.z],
+            [active.x, 4, active.z],
+          ]}
+          color="#c084fc"
+          lineWidth={2}
+          dashed
+          dashSize={8}
+          gapSize={5}
+        />
+      ))}
+    </group>
+  );
 };
 
 export interface FirstPersonViewpoint {
@@ -709,6 +830,7 @@ export const Scene3D: React.FC = () => {
   const renderTheme = useFloorplanStore((s) => s.renderTheme);
   const showDimensions3D = useFloorplanStore((s) => s.showDimensions3D);
   const selectedId = useFloorplanStore((s) => s.selectedId);
+  const selectedIds = useFloorplanStore((s) => s.selectedIds);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const qualityMode = useFloorplanStore((s) => s.qualityMode);
@@ -718,7 +840,11 @@ export const Scene3D: React.FC = () => {
   const isBeauty = qualityMode === 'beauty' && renderTheme === 'studio';
 
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+  const toggleSelectFurniture = useFloorplanStore((s) => s.toggleSelectFurniture);
   const moveFurniture = useFloorplanStore((s) => s.moveFurniture);
+  const moveSelectedFurniture = useFloorplanStore((s) => s.moveSelectedFurniture);
+  const rotateSelectedFurniture = useFloorplanStore((s) => s.rotateSelectedFurniture);
+  const updateFurniture = useFloorplanStore((s) => s.updateFurniture);
   const moveRug = useFloorplanStore((s) => s.moveRug);
   const activeAlignmentGuides =
     useFloorplanStore((s) => s.activeAlignmentGuides) ?? EMPTY_ARRAY;
@@ -728,12 +854,34 @@ export const Scene3D: React.FC = () => {
   const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
 
   const [draggingFurniture, setDraggingFurniture] = useState<{
-    kind: 'furniture' | 'rug';
+    kind: 'furniture' | 'furniture-group' | 'rug';
     id: string;
     offsetX: number;
     offsetZ: number;
+    anchorStartX?: number;
+    anchorStartZ?: number;
   } | null>(null);
+  const [draggingGizmo, setDraggingGizmo] = useState<
+    | {
+        kind: 'rotate';
+        pivotX: number;
+        pivotZ: number;
+        startPointerAngleDeg: number;
+        singleItemId: string | null;
+        startItemRotDeg: number;
+        lastAppliedDeltaDeg: number;
+      }
+    | {
+        kind: 'elevation';
+        itemId: string;
+        startClientY: number;
+        startElevationCm: number;
+      }
+    | null
+  >(null);
   const dragHasMovedRef = useRef<boolean>(false);
+  const groupDragCommittedDeltaRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
+  const exportRootRef = useRef<THREE.Group | null>(null);
 
   const cornerMap = useMemo(
     () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
@@ -945,15 +1093,29 @@ export const Scene3D: React.FC = () => {
 
   const handleStartFurnitureDrag = (
     item: FurnitureItem,
-    hitPoint: THREE.Vector3
+    hitPoint: THREE.Vector3,
+    e?: ThreeEvent<PointerEvent>
   ) => {
-    selectEntity(item.id, 'furniture');
+    if (e?.shiftKey) {
+      toggleSelectFurniture(item.id);
+      return;
+    }
+    const isGroup =
+      selectedType === 'furniture' &&
+      selectedIds.length > 1 &&
+      selectedIds.includes(item.id);
+    if (!isGroup) {
+      selectEntity(item.id, 'furniture');
+    }
     dragHasMovedRef.current = false;
+    groupDragCommittedDeltaRef.current = { x: 0, z: 0 };
     setDraggingFurniture({
-      kind: 'furniture',
+      kind: isGroup ? 'furniture-group' : 'furniture',
       id: item.id,
       offsetX: hitPoint.x - item.x,
       offsetZ: hitPoint.z - item.z,
+      anchorStartX: item.x,
+      anchorStartZ: item.z,
     });
   };
 
@@ -972,6 +1134,45 @@ export const Scene3D: React.FC = () => {
   const dragFrame = useRef(createFrameThrottle()).current;
 
   const handleDragPlaneMove = (e: ThreeEvent<PointerEvent>) => {
+    if (draggingGizmo?.kind === 'rotate') {
+      e.stopPropagation();
+      const angleDeg =
+        (Math.atan2(
+          e.point.x - draggingGizmo.pivotX,
+          e.point.z - draggingGizmo.pivotZ
+        ) *
+          180) /
+        Math.PI;
+      let rawDelta = angleDeg - draggingGizmo.startPointerAngleDeg;
+      if (e.shiftKey) {
+        rawDelta = Math.round(rawDelta / 15) * 15;
+      }
+      if (draggingGizmo.singleItemId) {
+        const nextRot =
+          ((((draggingGizmo.startItemRotDeg + rawDelta) % 360) + 360) % 360);
+        const itemId = draggingGizmo.singleItemId;
+        dragFrame.schedule(() => {
+          updateFurniture(
+            itemId,
+            { rotationYDeg: Number(nextRot.toFixed(1)) },
+            { recordHistory: false }
+          );
+        });
+      } else {
+        const stepDelta = rawDelta - draggingGizmo.lastAppliedDeltaDeg;
+        if (Math.abs(stepDelta) >= 0.25) {
+          draggingGizmo.lastAppliedDeltaDeg = rawDelta;
+          const idsSnapshot = selectedIds;
+          dragFrame.schedule(() => {
+            rotateSelectedFurniture(idsSnapshot, stepDelta, {
+              recordHistory: false,
+            });
+          });
+        }
+      }
+      return;
+    }
+
     if (!draggingFurniture) return;
     e.stopPropagation();
     if (!dragHasMovedRef.current) {
@@ -980,13 +1181,39 @@ export const Scene3D: React.FC = () => {
     }
     const targetX = e.point.x - draggingFurniture.offsetX;
     const targetZ = e.point.z - draggingFurniture.offsetZ;
-    const { kind, id } = draggingFurniture;
+    const { kind, id, anchorStartX, anchorStartZ } = draggingFurniture;
     dragFrame.schedule(() => {
       if (kind === 'rug') {
         moveRug(id, targetX, targetZ, { recordHistory: false });
+      } else if (
+        kind === 'furniture-group' &&
+        anchorStartX !== undefined &&
+        anchorStartZ !== undefined
+      ) {
+        const totalDx = targetX - anchorStartX;
+        const totalDz = targetZ - anchorStartZ;
+        const stepDx = totalDx - groupDragCommittedDeltaRef.current.x;
+        const stepDz = totalDz - groupDragCommittedDeltaRef.current.z;
+        groupDragCommittedDeltaRef.current = { x: totalDx, z: totalDz };
+        moveSelectedFurniture(selectedIds, stepDx, stepDz, {
+          recordHistory: false,
+        });
       } else {
         moveFurniture(id, targetX, targetZ, { recordHistory: false });
       }
+    });
+  };
+
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingGizmo?.kind !== 'elevation') return;
+    const dyPx = draggingGizmo.startClientY - e.clientY;
+    const nextElev = Math.max(
+      0,
+      Math.round((draggingGizmo.startElevationCm + dyPx * 0.75) * 2) / 2
+    );
+    const { itemId } = draggingGizmo;
+    dragFrame.schedule(() => {
+      updateFurniture(itemId, { elevationCm: nextElev }, { recordHistory: false });
     });
   };
 
@@ -995,13 +1222,51 @@ export const Scene3D: React.FC = () => {
     if (draggingFurniture) {
       setDraggingFurniture(null);
       dragHasMovedRef.current = false;
+      groupDragCommittedDeltaRef.current = { x: 0, z: 0 };
       clearAlignmentGuides();
     }
+    if (draggingGizmo) {
+      setDraggingGizmo(null);
+    }
   };
+
+  const selectedFurnitureItems = useMemo(
+    () =>
+      selectedType === 'furniture'
+        ? furniture.filter((f) => selectedIds.includes(f.id))
+        : [],
+    [furniture, selectedIds, selectedType]
+  );
+
+  const gizmoData = useMemo(() => {
+    if (
+      selectedFurnitureItems.length === 0 ||
+      cameraPreset === 'first-person'
+    ) {
+      return null;
+    }
+    const single =
+      selectedFurnitureItems.length === 1 ? selectedFurnitureItems[0] : null;
+    const pivot = single
+      ? { x: single.x, z: single.z }
+      : computeGroupCentroidXZ(selectedFurnitureItems);
+    let maxDist = 45;
+    for (const item of selectedFurnitureItems) {
+      const halfDiag = Math.hypot(item.widthCm / 2, item.depthCm / 2);
+      const dist = Math.hypot(item.x - pivot.x, item.z - pivot.z) + halfDiag;
+      if (dist > maxDist) maxDist = dist;
+    }
+    return {
+      single,
+      pivot,
+      ringRadius: Math.min(240, maxDist + 22),
+    };
+  }, [selectedFurnitureItems, cameraPreset]);
 
   return (
     <div
       style={{ width: '100%', height: '100%', position: 'relative' }}
+      onPointerMove={handleContainerPointerMove}
       onPointerUp={handleDragPlaneUp}
       onPointerCancel={handleDragPlaneUp}
     >
@@ -1026,6 +1291,7 @@ export const Scene3D: React.FC = () => {
       >
         <DemandRenderController />
         <RendererConfigController isBeauty={isBeauty} exposure={mood.exposure} />
+        <Export3DBridge exportRootRef={exportRootRef} />
         <CameraController roomBounds={roomBounds} />
         <color
           attach="background"
@@ -1062,7 +1328,7 @@ export const Scene3D: React.FC = () => {
 
         <OrbitControls
           makeDefault
-          enabled={!draggingFurniture}
+          enabled={!draggingFurniture && !draggingGizmo}
           target={[roomBounds.cx, 80, roomBounds.cz]}
           maxPolarAngle={Math.PI / 2 - 0.04}
           minDistance={cameraPreset === 'first-person' ? 10 : 120}
@@ -1089,49 +1355,113 @@ export const Scene3D: React.FC = () => {
           fadeDistance={2600}
         />
 
-        {/* Room Hardwood/Tile/Microcement Floor Meshes */}
-        {roomFloorShapes.map(({ id, shape, flooringType }) => {
-          const isStudio = renderTheme === 'studio';
-          const texture = isStudio ? floorTextures[flooringType] : null;
-          const bumpTexture = isStudio
-            ? floorTextures.bump[flooringType]
-            : null;
+        {/* Exportable Architecture & Furniture Root (scaled cm -> m on GLB/USDZ export) */}
+        <group ref={exportRootRef} name="exportable-architecture-root">
+          {/* Room Hardwood/Tile/Microcement Floor Meshes */}
+          {roomFloorShapes.map(({ id, shape, flooringType }) => {
+            const isStudio = renderTheme === 'studio';
+            const texture = isStudio ? floorTextures[flooringType] : null;
+            const bumpTexture = isStudio
+              ? floorTextures.bump[flooringType]
+              : null;
 
-          return (
-            <mesh
-              key={id}
-              rotation={[-Math.PI / 2, 0, 0]}
-              position={[0, 0, 0]}
-              receiveShadow
-            >
-              <shapeGeometry args={[shape]} />
-              <meshPhysicalMaterial
-                {...getFloorMaterialProps(
-                  flooringType,
-                  isStudio,
-                  texture,
-                  isBeauty,
-                  bumpTexture
-                )}
+            return (
+              <mesh
+                key={id}
+                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, 0, 0]}
+                receiveShadow
+              >
+                <shapeGeometry args={[shape]} />
+                <meshPhysicalMaterial
+                  {...getFloorMaterialProps(
+                    flooringType,
+                    isStudio,
+                    texture,
+                    isBeauty,
+                    bumpTexture
+                  )}
+                />
+              </mesh>
+            );
+          })}
+
+          {/* Textured Architectural Area Rugs */}
+          {rugs.map((rug) => (
+            <RugMesh3D
+              key={rug.id}
+              widthCm={rug.widthCm}
+              depthCm={rug.depthCm}
+              x={rug.x}
+              z={rug.z}
+              rotationYDeg={rug.rotationYDeg ?? 0}
+              color={renderTheme === 'studio' ? rug.color : '#1e293b'}
+              isSelected={selectedType === 'rug' && selectedId === rug.id}
+              onStartDrag={(pt) => handleStartRugDrag(rug, pt)}
+            />
+          ))}
+
+          {/* 3D Walls with Cutaway, Openings & Window Curtains */}
+          {walls.map((wall) => {
+            const start = cornerMap.get(wall.startCornerId);
+            const end = cornerMap.get(wall.endCornerId);
+            if (!start || !end) return null;
+
+            return (
+              <WallGroup3D
+                key={wall.id}
+                wall={wall}
+                start={start}
+                end={end}
+                openings={openingsByWall.get(wall.id) ?? EMPTY_OPENINGS}
+                roomCenter={roomCenter}
+                cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
+                isSelected={selectedType === 'wall' && selectedId === wall.id}
+                showDecor={showDecor}
+                miter={wallMiterMap.get(wall.id)}
+                capMiter={capMiterMap.get(wall.id)}
+                skirtingMiter={skirtingMiterMap.get(wall.id)}
+                sunDirToRoom={renderTheme === 'studio' ? effectiveSun.dirToRoom : undefined}
+                onSelectWall={handleSelectWall}
+                onSelectOpening={handleSelectOpening}
               />
-            </mesh>
-          );
-        })}
+            );
+          })}
 
-        {/* Textured Architectural Area Rugs */}
-        {rugs.map((rug) => (
-          <RugMesh3D
-            key={rug.id}
-            widthCm={rug.widthCm}
-            depthCm={rug.depthCm}
-            x={rug.x}
-            z={rug.z}
-            rotationYDeg={rug.rotationYDeg ?? 0}
-            color={renderTheme === 'studio' ? rug.color : '#1e293b'}
-            isSelected={selectedType === 'rug' && selectedId === rug.id}
-            onStartDrag={(pt) => handleStartRugDrag(rug, pt)}
-          />
-        ))}
+          {/* 3D Roof Slopes (Dachschrägen) */}
+          {roofSlopePlanes.map((plane) => (
+            <RoofSlopeMesh3D
+              key={plane.slopeId}
+              plane={plane}
+              maxCeilingCm={maxCeilingCm}
+              theme={renderTheme}
+            />
+          ))}
+
+          {/* 3D Wall MEP Fixtures (Radiators, Sockets, Switches, Data, Water, Shafts) */}
+          {fixtureBoxes.map((box) => (
+            <WallFixtureMesh3D
+              key={box.fixtureId}
+              box={box}
+              isSelected={selectedType === 'fixture' && selectedId === box.fixtureId}
+              onSelect={(id) => selectEntity(id, 'fixture')}
+            />
+          ))}
+
+          {/* 3D Furniture Items */}
+          {furniture.map((item) => (
+            <FurnitureMesh3D
+              key={item.id}
+              item={item}
+              report={collisionReports[item.id]}
+              isSelected={
+                selectedType === 'furniture' &&
+                (selectedIds.includes(item.id) || selectedId === item.id)
+              }
+              onStartDrag={handleStartFurnitureDrag}
+            />
+          ))}
+        </group>
 
         {/* Floor-stamped architectural room text */}
         {roomFloorShapes.map(({ id, centroid, areaSqM, idx, name }) => {
@@ -1157,9 +1487,10 @@ export const Scene3D: React.FC = () => {
           );
         })}
 
-        {/* Invisible XZ Drag Plane when dragging furniture in 3D */}
-        {draggingFurniture && (
+        {/* Invisible XZ Drag Plane when dragging furniture or rotation gizmo in 3D */}
+        {(draggingFurniture || draggingGizmo?.kind === 'rotate') && (
           <mesh
+            userData={{ exportIgnore: true }}
             rotation={[-Math.PI / 2, 0, 0]}
             position={[roomBounds.cx, 0.5, roomBounds.cz]}
             onPointerMove={handleDragPlaneMove}
@@ -1171,64 +1502,72 @@ export const Scene3D: React.FC = () => {
           </mesh>
         )}
 
-        {/* 3D Walls with Cutaway, Openings & Window Curtains */}
-        {walls.map((wall) => {
-          const start = cornerMap.get(wall.startCornerId);
-          const end = cornerMap.get(wall.endCornerId);
-          if (!start || !end) return null;
+        {/* 3D Interactive Transform Gizmos (Rotation Ring + Elevation Handle) */}
+        {gizmoData && (
+          <group name="furniture-transform-gizmo-3d" userData={{ exportIgnore: true }}>
+            <mesh
+              position={[gizmoData.pivot.x, 2.5, gizmoData.pivot.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                pushUndoSnapshot();
+                const startAngleDeg =
+                  (Math.atan2(
+                    e.point.x - gizmoData.pivot.x,
+                    e.point.z - gizmoData.pivot.z
+                  ) *
+                    180) /
+                  Math.PI;
+                setDraggingGizmo({
+                  kind: 'rotate',
+                  pivotX: gizmoData.pivot.x,
+                  pivotZ: gizmoData.pivot.z,
+                  startPointerAngleDeg: startAngleDeg,
+                  singleItemId: gizmoData.single?.id ?? null,
+                  startItemRotDeg: gizmoData.single?.rotationYDeg ?? 0,
+                  lastAppliedDeltaDeg: 0,
+                });
+              }}
+            >
+              <torusGeometry args={[gizmoData.ringRadius, 2.5, 10, 64]} />
+              <meshBasicMaterial
+                color="#38bdf8"
+                transparent
+                opacity={0.78}
+                depthWrite={false}
+              />
+            </mesh>
 
-          return (
-            <WallGroup3D
-              key={wall.id}
-              wall={wall}
-              start={start}
-              end={end}
-              openings={openingsByWall.get(wall.id) ?? EMPTY_OPENINGS}
-              roomCenter={roomCenter}
-              cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
-              isSelected={selectedType === 'wall' && selectedId === wall.id}
-              showDecor={showDecor}
-              miter={wallMiterMap.get(wall.id)}
-              capMiter={capMiterMap.get(wall.id)}
-              skirtingMiter={skirtingMiterMap.get(wall.id)}
-              sunDirToRoom={renderTheme === 'studio' ? effectiveSun.dirToRoom : undefined}
-              onSelectWall={handleSelectWall}
-              onSelectOpening={handleSelectOpening}
-            />
-          );
-        })}
-
-        {/* 3D Roof Slopes (Dachschrägen) */}
-        {roofSlopePlanes.map((plane) => (
-          <RoofSlopeMesh3D
-            key={plane.slopeId}
-            plane={plane}
-            maxCeilingCm={maxCeilingCm}
-            theme={renderTheme}
-          />
-        ))}
-
-        {/* 3D Wall MEP Fixtures (Radiators, Sockets, Switches, Data, Water, Shafts) */}
-        {fixtureBoxes.map((box) => (
-          <WallFixtureMesh3D
-            key={box.fixtureId}
-            box={box}
-            isSelected={selectedType === 'fixture' && selectedId === box.fixtureId}
-            onSelect={(id) => selectEntity(id, 'fixture')}
-          />
-        ))}
-
-        {/* 3D Furniture Items */}
-
-        {furniture.map((item) => (
-          <FurnitureMesh3D
-            key={item.id}
-            item={item}
-            report={collisionReports[item.id]}
-            isSelected={selectedType === 'furniture' && selectedId === item.id}
-            onStartDrag={handleStartFurnitureDrag}
-          />
-        ))}
+            {gizmoData.single && (
+              <group
+                position={[
+                  gizmoData.single.x,
+                  gizmoData.single.elevationCm + gizmoData.single.heightCm + 18,
+                  gizmoData.single.z,
+                ]}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  pushUndoSnapshot();
+                  setDraggingGizmo({
+                    kind: 'elevation',
+                    itemId: gizmoData.single!.id,
+                    startClientY: e.clientY,
+                    startElevationCm: gizmoData.single!.elevationCm,
+                  });
+                }}
+              >
+                <mesh position={[0, -6, 0]}>
+                  <cylinderGeometry args={[1.6, 1.6, 14, 10]} />
+                  <meshBasicMaterial color="#f59e0b" />
+                </mesh>
+                <mesh position={[0, 5, 0]}>
+                  <coneGeometry args={[5.5, 11, 14]} />
+                  <meshBasicMaterial color="#f59e0b" />
+                </mesh>
+              </group>
+            )}
+          </group>
+        )}
 
         {/* Smart Alignment Guides in 3D (Paket 3C) */}
         {activeAlignmentGuides.map((g, idx) => (
@@ -1258,6 +1597,9 @@ export const Scene3D: React.FC = () => {
 
         {/* Ergonomics & Passage Clearance Heatmap Overlay */}
         <PassageClearance3D />
+
+        {/* Variant Ghost-Diff 3D Overlay */}
+        <GhostVariantOverlay3D />
 
         {/* Cinematic Archviz Post-Processing Pipeline */}
         <PostFX3D />

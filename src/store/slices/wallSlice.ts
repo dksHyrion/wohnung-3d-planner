@@ -208,6 +208,18 @@ export function createWallSlice(deps: StoreDeps): WallActions {
             patch.heightCm !== undefined
               ? Math.max(50, patch.heightCm)
               : w.heightCm,
+          posFinish:
+            patch.posFinish !== undefined
+              ? patch.posFinish.finish === 'plaster' && !patch.posFinish.color
+                ? undefined
+                : patch.posFinish
+              : w.posFinish,
+          negFinish:
+            patch.negFinish !== undefined
+              ? patch.negFinish.finish === 'plaster' && !patch.negFinish.color
+                ? undefined
+                : patch.negFinish
+              : w.negFinish,
         };
       });
 
