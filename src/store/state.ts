@@ -54,6 +54,7 @@ export interface FloorplanState {
   showPassageHeatmap: boolean;
   passageReport: PassageClearanceReport | null;
   ergonomicsScorecard: ErgonomicsScorecardReport | null;
+  isComputingErgonomics: boolean;
   activeAlignmentGuides: AlignmentGuide[];
   clearAlignmentGuides: () => void;
   calibrationPoints: { p1: Point2D | null; p2: Point2D | null };

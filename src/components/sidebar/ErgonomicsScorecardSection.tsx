@@ -19,6 +19,7 @@ export const ErgonomicsScorecardSection: React.FC = () => {
   const { t } = useTranslation();
   const showPassageHeatmap = useFloorplanStore((s) => s.showPassageHeatmap);
   const ergonomicsScorecard = useFloorplanStore((s) => s.ergonomicsScorecard);
+  const isComputingErgonomics = useFloorplanStore((s) => s.isComputingErgonomics);
   const setShowPassageHeatmap = useFloorplanStore((s) => s.setShowPassageHeatmap);
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
@@ -50,16 +51,26 @@ export const ErgonomicsScorecardSection: React.FC = () => {
           <Footprints size={14} />
           <span>{t('ergonomics.scorecard.title')}</span>
         </span>
-        <button
-          type="button"
-          className={`btn ${showPassageHeatmap ? 'active' : 'btn-outline'}`}
-          style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-          onClick={() => setShowPassageHeatmap(!showPassageHeatmap)}
-        >
-          {showPassageHeatmap
-            ? t('ergonomics.scorecard.hideOverlay')
-            : t('ergonomics.scorecard.runCheck')}
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          {isComputingErgonomics && (
+            <span
+              data-testid="ergonomics-computing-badge"
+              style={{ fontSize: '0.68rem', color: '#38bdf8' }}
+            >
+              {t('ergonomics.scorecard.computing')}
+            </span>
+          )}
+          <button
+            type="button"
+            className={`btn ${showPassageHeatmap ? 'active' : 'btn-outline'}`}
+            style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+            onClick={() => setShowPassageHeatmap(!showPassageHeatmap)}
+          >
+            {showPassageHeatmap
+              ? t('ergonomics.scorecard.hideOverlay')
+              : t('ergonomics.scorecard.runCheck')}
+          </button>
+        </div>
       </div>
 
       {showPassageHeatmap && ergonomicsScorecard && (

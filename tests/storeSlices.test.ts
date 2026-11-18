@@ -35,6 +35,7 @@ function createMockDeps(initialPatch: Partial<FloorplanState> = {}) {
     showPassageHeatmap: false,
     passageReport: null,
     ergonomicsScorecard: null,
+    isComputingErgonomics: false,
     activeAlignmentGuides: [],
     clearAlignmentGuides: vi.fn(),
     calibrationPoints: { p1: null, p2: null },

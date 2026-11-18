@@ -2,6 +2,7 @@ import {
   evaluatePassageClearances,
   evaluateErgonomicsScorecard,
 } from '../../core/ergonomicsEngine';
+import { sharedErgonomicsWorkerClient } from '../../core/workers/ergonomicsWorkerClient';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import type { StoreDeps } from '../deps';
 import type { FloorplanState } from '../state';
@@ -19,26 +20,65 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
     setShowPassageHeatmap: (show) => {
       const enabled = Boolean(show);
       const state = get();
-      const passageReport = enabled
-        ? evaluatePassageClearances(state.furniture, state.walls, state.corners)
-        : null;
-      const ergonomicsScorecard = enabled
-        ? evaluateErgonomicsScorecard(
-            {
-              corners: state.corners,
-              walls: state.walls,
-              openings: state.openings,
-              furniture: state.furniture,
-              roomLabels: state.roomLabels,
-            },
-            passageReport
-          )
-        : null;
+      if (!enabled) {
+        sharedErgonomicsWorkerClient.cancelPending();
+        set({
+          showPassageHeatmap: false,
+          passageReport: null,
+          ergonomicsScorecard: null,
+          isComputingErgonomics: false,
+        });
+        return;
+      }
+
+      if (!sharedErgonomicsWorkerClient.isWorkerSupported()) {
+        const passageReport = evaluatePassageClearances(
+          state.furniture,
+          state.walls,
+          state.corners
+        );
+        const ergonomicsScorecard = evaluateErgonomicsScorecard(
+          {
+            corners: state.corners,
+            walls: state.walls,
+            openings: state.openings,
+            furniture: state.furniture,
+            roomLabels: state.roomLabels,
+          },
+          passageReport
+        );
+        set({
+          showPassageHeatmap: true,
+          passageReport,
+          ergonomicsScorecard,
+          isComputingErgonomics: false,
+        });
+        return;
+      }
+
       set({
-        showPassageHeatmap: enabled,
-        passageReport,
-        ergonomicsScorecard,
+        showPassageHeatmap: true,
+        isComputingErgonomics: true,
       });
+      void sharedErgonomicsWorkerClient
+        .evaluateErgonomicsAsync(
+          {
+            corners: state.corners,
+            walls: state.walls,
+            openings: state.openings,
+            furniture: state.furniture,
+            roomLabels: state.roomLabels,
+          },
+          { immediate: true }
+        )
+        .then((res) => {
+          if (!res || !get().showPassageHeatmap) return;
+          set({
+            passageReport: res.passageReport,
+            ergonomicsScorecard: res.ergonomicsScorecard,
+            isComputingErgonomics: false,
+          });
+        });
     },
 
     loadPreset: (presetKey) => {

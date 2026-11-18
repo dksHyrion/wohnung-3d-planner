@@ -25,6 +25,7 @@ import {
   evaluatePassageClearances,
   evaluateErgonomicsScorecard,
 } from '../core/ergonomicsEngine';
+import { sharedErgonomicsWorkerClient } from '../core/workers/ergonomicsWorkerClient';
 import {
   backgroundImageForExport,
   deleteOverlayBlobs,
@@ -165,21 +166,38 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
         ? evaluateFloorplanCollisions({ corners, walls, openings, furniture, roofSlopes, fixtures })
         : state.collisionReports;
     const showPassageHeatmap = patch.showPassageHeatmap ?? state.showPassageHeatmap;
-    const passageReport = !showPassageHeatmap
-      ? null
-      : layoutChanged || !state.passageReport
-        ? evaluatePassageClearances(furniture, walls, corners)
-        : state.passageReport;
     const scorecardChanged =
       layoutChanged || openings !== state.openings || roomLabels !== state.roomLabels;
-    const ergonomicsScorecard = !showPassageHeatmap
-      ? null
-      : scorecardChanged || !state.ergonomicsScorecard
-        ? evaluateErgonomicsScorecard(
-            { corners, walls, openings, furniture, roomLabels },
-            passageReport
-          )
-        : state.ergonomicsScorecard;
+    const needsErgonomics =
+      showPassageHeatmap &&
+      (layoutChanged ||
+        scorecardChanged ||
+        !state.passageReport ||
+        !state.ergonomicsScorecard);
+
+    let passageReport = showPassageHeatmap ? state.passageReport : null;
+    let ergonomicsScorecard = showPassageHeatmap ? state.ergonomicsScorecard : null;
+    let isComputingErgonomics = false;
+
+    if (!showPassageHeatmap) {
+      sharedErgonomicsWorkerClient.cancelPending();
+    } else if (needsErgonomics) {
+      if (!sharedErgonomicsWorkerClient.isWorkerSupported()) {
+        passageReport =
+          layoutChanged || !state.passageReport
+            ? evaluatePassageClearances(furniture, walls, corners)
+            : state.passageReport;
+        ergonomicsScorecard =
+          scorecardChanged || !state.ergonomicsScorecard
+            ? evaluateErgonomicsScorecard(
+                { corners, walls, openings, furniture, roomLabels },
+                passageReport
+              )
+            : state.ergonomicsScorecard;
+      } else {
+        isComputingErgonomics = true;
+      }
+    }
 
     const syncedSelectionPatch =
       patch.selectedId !== undefined && patch.selectedIds === undefined
@@ -192,8 +210,24 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       ...syncedSelectionPatch,
       passageReport,
       ergonomicsScorecard,
+      isComputingErgonomics,
       collisionReports,
     });
+    if (isComputingErgonomics) {
+      void sharedErgonomicsWorkerClient
+        .evaluateErgonomicsAsync(
+          { corners, walls, openings, furniture, roomLabels },
+          { immediate: recordHistory }
+        )
+        .then((res) => {
+          if (!res || !get().showPassageHeatmap) return;
+          set({
+            passageReport: res.passageReport,
+            ergonomicsScorecard: res.ergonomicsScorecard,
+            isComputingErgonomics: false,
+          });
+        });
+    }
     gcOverlays();
     gcCustomModels();
   };
@@ -270,6 +304,7 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     showPassageHeatmap: false,
     passageReport: null,
     ergonomicsScorecard: null,
+    isComputingErgonomics: false,
     activeAlignmentGuides: [],
     calibrationPoints: { p1: null, p2: null },
     collisionReports: evaluateFloorplanCollisions(initialData),

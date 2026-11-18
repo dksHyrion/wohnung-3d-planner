@@ -4,6 +4,27 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-18] Sprint 11 — Strukturierter Grundriss-Import (DXF / SVG / Apple RoomPlan JSON)
+
+- **Action:** `FEATURE`, `CAD_IMPORT`, `TOPOLOGY`
+- **Gemeinsamer Wandgraph-Builder (`src/core/import/importTopology.ts`):**
+  - Endpunkt-Verschmelzung (`weldToleranceCm`), Minimal-Wandlängenfilter (`>= 10 cm`), Duplikateliminierung, Koordinatennormalisierung und automatischer X-Schnitt via `splitCrossingWalls`.
+- **Format-Parser (`dxfImport.ts`, `svgImport.ts`, `roomPlanImport.ts`):**
+  - ASCII-DXF (`LINE`, `LWPOLYLINE`, `POLYLINE`/`VERTEX`, `$INSUNITS` `mm`/`cm`/`m`, `z = -y`).
+  - Vektor-SVG (`<line>`, `<polyline>`, `<polygon>`, `<rect>`, `<path>` `M/L/H/V/Z` inkl. Wand-Klassen-/ID-Heuristik).
+  - Apple RoomPlan `CapturedRoom`-JSON (`walls[]`, `doors[]`, `windows[]`, `openings[]`, `objects[]` mit 4×4-Transform-Matrix und Möbelkategorie-Mapping).
+- **UI (`PlanImportDialog.tsx`, `TopBar.tsx`):**
+  - Import-Dialog mit Format-/Einheitenwahl und Live-Vorschau-Statistik vor dem Übernehmen in den Store.
+
+## [2026-11-18] Sprint 10 — WebWorker-Pipeline für Ergonomie 2.0 & Varianten-Vergleich
+
+- **Action:** `FEATURE`, `PERFORMANCE`, `ERGONOMICS`
+- **Worker & Stale-Safe Client (`src/core/workers/`):**
+  - Dedizierter Vite Module Worker (`ergonomicsWorker.ts` + `ergonomicsWorkerProtocol.ts`) für `evaluatePassageClearances`, `evaluateErgonomicsScorecard` und `compareLayoutVariants`.
+  - `createErgonomicsWorkerClient` (`ergonomicsWorkerClient.ts`) mit monotoner `requestId`-Prüfung (Verwerfen veralteter Antworten), `80 ms` Debounce bei Drag-Updates (`recordHistory === false`) und automatischem Synchron-Fallback in Worker-freien Umgebungen (Node/Vitest).
+- **Store & Sidebar (`state.ts`, `useFloorplanStore.ts`, `presetSlice.ts`, `ErgonomicsScorecardSection.tsx`, `LayoutVariantsSection.tsx`):**
+  - Offloading schwerer 2D-EDT-/C-Space-Berechnungen vom Main-Thread bei aktivem `showPassageHeatmap`, Statusanzeige `isComputingErgonomics` und asynchrone Varianten-Metrik-Berechnung.
+
 ## [2026-11-18] Sprint 9 — Seitengetrennte Wandbeläge & Custom-`.glb`-Möbelimport
 
 - **Action:** `FEATURE`, `MATERIALS`, `3D_IMPORT`, `STORAGE`

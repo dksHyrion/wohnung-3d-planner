@@ -34,6 +34,7 @@ import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
 import { PlanExportDialog } from './PlanExportDialog';
+import { PlanImportDialog } from './PlanImportDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import { EditorTool, ViewMode } from '../../core/types';
@@ -171,6 +172,7 @@ export const TopBar: React.FC = () => {
   const [importError, setImportError] = useState<string | null>(null);
 
   const [planExportModalOpen, setPlanExportModalOpen] = useState<boolean>(false);
+  const [structuredImportOpen, setStructuredImportOpen] = useState<boolean>(false);
   const [planScale, setPlanScale] = useState<'1:50' | '1:100'>('1:50');
   const [planPaper, setPlanPaper] = useState<'A4' | 'A3'>('A4');
   const [planOrientation, setPlanOrientation] = useState<'landscape' | 'portrait'>('landscape');
@@ -660,6 +662,16 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             className="btn btn-outline"
+            onClick={() => setStructuredImportOpen(true)}
+            title={t('dialogs.structuredImport.buttonTitle')}
+          >
+            <FileUp size={14} />
+            <span>{t('dialogs.structuredImport.buttonLabel')}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-outline"
             onClick={handleOpenImport}
             title={t('topbar.actions.jsonImportTitle')}
           >
@@ -748,6 +760,10 @@ export const TopBar: React.FC = () => {
         handleDownloadBomMd={handleDownloadBomMd}
         handleDownloadGlb={handleDownloadGlb}
         handleDownloadUsdz={handleDownloadUsdz}
+      />
+      <PlanImportDialog
+        isOpen={structuredImportOpen}
+        onClose={() => setStructuredImportOpen(false)}
       />
       <KeyboardShortcutsDialog />
     </>

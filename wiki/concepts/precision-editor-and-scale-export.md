@@ -149,3 +149,13 @@ Analysiert alle Engstellen und Durchgangsbreiten nach DIN 18040 / Neufert:
 ### C. Visueller Varianten-Ghost-Diff (`layoutVariants.ts`)
 - **`computeVariantDiff`:** Vergleicht aktiven Grundriss und gewählte `ghostVariantId` (`variantSlice.ts`) nach Objekt-IDs (`ghostOnlyFurniture`, `activeOnlyFurniture`, `movedFurniture` mit `distanceCm` und `deltaRotDeg`, sowie Teppiche).
 - **2D/3D-Darstellung:** `VariantGhostLayer` in `FurnitureAndOverlaysLayers.tsx` (gestrichelte violette Umrisse + Delta-Pfeile) und `GhostVariantOverlay3D` in `Scene3D.tsx` (außerhalb der Export-Gruppe).
+
+---
+
+## 7. Strukturierter Grundriss-Import (`Sprint 11`: DXF / SVG / Apple RoomPlan)
+
+- **Wandgraph-Normalisierung (`src/core/import/importTopology.ts`):** `buildWallGraphFromSegments` verschmilzt nahe Endpunkte (`weldToleranceCm`), filtert Segmente `< 10 cm`, ruft `splitCrossingWalls` auf und schiebt den Grundriss in den positiven Arbeitsbereich.
+- **Formate (`dxfImport.ts`, `svgImport.ts`, `roomPlanImport.ts`):**
+  - **DXF:** Liest `LINE`, `LWPOLYLINE`, `POLYLINE`/`VERTEX` inkl. `$INSUNITS` (`mm`/`cm`/`m`) und Wand-Layer-Priorisierung (`z = -y`).
+  - **SVG:** Extrahiert Vektorlinien (`<line>`, `<polyline>`, `<polygon>`, `<rect>`, `<path>` `M/L/H/V/Z`) samt einstellbarem Maßstabsfaktor (`cmPerUnit`).
+  - **Apple RoomPlan:** Konvertiert `CapturedRoom`-JSON (`walls`, `doors`, `windows`, `openings`, `objects`) inklusive 4×4-Transform-Matrizen und Meter→Zentimeter-Skalierung in kanonisches `FloorplanData` für `PlanImportDialog.tsx`.

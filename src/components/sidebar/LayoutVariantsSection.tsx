@@ -5,7 +5,9 @@ import { useTranslation } from '../../i18n/useTranslation';
 import {
   compareLayoutVariants,
   computeVariantDiff,
+  type VariantComparisonReport,
 } from '../../core/layoutVariants';
+import { sharedErgonomicsWorkerClient } from '../../core/workers/ergonomicsWorkerClient';
 
 export const LayoutVariantsSection: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +28,8 @@ export const LayoutVariantsSection: React.FC = () => {
   const deleteLayoutVariant = useFloorplanStore((s) => s.deleteLayoutVariant);
 
   const [draftName, setDraftName] = React.useState('');
+  const [workerComparison, setWorkerComparison] =
+    React.useState<VariantComparisonReport | null>(null);
 
   const ghostDiff = React.useMemo(() => {
     if (!ghostVariantId) return null;
@@ -34,28 +38,52 @@ export const LayoutVariantsSection: React.FC = () => {
     return computeVariantDiff({ furniture, rugs }, ghost);
   }, [ghostVariantId, layoutVariants, furniture, rugs]);
 
-  const comparison = React.useMemo(() => {
-    if (layoutVariants.length === 0) return null;
-    // Use live furniture & rugs for the active variant so metrics reflect unsaved edits live
-    const effectiveVariants = layoutVariants.map((v) =>
-      v.id === activeVariantId ? { ...v, furniture, rugs } : v
-    );
+  const effectiveVariants = React.useMemo(
+    () =>
+      layoutVariants.map((v) =>
+        v.id === activeVariantId ? { ...v, furniture, rugs } : v
+      ),
+    [layoutVariants, activeVariantId, furniture, rugs]
+  );
+
+  React.useEffect(() => {
+    if (
+      effectiveVariants.length === 0 ||
+      !sharedErgonomicsWorkerClient.isWorkerSupported()
+    ) {
+      setWorkerComparison(null);
+      return;
+    }
+    let cancelled = false;
+    void sharedErgonomicsWorkerClient
+      .compareVariantsAsync(
+        { corners, walls, openings, roomLabels, roofSlopes, fixtures },
+        effectiveVariants
+      )
+      .then((res) => {
+        if (!cancelled && res) setWorkerComparison(res);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveVariants, corners, walls, openings, roomLabels, roofSlopes, fixtures]);
+
+  const syncComparison = React.useMemo(() => {
+    if (
+      effectiveVariants.length === 0 ||
+      sharedErgonomicsWorkerClient.isWorkerSupported()
+    ) {
+      return null;
+    }
     return compareLayoutVariants(
       { corners, walls, openings, roomLabels, roofSlopes, fixtures },
       effectiveVariants
     );
-  }, [
-    layoutVariants,
-    activeVariantId,
-    furniture,
-    rugs,
-    corners,
-    walls,
-    openings,
-    roomLabels,
-    roofSlopes,
-    fixtures,
-  ]);
+  }, [effectiveVariants, corners, walls, openings, roomLabels, roofSlopes, fixtures]);
+
+  const comparison = sharedErgonomicsWorkerClient.isWorkerSupported()
+    ? workerComparison
+    : syncComparison;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
