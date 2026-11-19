@@ -8,6 +8,7 @@ import { applyRoomLabels, computeFloorPolygons, isPointInRoom } from '../wallMat
 import { resolveFurnitureVisual } from '../furnitureVisual';
 import { layoutFurnitureParts } from '../furnitureShapes';
 import { computeRoomWoFlVBreakdown, resolveRoofSlopePlanes } from '../roofSlopeMath';
+import { normalizeLevels, scopeFloorplanToLevel } from '../levels';
 import type { Language } from '../../i18n/types';
 
 export interface FurnitureBomRow {
@@ -27,6 +28,7 @@ export interface FurnitureBomRow {
   catalogHeightCm: number | null;
   dimensionDeviates: boolean;
   roomName: string;
+  levelName: string;
   pose: 'open' | 'closed' | '-';
   notes: string;
 }
@@ -34,6 +36,7 @@ export interface FurnitureBomRow {
 export interface RoomBalanceRow {
   id: string;
   name: string;
+  levelName: string;
   flooringType: FlooringType;
   grossAreaSqM: number;
   netAreaSqM: number;
@@ -92,65 +95,88 @@ export function buildFurnitureBomRows(
   language: Language = 'de'
 ): FurnitureBomRow[] {
   const isEn = language === 'en';
-  const rooms = resolveRoomsWithNames(data, language);
   const unassignedLabel = isEn ? 'Unassigned' : 'Nicht zugeordnet';
+  const levels = normalizeLevels(data.levels);
+  const rows: FurnitureBomRow[] = [];
 
-  return data.furniture.map((f) => {
-    const visual = resolveFurnitureVisual(f);
-    const cw = f.catalogWidthCm ?? null;
-    const cd = f.catalogDepthCm ?? null;
-    const ch = f.catalogHeightCm ?? null;
-    const deviates =
-      (cw !== null && Math.abs(f.widthCm - cw) > 0.5) ||
-      (cd !== null && Math.abs(f.depthCm - cd) > 0.5) ||
-      (ch !== null && Math.abs(f.heightCm - ch) > 0.5);
+  for (const lvl of levels) {
+    const scoped =
+      levels.length > 1 ? scopeFloorplanToLevel(data, lvl.id) : data;
+    const rooms = resolveRoomsWithNames(scoped, language);
+    for (const f of scoped.furniture) {
+      const visual = resolveFurnitureVisual(f);
+      const cw = f.catalogWidthCm ?? null;
+      const cd = f.catalogDepthCm ?? null;
+      const ch = f.catalogHeightCm ?? null;
+      const deviates =
+        (cw !== null && Math.abs(f.widthCm - cw) > 0.5) ||
+        (cd !== null && Math.abs(f.depthCm - cd) > 0.5) ||
+        (ch !== null && Math.abs(f.heightCm - ch) > 0.5);
 
-    return {
-      id: f.id,
-      name: f.name,
-      category: f.category,
-      visual,
-      isRealFurniture: Boolean(f.isRealFurniture),
-      brand: f.brand ?? '',
-      modelName: f.modelName ?? '',
-      articleNumber: f.articleNumber ?? '',
-      widthCm: round1(f.widthCm),
-      depthCm: round1(f.depthCm),
-      heightCm: round1(f.heightCm),
-      catalogWidthCm: cw !== null ? round1(cw) : null,
-      catalogDepthCm: cd !== null ? round1(cd) : null,
-      catalogHeightCm: ch !== null ? round1(ch) : null,
-      dimensionDeviates: deviates,
-      roomName: findRoomNameForPoint(f.x, f.z, rooms, unassignedLabel),
-      pose: f.pose === 'open' ? 'open' : f.pose === 'closed' ? 'closed' : '-',
-      notes: f.notes ?? '',
-    };
-  });
+      rows.push({
+        id: f.id,
+        name: f.name,
+        category: f.category,
+        visual,
+        isRealFurniture: Boolean(f.isRealFurniture),
+        brand: f.brand ?? '',
+        modelName: f.modelName ?? '',
+        articleNumber: f.articleNumber ?? '',
+        widthCm: round1(f.widthCm),
+        depthCm: round1(f.depthCm),
+        heightCm: round1(f.heightCm),
+        catalogWidthCm: cw !== null ? round1(cw) : null,
+        catalogDepthCm: cd !== null ? round1(cd) : null,
+        catalogHeightCm: ch !== null ? round1(ch) : null,
+        dimensionDeviates: deviates,
+        roomName: findRoomNameForPoint(f.x, f.z, rooms, unassignedLabel),
+        levelName: lvl.name,
+        pose: f.pose === 'open' ? 'open' : f.pose === 'closed' ? 'closed' : '-',
+        notes: f.notes ?? '',
+      });
+    }
+  }
+  return rows;
 }
 
 export function computeRoomBalanceSummary(
   data: FloorplanData,
   language: Language = 'de'
 ): RoomBalanceSummary {
-  const labeledRooms = resolveRoomsWithNames(data, language);
-  const rawRooms = labeledRooms.map((r) => r.room);
-  const planes = resolveRoofSlopePlanes(data.corners, data.walls, data.roofSlopes, rawRooms);
-  const maxCeilingCm =
-    data.walls.length > 0 ? Math.max(250, ...data.walls.map((w) => w.heightCm)) : 250;
-
+  const levels = normalizeLevels(data.levels);
   let hasRoofSlopes = false;
-  const rooms: RoomBalanceRow[] = labeledRooms.map(({ room, displayName }) => {
-    const woflv = computeRoomWoFlVBreakdown(room, planes, maxCeilingCm);
-    if (woflv.hasRoofSlopes) hasRoofSlopes = true;
-    return {
-      id: room.id,
-      name: displayName,
-      flooringType: room.flooringType ?? 'microcement',
-      grossAreaSqM: round2(room.areaSqM),
-      netAreaSqM: round2(room.netAreaSqM),
-      woflvAreaSqM: round2(woflv.woflvAreaSqM),
-    };
-  });
+  const rooms: RoomBalanceRow[] = [];
+
+  for (const lvl of levels) {
+    const scoped =
+      levels.length > 1 ? scopeFloorplanToLevel(data, lvl.id) : data;
+    const labeledRooms = resolveRoomsWithNames(scoped, language);
+    const rawRooms = labeledRooms.map((r) => r.room);
+    const planes = resolveRoofSlopePlanes(
+      scoped.corners,
+      scoped.walls,
+      scoped.roofSlopes,
+      rawRooms
+    );
+    const maxCeilingCm =
+      scoped.walls.length > 0
+        ? Math.max(lvl.ceilingHeightCm, ...scoped.walls.map((w) => w.heightCm))
+        : lvl.ceilingHeightCm;
+
+    for (const { room, displayName } of labeledRooms) {
+      const woflv = computeRoomWoFlVBreakdown(room, planes, maxCeilingCm);
+      if (woflv.hasRoofSlopes) hasRoofSlopes = true;
+      rooms.push({
+        id: `${lvl.id}:${room.id}`,
+        name: displayName,
+        levelName: lvl.name,
+        flooringType: room.flooringType ?? 'microcement',
+        grossAreaSqM: round2(room.areaSqM),
+        netAreaSqM: round2(room.netAreaSqM),
+        woflvAreaSqM: round2(woflv.woflvAreaSqM),
+      });
+    }
+  }
 
   const totalGrossSqM = round2(rooms.reduce((sum, r) => sum + r.grossAreaSqM, 0));
   const totalNetSqM = round2(rooms.reduce((sum, r) => sum + r.netAreaSqM, 0));
@@ -220,6 +246,7 @@ export function exportFurnitureBomCsv(
         'DimensionDeviates',
         'Pose',
         'Notes',
+        'Level',
       ]
     : [
         'Raum',
@@ -240,6 +267,7 @@ export function exportFurnitureBomCsv(
         'Maßabweichung',
         'Zustand',
         'Notizen',
+        'Geschoss',
       ];
 
   const lines: string[] = [headers.map(escapeCsvCell).join(',')];
@@ -272,6 +300,7 @@ export function exportFurnitureBomCsv(
         r.dimensionDeviates,
         r.pose,
         r.notes,
+        r.levelName,
       ]
         .map(escapeCsvCell)
         .join(',')
@@ -336,10 +365,10 @@ export function exportFurnitureBomMarkdown(
   lines.push('');
   lines.push(
     isEn
-      ? '| Room | Item | Type | Brand / Model | Article No. | Actual (W×D×H) | Catalog (W×D×H) | Delta |'
-      : '| Raum | Bezeichnung | Status | Hersteller / Modell | Artikel-Nr. | Ist-Maß (B×T×H) | Katalog-Maß (B×T×H) | Abweichung |'
+      ? '| Room | Item | Type | Brand / Model | Article No. | Actual (W×D×H) | Catalog (W×D×H) | Delta | Level |'
+      : '| Raum | Bezeichnung | Status | Hersteller / Modell | Artikel-Nr. | Ist-Maß (B×T×H) | Katalog-Maß (B×T×H) | Abweichung | Geschoss |'
   );
-  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (const r of rows) {
     const typeText = r.isRealFurniture
@@ -359,7 +388,7 @@ export function exportFurnitureBomMarkdown(
     const deltaText = r.dimensionDeviates ? (isEn ? 'Yes' : 'Ja') : '-';
 
     lines.push(
-      `| ${escapeMd(r.roomName)} | ${escapeMd(r.name)} | ${typeText} | ${escapeMd(brandModel)} | ${escapeMd(artNo)} | ${actualDims} | ${catalogDims} | ${deltaText} |`
+      `| ${escapeMd(r.roomName)} | ${escapeMd(r.name)} | ${typeText} | ${escapeMd(brandModel)} | ${escapeMd(artNo)} | ${actualDims} | ${catalogDims} | ${deltaText} | ${escapeMd(r.levelName)} |`
     );
   }
 
@@ -368,17 +397,17 @@ export function exportFurnitureBomMarkdown(
   lines.push('');
   lines.push(
     isEn
-      ? '| Room | Flooring | Net Area (m²) | Gross Area (m²) |'
-      : '| Raum | Bodenbelag | Lichte Fläche (m²) | Bruttofläche (m²) |'
+      ? '| Room | Level | Flooring | Net Area (m²) | Gross Area (m²) |'
+      : '| Raum | Geschoss | Bodenbelag | Lichte Fläche (m²) | Bruttofläche (m²) |'
   );
-  lines.push('| --- | --- | ---: | ---: |');
+  lines.push('| --- | --- | --- | ---: | ---: |');
   for (const rm of balance.rooms) {
     lines.push(
-      `| ${escapeMd(rm.name)} | ${rm.flooringType} | ${rm.netAreaSqM.toFixed(2)} | ${rm.grossAreaSqM.toFixed(2)} |`
+      `| ${escapeMd(rm.name)} | ${escapeMd(rm.levelName)} | ${rm.flooringType} | ${rm.netAreaSqM.toFixed(2)} | ${rm.grossAreaSqM.toFixed(2)} |`
     );
   }
   lines.push(
-    `| **${isEn ? 'Total' : 'Summe'}** | - | **${balance.totalNetSqM.toFixed(2)}** | **${balance.totalGrossSqM.toFixed(2)}** |`
+    `| **${isEn ? 'Total' : 'Summe'}** | - | - | **${balance.totalNetSqM.toFixed(2)}** | **${balance.totalGrossSqM.toFixed(2)}** |`
   );
   if (balance.hasRoofSlopes) {
     lines.push('');

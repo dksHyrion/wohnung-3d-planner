@@ -195,12 +195,35 @@ export const TopBar: React.FC = () => {
   };
 
   const getPlanExportData = () => {
-    const { corners, walls, openings, furniture, rugs, roomLabels } = useFloorplanStore.getState();
-    return { corners, walls, openings, furniture, rugs, roomLabels };
+    const {
+      corners,
+      walls,
+      openings,
+      furniture,
+      rugs,
+      roomLabels,
+      roofSlopes,
+      fixtures,
+      levels,
+      stairs,
+    } = useFloorplanStore.getState();
+    return {
+      corners,
+      walls,
+      openings,
+      furniture,
+      rugs,
+      roomLabels,
+      roofSlopes,
+      fixtures,
+      levels,
+      stairs,
+    };
   };
 
   const handleDownloadPlanSvg = () => {
     const data = getPlanExportData();
+    const activeLevelId = useFloorplanStore.getState().activeLevelId;
     const svg = exportScaledFloorplanSvg(data, {
       scale: planScale,
       paperSize: planPaper,
@@ -209,6 +232,7 @@ export const TopBar: React.FC = () => {
       includeDimensions: planIncludeDimensions,
       projectTitle: planTitle.trim() || (language === 'en' ? 'Floorplan Plan' : 'Grundriss Plan'),
       language,
+      levelId: activeLevelId,
     });
     triggerDownload(
       svg,
@@ -219,10 +243,12 @@ export const TopBar: React.FC = () => {
 
   const handleDownloadPlanDxf = () => {
     const data = getPlanExportData();
+    const activeLevelId = useFloorplanStore.getState().activeLevelId;
     const dxf = exportFloorplanDxf(data, {
       includeFurniture: planIncludeFurniture,
       includeDimensions: planIncludeDimensions,
       language,
+      levelId: activeLevelId,
     });
     triggerDownload(dxf, 'application/dxf;charset=utf-8', `plan-${selectedPreset}.dxf`);
   };
@@ -301,6 +327,8 @@ export const TopBar: React.FC = () => {
       roomLabels: s.roomLabels,
       roofSlopes: s.roofSlopes,
       fixtures: s.fixtures,
+      levels: s.levels,
+      stairs: s.stairs,
       variants: s.layoutVariants,
       activeVariantId: s.activeVariantId,
     });

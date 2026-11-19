@@ -16,6 +16,9 @@ import {
   BackgroundImageOverlay,
   Point2D,
   AlignmentGuide,
+  BuildingLevel,
+  LevelViewMode,
+  Staircase,
 } from '../core/types';
 import { MoodPresetKey, QualityMode } from '../core/lighting/moodPresets';
 import { PassageClearanceReport } from '../core/ergonomicsEngine';
@@ -32,11 +35,17 @@ export type SelectableEntityType =
   | 'room'
   | 'rug'
   | 'fixture'
+  | 'stair'
   | null;
 export type CameraPreset = 'axonometric' | 'isometric' | 'top-down' | 'first-person';
 
 export interface FloorplanState {
   language: Language;
+  levels: BuildingLevel[];
+  activeLevelId: string;
+  levelViewMode: LevelViewMode;
+  showGhostBelow2D: boolean;
+  stairs: Staircase[];
   corners: Corner[];
   walls: Wall[];
   openings: WallOpening[];
@@ -212,6 +221,28 @@ export interface FloorplanState {
   setGhostVariantId: (variantId: string | null) => void;
   renameLayoutVariant: (variantId: string, name: string) => void;
   deleteLayoutVariant: (variantId: string) => void;
+  addLevel: (options?: {
+    name?: string;
+    direction?: 'above' | 'below';
+    copyFromLevelId?: string;
+  }) => string;
+  updateLevel: (
+    levelId: string,
+    patch: Partial<Pick<BuildingLevel, 'name' | 'ceilingHeightCm' | 'slabThicknessCm'>>
+  ) => void;
+  removeLevel: (levelId: string) => void;
+  setActiveLevel: (levelId: string) => void;
+  setLevelViewMode: (mode: LevelViewMode) => void;
+  setShowGhostBelow2D: (show: boolean) => void;
+  addStair: (stair?: Partial<Omit<Staircase, 'id'>>) => string;
+  updateStair: (stairId: string, patch: Partial<Omit<Staircase, 'id'>>) => void;
+  moveStair: (
+    stairId: string,
+    x: number,
+    z: number,
+    options?: { recordHistory?: boolean }
+  ) => void;
+  removeStair: (stairId: string) => void;
   loadPreset: (presetKey: string) => void;
   pushUndoSnapshot: () => void;
   setOverlayError: (message: string | null) => void;

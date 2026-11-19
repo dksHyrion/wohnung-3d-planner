@@ -14,7 +14,13 @@ import {
   WallFixture,
   LayoutVariant,
   BackgroundImageOverlay,
+  BuildingLevel,
+  Staircase,
 } from '../core/types';
+import {
+  DEFAULT_LEVEL_ID,
+  normalizeLevels,
+} from '../core/levels';
 import { evaluateFloorplanCollisions } from '../core/collisionEngine';
 import { PRESET_FLOORPLANS } from '../core/presets';
 import { nextFloorplanStoreGeneration, rememberPristinePlan } from './autosave';
@@ -54,6 +60,8 @@ function generateId(prefix: string): string {
 
 function cloneFloorplanData(data: FloorplanData): FloorplanData {
   return {
+    levels: normalizeLevels(data.levels).map((l) => ({ ...l })),
+    stairs: (data.stairs ?? []).map((st) => ({ ...st })),
     corners: data.corners.map((c) => ({ ...c })),
     walls: data.walls.map((w) => ({ ...w })),
     openings: data.openings.map((o) => ({ ...o })),
@@ -83,6 +91,8 @@ function getInitialData(): FloorplanData {
 const MAX_HISTORY = 30;
 
 function captureFloorplanSnapshot(state: {
+  levels?: BuildingLevel[];
+  stairs?: Staircase[];
   corners: Corner[];
   walls: Wall[];
   openings: WallOpening[];
@@ -96,6 +106,8 @@ function captureFloorplanSnapshot(state: {
   backgroundImage?: BackgroundImageOverlay | null;
 }): FloorplanData {
   return cloneFloorplanData({
+    levels: state.levels,
+    stairs: state.stairs,
     corners: state.corners,
     walls: state.walls,
     openings: state.openings,
@@ -135,6 +147,8 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
   const setWithCollisions = (patch: Partial<FloorplanState>, recordHistory = true) => {
     const state = get();
     const hasDataChanged =
+      (patch.levels !== undefined && patch.levels !== state.levels) ||
+      (patch.stairs !== undefined && patch.stairs !== state.stairs) ||
       (patch.corners !== undefined && patch.corners !== state.corners) ||
       (patch.walls !== undefined && patch.walls !== state.walls) ||
       (patch.openings !== undefined && patch.openings !== state.openings) ||
@@ -287,6 +301,11 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
 
   return {
     language: getInitialStoreLanguage(),
+    levels: normalizeLevels(initialData.levels),
+    activeLevelId: normalizeLevels(initialData.levels)[0]?.id ?? DEFAULT_LEVEL_ID,
+    levelViewMode: 'all-stacked',
+    showGhostBelow2D: true,
+    stairs: initialData.stairs ?? [],
     corners: initialData.corners,
     walls: initialData.walls,
     openings: initialData.openings,

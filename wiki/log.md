@@ -4,6 +4,19 @@ Chronologisches Append-Only-Protokoll aller Änderungen an der Wissensbasis gem�
 
 ---
 
+## [2026-11-18] Sprints 12–14 — Mehrgeschossigkeit, Geschossdecken mit Ausschnitten & Parametrische Treppen
+
+- **Action:** `FEATURE`, `MULTI_FLOOR`, `STAIRS`, `EXPORT`, `ERGONOMICS`
+- **Sprint 12 — Multi-Level-Modell (`src/core/levels.ts`, `levelSlice.ts`, `LevelManagerSection.tsx`):**
+  - `BuildingLevel` (`EG`/`OG`/`DG`/`UG`, FOK `elevationCm`, `ceilingHeightCm`, `slabThicknessCm`) sowie optionales `levelId` auf allen grundrissgebundenen Entitäten (`DEFAULT_LEVEL_ID = 'level-0'`).
+  - `scopeFloorplanToLevel`, `normalizeLevels`, `recomputeLevelElevations`, optionales Kopieren der Außenwände beim Anlegen neuer Geschosse, 2D-Ghost-Below-Unterlage und 3D-Gestapelt/Aktiv/Geist-Modi.
+- **Sprint 13 — Parametrische Treppen & Geschossdecken (`src/core/stairsMath.ts`, `src/core/slabMath.ts`, `stairSlice.ts`, `StaircaseMesh3D.tsx`, `StairInspector.tsx`):**
+  - `Staircase` (`straight`, `l-shaped`, `u-shaped`) mit DIN-18065-Schrittmaßprüfung (`2s + a`), automatischen Deckenlöchern (`openingPolygonXZ`) in `computeLevelSlabs`, `THREE.ExtrudeGeometry`-Geschossdecken in `Scene3D.tsx` sowie 2D-DIN-Symbolik (`StairsLayer`).
+- **Sprint 14 — Geschoss-isolierte Kollision, Cross-Floor-Ergonomie & Exporte:**
+  - `collisionEngine.ts` isoliert Wand-/Möbel-/Öffnungsprüfungen je `levelId` und prüft Treppen-/Deckenöffnungsbereiche (`opening-blocked`).
+  - `ergonomicsScorecard.ts` seedet Ober-/Untergeschosse über verbindende Treppen (`evaluateErgonomicsScorecard(..., { levelId })`).
+  - `planSvgExport.ts`, `dxfExport.ts` und `bomExport.ts` unterstützen `levelId`-Filterung, Treppen-Layer (`STAIRS` / `.arch-stair`) und Geschoss-Aufschlüsselung.
+
 ## [2026-11-18] Sprint 11 — Strukturierter Grundriss-Import (DXF / SVG / Apple RoomPlan JSON)
 
 - **Action:** `FEATURE`, `CAD_IMPORT`, `TOPOLOGY`

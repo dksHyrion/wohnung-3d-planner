@@ -9,6 +9,8 @@ import {
   FurnitureCollisionReport,
   EPSILON_CM,
 } from './types';
+import { getEntityLevelId, normalizeLevels, scopeFloorplanToLevel } from './levels';
+import { computeStairGeometry } from './stairsMath';
 import { getWallGeometry, checkWallFitCm, computeFloorPolygons } from './wallMath';
 import { doorHingeOnRight, doorSwingsInward, openingHasSwingArc } from './doorLeaf';
 import { layoutFurnitureParts } from './furnitureShapes';
@@ -424,8 +426,105 @@ function enclosingBox(obbs: OBB[]): THREE.Box3 {
   return box.expandByScalar(0.01);
 }
 
+interface StairObstacleEntry {
+  stairId: string;
+  obb: OBB;
+  box: THREE.Box3;
+}
+
+function computeStairObstaclesForLevel(
+  data: FloorplanData,
+  levelId: string
+): StairObstacleEntry[] {
+  const stairs = data.stairs ?? [];
+  if (stairs.length === 0) return [];
+  const levels = normalizeLevels(data.levels);
+  const levelMap = new Map(levels.map((l) => [l.id, l]));
+  const entries: StairObstacleEntry[] = [];
+
+  for (const st of stairs) {
+    if (st.fromLevelId !== levelId && st.toLevelId !== levelId) continue;
+    const fromLevel = levelMap.get(st.fromLevelId);
+    const toLevel = levelMap.get(st.toLevelId);
+    const geom = computeStairGeometry(st, fromLevel, toLevel);
+
+    if (st.fromLevelId === levelId) {
+      for (const box of [...geom.steps, ...geom.landings]) {
+        // Steps block walking height from floor (0) up to step top so floor furniture cannot sit under low stair clearance
+        const maxH = Math.min(220, Math.max(20, box.yTopCm));
+        const rotMatrix = new THREE.Matrix4().makeRotationY(
+          THREE.MathUtils.degToRad(box.rotationYDeg)
+        );
+        const basis = new THREE.Matrix3().setFromMatrix4(rotMatrix);
+        const obb = new OBB(
+          new THREE.Vector3(box.x, maxH / 2, box.z),
+          new THREE.Vector3(box.widthCm / 2, maxH / 2, box.depthCm / 2),
+          basis
+        );
+        entries.push({ stairId: st.id, obb, box: enclosingBox([obb]) });
+      }
+    }
+
+    if (st.toLevelId === levelId && st.toLevelId !== st.fromLevelId) {
+      // Reserve full stairwell shaft opening on arriving upper floor
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
+      for (const p of geom.openingPolygonXZ) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      }
+      if (Number.isFinite(minX)) {
+        const ceilH = toLevel?.ceilingHeightCm ?? 250;
+        const obb = new OBB(
+          new THREE.Vector3((minX + maxX) / 2, ceilH / 2, (minZ + maxZ) / 2),
+          new THREE.Vector3(
+            Math.max(1, (maxX - minX) / 2),
+            ceilH / 2,
+            Math.max(1, (maxZ - minZ) / 2)
+          ),
+          new THREE.Matrix3()
+        );
+        entries.push({ stairId: st.id, obb, box: enclosingBox([obb]) });
+      }
+    }
+  }
+  return entries;
+}
+
 export function evaluateFloorplanCollisions(
   data: FloorplanData
+): Record<string, FurnitureCollisionReport> {
+  const levelIds = new Set<string>(
+    normalizeLevels(data.levels).map((l) => l.id)
+  );
+  for (const f of data.furniture) levelIds.add(getEntityLevelId(f));
+  for (const w of data.walls) levelIds.add(getEntityLevelId(w));
+  for (const st of data.stairs ?? []) {
+    levelIds.add(st.fromLevelId);
+    levelIds.add(st.toLevelId);
+  }
+
+  if (levelIds.size <= 1 && (data.stairs ?? []).length === 0) {
+    return evaluateSingleLevelCollisions(data, []);
+  }
+
+  const combined: Record<string, FurnitureCollisionReport> = {};
+  for (const levelId of levelIds) {
+    const scoped = scopeFloorplanToLevel(data, levelId);
+    if (scoped.furniture.length === 0) continue;
+    const stairEntries = computeStairObstaclesForLevel(data, levelId);
+    Object.assign(combined, evaluateSingleLevelCollisions(scoped, stairEntries));
+  }
+  return combined;
+}
+
+function evaluateSingleLevelCollisions(
+  data: FloorplanData,
+  stairEntries: StairObstacleEntry[]
 ): Record<string, FurnitureCollisionReport> {
   const cornerMap = new Map(data.corners.map((c) => [c.id, c]));
   const wallMap = new Map(data.walls.map((w) => [w.id, w]));
@@ -736,6 +835,22 @@ export function evaluateFloorplanCollisions(
             message: formatFixtureCollisionMessage(item.name, fbox.type),
           });
           report.hasCollision = true;
+        }
+      }
+    }
+
+    if (stairEntries.length > 0) {
+      for (const stEntry of stairEntries) {
+        if (!itemBox.intersectsBox(stEntry.box)) continue;
+        if (itemOBBs.some((obb) => obb.intersectsOBB(stEntry.obb))) {
+          if (!report.issues.some((i) => i.targetId === stEntry.stairId)) {
+            report.issues.push({
+              type: 'opening-blocked',
+              targetId: stEntry.stairId,
+              message: `"${item.name}" blockiert Treppen- / Deckenöffnungsbereich.`,
+            });
+            report.hasCollision = true;
+          }
         }
       }
     }

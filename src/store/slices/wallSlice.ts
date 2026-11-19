@@ -16,6 +16,7 @@ import {
   splitWallsAtCorner,
 } from '../../core/wallMath';
 import type { FurnitureItem } from '../../core/types';
+import { getEntityLevelId } from '../../core/levels';
 import type { StoreDeps } from '../deps';
 import { propagateAttachedChildren } from './furnitureSlice';
 import type { FloorplanState } from '../state';
@@ -259,7 +260,27 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         z: Number(start.z.toFixed(2)),
       };
 
-      const existingStart = state.corners.find(
+      const activeLevelId = state.activeLevelId;
+      const levelCorners = state.corners.filter(
+        (c) => getEntityLevelId(c) === activeLevelId
+      );
+      const otherCorners = state.corners.filter(
+        (c) => getEntityLevelId(c) !== activeLevelId
+      );
+      const levelWalls = state.walls.filter(
+        (w) => getEntityLevelId(w) === activeLevelId
+      );
+      const otherWalls = state.walls.filter(
+        (w) => getEntityLevelId(w) !== activeLevelId
+      );
+      const levelOpenings = state.openings.filter(
+        (o) => getEntityLevelId(o) === activeLevelId
+      );
+      const otherOpenings = state.openings.filter(
+        (o) => getEntityLevelId(o) !== activeLevelId
+      );
+
+      const existingStart = levelCorners.find(
         (c) =>
           Math.hypot(c.x - normalizedStart.x, c.z - normalizedStart.z) < 0.1
       );
@@ -267,9 +288,10 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         id: generateId('c'),
         x: normalizedStart.x,
         z: normalizedStart.z,
+        levelId: activeLevelId,
       };
 
-      const existingEnd = state.corners.find(
+      const existingEnd = levelCorners.find(
         (c) =>
           c.id !== startCorner.id &&
           Math.hypot(c.x - normalizedEnd.x, c.z - normalizedEnd.z) < 0.1
@@ -278,15 +300,16 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         id: generateId('c'),
         x: normalizedEnd.x,
         z: normalizedEnd.z,
+        levelId: activeLevelId,
       };
 
-      let corners = [...state.corners];
+      let corners = [...levelCorners];
       if (!existingStart) corners.push(startCorner);
       if (!existingEnd) corners.push(endCorner);
 
       // Split existing walls at startCorner or endCorner if landing mid-span (T-junction)
-      let walls = [...state.walls];
-      let openings = [...state.openings];
+      let walls = [...levelWalls];
+      let openings = [...levelOpenings];
 
       const splitStart = splitWallsAtCorner(corners, walls, openings, startCorner, generateId);
       corners = splitStart.corners;
@@ -304,13 +327,14 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         endCornerId: endCorner.id,
         thicknessCm: 15,
         heightCm: 250,
+        levelId: activeLevelId,
       };
 
       // Split X-crossing walls mid-span so planar room face extraction stays intact
       const crossing = splitCrossingWalls(corners, walls, openings, newWall, generateId);
-      corners = crossing.corners;
-      walls = crossing.walls;
-      openings = crossing.openings;
+      corners = [...otherCorners, ...crossing.corners];
+      walls = [...otherWalls, ...crossing.walls];
+      openings = [...otherOpenings, ...crossing.openings];
       const primaryWallId = crossing.createdWallIds[0] ?? newWall.id;
 
       setWithCollisions({
@@ -344,25 +368,46 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         t = Math.max(10, Math.min(geom.lengthCm - 10, proj));
       }
 
+      const wallLevelId = getEntityLevelId(wall);
       const splitCorner: Corner = {
         id: generateId('c'),
         x: Number((start.x + geom.tangent.x * t).toFixed(2)),
         z: Number((start.z + geom.tangent.z * t).toFixed(2)),
+        levelId: wallLevelId,
       };
 
+      const levelCorners = state.corners.filter(
+        (c) => getEntityLevelId(c) === wallLevelId
+      );
+      const otherCorners = state.corners.filter(
+        (c) => getEntityLevelId(c) !== wallLevelId
+      );
+      const levelWalls = state.walls.filter(
+        (w) => getEntityLevelId(w) === wallLevelId
+      );
+      const otherWalls = state.walls.filter(
+        (w) => getEntityLevelId(w) !== wallLevelId
+      );
+      const levelOpenings = state.openings.filter(
+        (o) => getEntityLevelId(o) === wallLevelId
+      );
+      const otherOpenings = state.openings.filter(
+        (o) => getEntityLevelId(o) !== wallLevelId
+      );
+
       const splitResult = splitWallsAtCorner(
-        [...state.corners, splitCorner],
-        state.walls,
-        state.openings,
+        [...levelCorners, splitCorner],
+        levelWalls,
+        levelOpenings,
         splitCorner,
         generateId
       );
       if (!splitResult.didSplit) return null;
 
       setWithCollisions({
-        corners: splitResult.corners,
-        walls: splitResult.walls,
-        openings: splitResult.openings,
+        corners: [...otherCorners, ...splitResult.corners],
+        walls: [...otherWalls, ...splitResult.walls],
+        openings: [...otherOpenings, ...splitResult.openings],
         selectedId: splitCorner.id,
         selectedType: 'corner',
       });
@@ -530,15 +575,27 @@ export function createWallSlice(deps: StoreDeps): WallActions {
 
     updateRoom: (roomId, patch) => {
       const state = get();
+      const activeLevelId = state.activeLevelId;
+      const levelCorners = state.corners.filter(
+        (c) => getEntityLevelId(c) === activeLevelId
+      );
+      const levelWalls = state.walls.filter(
+        (w) => getEntityLevelId(w) === activeLevelId
+      );
+      const levelLabels = state.roomLabels.filter(
+        (l) => getEntityLevelId(l) === activeLevelId
+      );
       const rawRooms = applyRoomLabels(
-        computeFloorPolygons(state.corners, state.walls),
-        state.roomLabels
+        computeFloorPolygons(levelCorners, levelWalls),
+        levelLabels
       );
       const targetRoom = rawRooms.find((r) => r.id === roomId);
       if (!targetRoom) return;
 
-      const existingIdx = state.roomLabels.findIndex((entry) =>
-        pointInPolygon(entry.x, entry.z, targetRoom.corners)
+      const existingIdx = state.roomLabels.findIndex(
+        (entry) =>
+          getEntityLevelId(entry) === activeLevelId &&
+          pointInPolygon(entry.x, entry.z, targetRoom.corners)
       );
 
       let nextRoomLabels: RoomLabel[];
@@ -587,6 +644,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
             x: anchorX,
             z: anchorZ,
             flooringType: patch.flooringType ?? targetRoom.flooringType,
+            levelId: activeLevelId,
           },
         ];
       }
@@ -623,6 +681,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       const newOpening: WallOpening = {
         ...opening,
         id: generateId('op'),
+        levelId: opening.levelId ?? (wall ? getEntityLevelId(wall) : state.activeLevelId),
         widthCm,
         heightCm: Math.max(1, opening.heightCm),
         offsetFromStartCm,
@@ -714,9 +773,11 @@ export function createWallSlice(deps: StoreDeps): WallActions {
     addRoofSlope: (slope) => {
       const state = get();
       const id = generateId('roof');
+      const parentWall = state.walls.find((w) => w.id === slope.wallId);
       const newSlope: RoofSlope = {
         id,
         wallId: slope.wallId,
+        levelId: parentWall ? getEntityLevelId(parentWall) : state.activeLevelId,
         kneeWallHeightCm: Math.max(0, Math.min(250, slope.kneeWallHeightCm)),
         pitchDeg: Math.max(5, Math.min(75, slope.pitchDeg)),
         ...(slope.side ? { side: slope.side } : {}),
@@ -755,9 +816,11 @@ export function createWallSlice(deps: StoreDeps): WallActions {
     addFixture: (fixture) => {
       const state = get();
       const id = generateId('fix');
+      const parentWall = state.walls.find((w) => w.id === fixture.wallId);
       const newFixture: WallFixture = {
         ...fixture,
         id,
+        levelId: fixture.levelId ?? (parentWall ? getEntityLevelId(parentWall) : state.activeLevelId),
         widthCm: Math.max(4, fixture.widthCm),
         heightCm: Math.max(4, fixture.heightCm),
         depthCm: Math.max(1, fixture.depthCm),

@@ -6,6 +6,8 @@ import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { resolveFurnitureVisual } from '../furnitureVisual';
 import { computeWallPlanPolygons } from './wallExportPolygons';
 import { computeWallFixtureBoxes } from '../mepFixtures';
+import { DEFAULT_LEVEL_ID, normalizeLevels, scopeFloorplanToLevel } from '../levels';
+import { computeStairGeometry } from '../stairsMath';
 import type { Language } from '../../i18n/types';
 
 export interface PlanExportOptions {
@@ -20,6 +22,7 @@ export interface PlanExportOptions {
   dateStr?: string;
   autoScale?: boolean;
   language?: Language;
+  levelId?: string;
 }
 
 export interface PlanFitInfo {
@@ -147,9 +150,20 @@ export function computePlanFit(
 }
 
 export function exportScaledFloorplanSvg(
-  data: FloorplanData,
+  rawData: FloorplanData,
   options: PlanExportOptions
 ): string {
+  const allLevels = normalizeLevels(rawData.levels);
+  const targetLevelId =
+    options.levelId ??
+    allLevels.find((l) => l.index === 0)?.id ??
+    allLevels[0]?.id ??
+    DEFAULT_LEVEL_ID;
+  const targetLevel = allLevels.find((l) => l.id === targetLevelId) ?? allLevels[0];
+  const data =
+    options.levelId || allLevels.length > 1
+      ? scopeFloorplanToLevel(rawData, targetLevelId)
+      : rawData;
   const fitInfo = computePlanFit(data, options);
   const effectiveScale = fitInfo.effectiveScale;
   const scaleRatio = effectiveScale === '1:200' ? 0.05 : effectiveScale === '1:100' ? 0.1 : 0.2; // mm per cm
@@ -223,6 +237,9 @@ export function exportScaledFloorplanSvg(
       .arch-window-glass { stroke: #0284c7; stroke-width: 0.3; }
       .arch-rug-rect { fill: #f8fafc; stroke: #94a3b8; stroke-width: 0.3; stroke-dasharray: 1.2 0.8; }
       .arch-fixture { fill: #e2e8f0; stroke: #0f172a; stroke-width: 0.35; }
+      .arch-stair { fill: #f1f5f9; stroke: #0f172a; stroke-width: 0.4; }
+      .arch-stair-tread { stroke: #475569; stroke-width: 0.25; fill: none; }
+      .arch-stair-arrow { stroke: #0f172a; stroke-width: 0.4; fill: none; }
       .arch-furniture-rect { fill: #f1f5f9; stroke: #475569; stroke-width: 0.4; }
       .arch-furniture-detail { fill: none; stroke: #475569; stroke-width: 0.25; }
       .arch-furniture-detail-fill { fill: #ffffff; stroke: #475569; stroke-width: 0.25; }
@@ -421,6 +438,41 @@ export function exportScaledFloorplanSvg(
     }
   }
 
+  // Stairs touching this level
+  const levelStairs = (rawData.stairs ?? []).filter(
+    (st) => st.fromLevelId === targetLevelId || st.toLevelId === targetLevelId
+  );
+  if (levelStairs.length > 0) {
+    const levelMap = new Map(allLevels.map((l) => [l.id, l]));
+    parts.push(`  <!-- Stairs -->`);
+    for (const st of levelStairs) {
+      const geom = computeStairGeometry(
+        st,
+        levelMap.get(st.fromLevelId),
+        levelMap.get(st.toLevelId)
+      );
+      const poly =
+        st.toLevelId === targetLevelId && st.fromLevelId !== targetLevelId
+          ? geom.openingPolygonXZ
+          : geom.footprintPolygonXZ;
+      const pts = poly.map((p) => `${toPaperX(p.x)},${toPaperY(p.z)}`).join(' ');
+      parts.push(`  <g class="arch-stair-group" data-stair-id="${escapeXml(st.id)}">`);
+      parts.push(`    <polygon class="arch-stair" points="${pts}" />`);
+      for (const tl of geom.treadLines) {
+        parts.push(
+          `    <line class="arch-stair-tread" x1="${toPaperX(tl.x1)}" y1="${toPaperY(tl.z1)}" x2="${toPaperX(tl.x2)}" y2="${toPaperY(tl.z2)}" />`
+        );
+      }
+      if (geom.walkArrowPolylineXZ.length >= 2) {
+        const arrowPts = geom.walkArrowPolylineXZ
+          .map((p) => `${toPaperX(p.x)},${toPaperY(p.z)}`)
+          .join(' ');
+        parts.push(`    <polyline class="arch-stair-arrow" points="${arrowPts}" />`);
+      }
+      parts.push(`  </g>`);
+    }
+  }
+
   // Furniture Outlines
   if (options.includeFurniture !== false && data.furniture.length > 0) {
     parts.push(`  <!-- Furniture -->`);
@@ -538,7 +590,11 @@ export function exportScaledFloorplanSvg(
   const tbHeight = 24;
   const tbX = paperW - 10 - tbWidth;
   const tbY = paperH - 10 - tbHeight;
-  const projectTitle = options.projectTitle || (isEn ? 'Floorplan Layout' : 'Grundriss-Stellprobe');
+  const baseTitle = options.projectTitle || (isEn ? 'Floorplan Layout' : 'Grundriss-Stellprobe');
+  const projectTitle =
+    (options.levelId || allLevels.length > 1) && targetLevel?.name
+      ? `${baseTitle} (${targetLevel.name})`
+      : baseTitle;
   const scaleText = effectiveScale === '1:200' ? '1 : 200' : effectiveScale === '1:100' ? '1 : 100' : '1 : 50';
   const dateStr = options.dateStr || new Date().toLocaleDateString(isEn ? 'en-US' : 'de-DE');
   const areaTotalFormatted = totalNetArea.toLocaleString(isEn ? 'en-US' : 'de-DE', {

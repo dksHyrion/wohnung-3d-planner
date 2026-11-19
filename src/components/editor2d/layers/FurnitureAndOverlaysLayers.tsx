@@ -7,12 +7,147 @@ import { computePointDistanceCm } from '../../../core/measureMath';
 import { bedHeadboardDepthCm, isOsakaOpen, layoutFurnitureParts } from '../../../core/furnitureShapes';
 import { computeVariantDiff } from '../../../core/layoutVariants';
 import { resolveFurnitureVisual } from '../../../core/furnitureVisual';
+import { getEntityLevelId } from '../../../core/levels';
+import { computeStairGeometry } from '../../../core/stairsMath';
 import {
   PASSAGE_SEVERITY_COLORS,
   formatPassageBadgeLabel,
   getPassageBadgeTextColor,
 } from '../../../core/ergonomicsEngine';
 import type { CanvasDragState } from '../FloorplanSvg2D';
+
+export const StairsLayer = React.memo(function StairsLayer({
+  setDragState,
+  clientToWorldCm,
+}: {
+  setDragState: React.Dispatch<React.SetStateAction<CanvasDragState>>;
+  clientToWorldCm: (clientX: number, clientY: number) => { x: number; z: number };
+}) {
+  const stairs = useFloorplanStore((s) => s.stairs);
+  const levels = useFloorplanStore((s) => s.levels);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
+  const selectedId = useFloorplanStore((s) => s.selectedId);
+  const selectedType = useFloorplanStore((s) => s.selectedType);
+  const activeTool = useFloorplanStore((s) => s.activeTool);
+  const selectEntity = useFloorplanStore((s) => s.selectEntity);
+
+  const visibleStairs = React.useMemo(
+    () =>
+      stairs.filter(
+        (s) => s.fromLevelId === activeLevelId || s.toLevelId === activeLevelId
+      ),
+    [stairs, activeLevelId]
+  );
+
+  return (
+    <>
+      {visibleStairs.map((stair) => {
+        const fromLevel = levels.find((l) => l.id === stair.fromLevelId);
+        const toLevel = levels.find((l) => l.id === stair.toLevelId);
+        const geom = computeStairGeometry(stair, fromLevel, toLevel);
+        const isArriving =
+          stair.toLevelId === activeLevelId && stair.fromLevelId !== activeLevelId;
+        const isSelected = selectedType === 'stair' && selectedId === stair.id;
+        const strokeCol = isSelected ? '#38bdf8' : geom.din18065Ok ? '#cbd5e1' : '#f59e0b';
+        const polyPts = (
+          isArriving ? geom.openingPolygonXZ : geom.footprintPolygonXZ
+        )
+          .map((p) => `${p.x},${p.z}`)
+          .join(' ');
+        const arrowPts = geom.walkArrowPolylineXZ.map((p) => `${p.x},${p.z}`).join(' ');
+        const arrowEnd = geom.walkArrowPolylineXZ[geom.walkArrowPolylineXZ.length - 1];
+        const arrowPrev = geom.walkArrowPolylineXZ[geom.walkArrowPolylineXZ.length - 2];
+        let arrowHead = null;
+        if (arrowEnd && arrowPrev) {
+          const dx = arrowEnd.x - arrowPrev.x;
+          const dz = arrowEnd.z - arrowPrev.z;
+          const len = Math.hypot(dx, dz) || 1;
+          const ux = dx / len;
+          const uz = dz / len;
+          const px = -uz;
+          const pz = ux;
+          const tip = `${arrowEnd.x},${arrowEnd.z}`;
+          const left = `${arrowEnd.x - ux * 12 + px * 7},${arrowEnd.z - uz * 12 + pz * 7}`;
+          const right = `${arrowEnd.x - ux * 12 - px * 7},${arrowEnd.z - uz * 12 - pz * 7}`;
+          arrowHead = <polygon points={`${tip} ${left} ${right}`} fill={strokeCol} />;
+        }
+
+        return (
+          <g
+            key={stair.id}
+            data-stair-id={stair.id}
+            style={{ cursor: 'move' }}
+            onPointerDown={(e) => {
+              if (activeTool !== 'select') return;
+              e.stopPropagation();
+              selectEntity(stair.id, 'stair');
+              const pt = clientToWorldCm(e.clientX, e.clientY);
+              setDragState({
+                type: 'stair',
+                stairId: stair.id,
+                offsetX: pt.x - stair.x,
+                offsetZ: pt.z - stair.z,
+              });
+            }}
+          >
+            <polygon
+              points={polyPts}
+              fill={isArriving ? 'rgba(15, 23, 42, 0.35)' : 'rgba(148, 163, 184, 0.18)'}
+              stroke={strokeCol}
+              strokeWidth={isSelected ? 2.8 : 1.6}
+              strokeDasharray={isArriving ? '6 4' : undefined}
+            />
+            {isArriving && geom.openingPolygonXZ.length >= 4 && (
+              <>
+                <line
+                  x1={geom.openingPolygonXZ[0].x}
+                  y1={geom.openingPolygonXZ[0].z}
+                  x2={geom.openingPolygonXZ[2].x}
+                  y2={geom.openingPolygonXZ[2].z}
+                  stroke={strokeCol}
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                  pointerEvents="none"
+                />
+                <line
+                  x1={geom.openingPolygonXZ[1].x}
+                  y1={geom.openingPolygonXZ[1].z}
+                  x2={geom.openingPolygonXZ[3].x}
+                  y2={geom.openingPolygonXZ[3].z}
+                  stroke={strokeCol}
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                  pointerEvents="none"
+                />
+              </>
+            )}
+            {!isArriving &&
+              geom.treadLines.map((tl, idx) => (
+                <line
+                  key={`tread-${idx}`}
+                  x1={tl.x1}
+                  y1={tl.z1}
+                  x2={tl.x2}
+                  y2={tl.z2}
+                  stroke={strokeCol}
+                  strokeWidth={1}
+                  pointerEvents="none"
+                />
+              ))}
+            <polyline
+              points={arrowPts}
+              fill="none"
+              stroke={strokeCol}
+              strokeWidth={1.8}
+              pointerEvents="none"
+            />
+            {arrowHead}
+          </g>
+        );
+      })}
+    </>
+  );
+});
 
 export const FurnitureLayer = React.memo(function FurnitureLayer({
   setDragState,
@@ -22,6 +157,7 @@ export const FurnitureLayer = React.memo(function FurnitureLayer({
   clientToWorldCm: (clientX: number, clientY: number) => { x: number; z: number };
 }) {
   const furniture = useFloorplanStore((s) => s.furniture);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedIds = useFloorplanStore((s) => s.selectedIds);
@@ -30,9 +166,14 @@ export const FurnitureLayer = React.memo(function FurnitureLayer({
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
   const toggleSelectFurniture = useFloorplanStore((s) => s.toggleSelectFurniture);
 
+  const levelFurniture = React.useMemo(
+    () => furniture.filter((f) => getEntityLevelId(f) === activeLevelId),
+    [furniture, activeLevelId]
+  );
+
   return (
     <>
-      {furniture.map((item) => {
+      {levelFurniture.map((item) => {
         const report = collisionReports[item.id];
         const hasCollision = report?.hasCollision ?? false;
         const hasClearanceBlocked =
@@ -262,14 +403,40 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
   const showPassageHeatmap = useFloorplanStore((s) => s.showPassageHeatmap);
   const passageReport = useFloorplanStore((s) => s.passageReport);
   const ergonomicsScorecard = useFloorplanStore((s) => s.ergonomicsScorecard);
-  const corners = useFloorplanStore((s) => s.corners);
-  const walls = useFloorplanStore((s) => s.walls);
-  const openings = useFloorplanStore((s) => s.openings);
-  const furniture = useFloorplanStore((s) => s.furniture);
-  const roomLabels = useFloorplanStore((s) => s.roomLabels);
-  const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const allCorners = useFloorplanStore((s) => s.corners);
+  const allWalls = useFloorplanStore((s) => s.walls);
+  const allOpenings = useFloorplanStore((s) => s.openings);
+  const allFurniture = useFloorplanStore((s) => s.furniture);
+  const allRoomLabels = useFloorplanStore((s) => s.roomLabels);
+  const allRoofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
+
+  const corners = React.useMemo(
+    () => allCorners.filter((c) => getEntityLevelId(c) === activeLevelId),
+    [allCorners, activeLevelId]
+  );
+  const walls = React.useMemo(
+    () => allWalls.filter((w) => getEntityLevelId(w) === activeLevelId),
+    [allWalls, activeLevelId]
+  );
+  const openings = React.useMemo(
+    () => allOpenings.filter((o) => getEntityLevelId(o) === activeLevelId),
+    [allOpenings, activeLevelId]
+  );
+  const furniture = React.useMemo(
+    () => allFurniture.filter((f) => getEntityLevelId(f) === activeLevelId),
+    [allFurniture, activeLevelId]
+  );
+  const roomLabels = React.useMemo(
+    () => allRoomLabels.filter((l) => getEntityLevelId(l) === activeLevelId),
+    [allRoomLabels, activeLevelId]
+  );
+  const roofSlopes = React.useMemo(
+    () => allRoofSlopes.filter((s) => getEntityLevelId(s) === activeLevelId),
+    [allRoofSlopes, activeLevelId]
+  );
 
   const roofContours = React.useMemo(() => {
     if (!roofSlopes || roofSlopes.length === 0) return [];
@@ -705,14 +872,20 @@ export const CornersLayer = React.memo(function CornersLayer({
   setDragState: React.Dispatch<React.SetStateAction<CanvasDragState>>;
 }) {
   const corners = useFloorplanStore((s) => s.corners);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
+  const levelCorners = React.useMemo(
+    () => corners.filter((c) => getEntityLevelId(c) === activeLevelId),
+    [corners, activeLevelId]
+  );
+
   return (
     <>
-      {corners.map((c) => {
+      {levelCorners.map((c) => {
         const isSelected = selectedType === 'corner' && selectedId === c.id;
         return (
           <circle

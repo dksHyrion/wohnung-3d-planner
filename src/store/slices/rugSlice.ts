@@ -18,6 +18,7 @@ export function createRugSlice(deps: StoreDeps): RugActions {
       const state = get();
       const newRug: AreaRug = {
         id: generateId('rug'),
+        levelId: rug.levelId ?? state.activeLevelId,
         name: rug.name?.trim() || 'Teppich',
         widthCm: Math.max(20, Number.isFinite(rug.widthCm) ? rug.widthCm : 200),
         depthCm: Math.max(20, Number.isFinite(rug.depthCm) ? rug.depthCm : 160),

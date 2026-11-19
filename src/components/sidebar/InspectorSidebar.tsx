@@ -16,8 +16,11 @@ import { FurnitureInspector } from './FurnitureInspector';
 import { RoomInspector } from './RoomInspector';
 import { RugInspector } from './RugInspector';
 import { FixtureInspector } from './FixtureInspector';
+import { StairInspector } from './StairInspector';
 import { LayoutVariantsSection } from './LayoutVariantsSection';
 import { ErgonomicsScorecardSection } from './ErgonomicsScorecardSection';
+import { LevelManagerSection } from './LevelManagerSection';
+import { getEntityLevelId } from '../../core/levels';
 import {
   CatalogFurnitureTemplate,
   FURNITURE_CATALOG,
@@ -62,6 +65,8 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const fixtures = useFloorplanStore((s) => s.fixtures);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs = useFloorplanStore((s) => s.rugs);
+  const stairs = useFloorplanStore((s) => s.stairs);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedIds = useFloorplanStore((s) => s.selectedIds);
@@ -75,11 +80,33 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const rotateSelectedFurniture = useFloorplanStore((s) => s.rotateSelectedFurniture);
   const removeSelectedFurniture = useFloorplanStore((s) => s.removeSelectedFurniture);
   const addRug = useFloorplanStore((s) => s.addRug);
+  const addStair = useFloorplanStore((s) => s.addStair);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
+  const levelCorners = useMemo(
+    () => corners.filter((c) => getEntityLevelId(c) === activeLevelId),
+    [corners, activeLevelId]
+  );
+  const levelWalls = useMemo(
+    () => walls.filter((w) => getEntityLevelId(w) === activeLevelId),
+    [walls, activeLevelId]
+  );
+  const levelRoomLabels = useMemo(
+    () => roomLabels.filter((l) => getEntityLevelId(l) === activeLevelId),
+    [roomLabels, activeLevelId]
+  );
+  const levelFurniture = useMemo(
+    () => furniture.filter((f) => getEntityLevelId(f) === activeLevelId),
+    [furniture, activeLevelId]
+  );
+  const levelRugs = useMemo(
+    () => rugs.filter((r) => getEntityLevelId(r) === activeLevelId),
+    [rugs, activeLevelId]
+  );
+
   const computedRooms = useMemo(
-    () => applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels),
-    [corners, walls, roomLabels]
+    () => applyRoomLabels(computeFloorPolygons(levelCorners, levelWalls), levelRoomLabels),
+    [levelCorners, levelWalls, levelRoomLabels]
   );
 
   // Catalog tab filter state
@@ -142,6 +169,11 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       ? rugs.find((r) => r.id === selectedId) ?? null
       : null;
 
+  const selectedStair =
+    selectedType === 'stair'
+      ? stairs.find((st) => st.id === selectedId) ?? null
+      : null;
+
   const selectedFixture =
     selectedType === 'fixture'
       ? fixtures.find((fx) => fx.id === selectedId) ?? null
@@ -176,12 +208,12 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   }, [furniture, selectedFurniture]);
 
   const getRoomCenter = () => {
-    if (corners.length === 0) return { x: 200, z: 200 };
-    const sumX = corners.reduce((acc, c) => acc + c.x, 0);
-    const sumZ = corners.reduce((acc, c) => acc + c.z, 0);
+    if (levelCorners.length === 0) return { x: 200, z: 200 };
+    const sumX = levelCorners.reduce((acc, c) => acc + c.x, 0);
+    const sumZ = levelCorners.reduce((acc, c) => acc + c.z, 0);
     return {
-      x: Math.round(sumX / corners.length),
-      z: Math.round(sumZ / corners.length),
+      x: Math.round(sumX / levelCorners.length),
+      z: Math.round(sumZ / levelCorners.length),
     };
   };
 
@@ -219,6 +251,8 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
 
   return (
     <aside className="sidebar">
+      <LevelManagerSection />
+
       {/* 1. Selected Wall Inspector */}
       {selectedWall && (
         <>
@@ -305,6 +339,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
 
       {/* 4b. Selected Rug Inspector */}
       {selectedRug && <RugInspector selectedRug={selectedRug} />}
+
+      {/* 4b2. Selected Staircase Inspector */}
+      {selectedStair && <StairInspector selectedStair={selectedStair} />}
 
       {/* 4c. Selected Wall Fixture (MEP) Inspector */}
       {selectedFixture && <FixtureInspector selectedFixture={selectedFixture} />}
@@ -659,13 +696,13 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       </section>
 
       {/* Quick list of placed furniture with collision indicator */}
-      {furniture.length > 0 && (
+      {levelFurniture.length > 0 && (
         <section className="sidebar-section">
           <div className="sidebar-title">
-            <span>{t('inspector.placedFurniture.title', { count: furniture.length })}</span>
+            <span>{t('inspector.placedFurniture.title', { count: levelFurniture.length })}</span>
           </div>
           <div className="catalog-grid">
-            {furniture.map((f) => {
+            {levelFurniture.map((f) => {
               const hasCol = collisionReports[f.id]?.hasCollision ?? false;
               const isSel = selectedType === 'furniture' && selectedId === f.id;
               return (
@@ -705,7 +742,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       {/* Quick Rugs & Textile Zones Section */}
       <section className="sidebar-section">
         <div className="sidebar-title">
-          <span>{t('inspector.placedRugs.title', { count: rugs.length })}</span>
+          <span>{t('inspector.placedRugs.title', { count: levelRugs.length })}</span>
           <button
             type="button"
             className="btn btn-outline"
@@ -713,7 +750,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             onClick={() => {
               const center = getRoomCenter();
               addRug({
-                name: `${t('inspector.rug.defaultName')} ${rugs.length + 1}`,
+                name: `${t('inspector.rug.defaultName')} ${levelRugs.length + 1}`,
                 widthCm: 220,
                 depthCm: 160,
                 x: center.x,
@@ -727,9 +764,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
             <span>{t('inspector.placedRugs.add')}</span>
           </button>
         </div>
-        {rugs.length > 0 && (
+        {levelRugs.length > 0 && (
           <div className="catalog-grid">
-            {rugs.map((r) => {
+            {levelRugs.map((r) => {
               const isSel = selectedType === 'rug' && selectedId === r.id;
               return (
                 <button
@@ -759,6 +796,54 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
                       display: 'inline-block',
                     }}
                   />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Quick Stairs Section */}
+      <section className="sidebar-section">
+        <div className="sidebar-title">
+          <span>{t('stairs.sectionTitle', { count: stairs.length })}</span>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+            onClick={() => {
+              const center = getRoomCenter();
+              addStair({ x: center.x, z: center.z });
+            }}
+          >
+            <Plus size={12} />
+            <span>{t('stairs.add')}</span>
+          </button>
+        </div>
+        {stairs.length > 0 && (
+          <div className="catalog-grid">
+            {stairs.map((st) => {
+              const isSel = selectedType === 'stair' && selectedId === st.id;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  className="catalog-item-btn"
+                  style={{ borderColor: isSel ? '#38bdf8' : undefined }}
+                  onClick={() => selectEntity(st.id, 'stair')}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                      {st.type === 'straight'
+                        ? t('stairs.typeStraight')
+                        : st.type === 'l-shaped'
+                        ? t('stairs.typeLShaped')
+                        : t('stairs.typeUShaped')}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                      {st.widthCm} cm · a={st.treadDepthCm} cm
+                    </div>
+                  </div>
                 </button>
               );
             })}

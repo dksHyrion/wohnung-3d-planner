@@ -24,10 +24,41 @@ export interface FurnitureClearanceResult {
   closestPoint2: { x: number; z: number };
 }
 
+export type LevelViewMode = 'active-only' | 'all-stacked' | 'ghost-below';
+
+export interface BuildingLevel {
+  id: string;
+  name: string;
+  index: number;
+  elevationCm: number;
+  ceilingHeightCm: number;
+  slabThicknessCm: number;
+}
+
+export type StaircaseType = 'straight' | 'l-shaped' | 'u-shaped';
+
+export interface Staircase {
+  id: string;
+  fromLevelId: string;
+  toLevelId: string;
+  type: StaircaseType;
+  x: number;
+  z: number;
+  rotationYDeg: number;
+  widthCm: number;
+  treadDepthCm: number;
+  riserCount?: number;
+  turnDirection?: 'left' | 'right';
+  landingLengthCm?: number;
+  hasRailing?: boolean;
+  color?: string;
+}
+
 export interface Corner {
   id: string;
   x: number; // cm
   z: number; // cm
+  levelId?: string;
 }
 
 export type WallFinishType =
@@ -49,6 +80,7 @@ export interface Wall {
   endCornerId: string;
   thicknessCm: number;
   heightCm: number;
+  levelId?: string;
   posFinish?: WallSideFinish;
   negFinish?: WallSideFinish;
 }
@@ -81,6 +113,7 @@ export interface WallOpening {
   heightCm: number;
   sillHeightCm: number;
   swingDirection?: 'in-left' | 'in-right' | 'out-left' | 'out-right';
+  levelId?: string;
 }
 
 export type FurnitureCategory =
@@ -159,6 +192,7 @@ export interface FurnitureItem {
   /** Lokale IndexedDB-Referenz auf ein hochgeladenes Custom-.glb-Modell. */
   customModelId?: string;
   customModelFilename?: string;
+  levelId?: string;
 }
 
 export type CollisionIssueType =
@@ -190,6 +224,7 @@ export interface WallFixture {
   elevationCm: number;
   side?: 'pos' | 'neg';
   label?: string;
+  levelId?: string;
 }
 
 export interface LayoutVariant {
@@ -206,6 +241,7 @@ export interface RoofSlope {
   kneeWallHeightCm: number;
   pitchDeg: number;
   side?: 'pos' | 'neg';
+  levelId?: string;
 }
 
 export interface CollisionIssue {
@@ -246,6 +282,7 @@ export interface RoomLabel {
   x: number;
   z: number;
   flooringType?: FlooringType;
+  levelId?: string;
 }
 
 export interface AreaRug {
@@ -257,6 +294,7 @@ export interface AreaRug {
   z: number;
   rotationYDeg?: number;
   color?: string;
+  levelId?: string;
 }
 
 export interface BackgroundImageOverlay {
@@ -284,6 +322,8 @@ export type {
 } from './ergonomicsEngine';
 
 export interface FloorplanData {
+  levels?: BuildingLevel[];
+  stairs?: Staircase[];
   corners: Corner[];
   walls: Wall[];
   openings: WallOpening[];

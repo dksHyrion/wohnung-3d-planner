@@ -120,6 +120,7 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
       const newFurniture: FurnitureItem = {
         ...item,
         id: generateId('f'),
+        levelId: item.levelId ?? state.activeLevelId,
         widthCm: Math.max(1, item.widthCm),
         heightCm: Math.max(1, item.heightCm),
         depthCm: Math.max(1, item.depthCm),

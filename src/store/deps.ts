@@ -19,6 +19,8 @@ export interface StoreDeps {
   gcOverlays: () => void;
   cloneFloorplanData: (data: FloorplanData) => FloorplanData;
   captureFloorplanSnapshot: (state: {
+    levels?: FloorplanState['levels'];
+    stairs?: FloorplanState['stairs'];
     corners: FloorplanState['corners'];
     walls: FloorplanState['walls'];
     openings: FloorplanState['openings'];

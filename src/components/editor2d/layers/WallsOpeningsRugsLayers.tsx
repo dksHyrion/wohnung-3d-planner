@@ -3,6 +3,7 @@ import { useFloorplanStore } from '../../../store/useFloorplanStore';
 import { getWallGeometry, applyRoomLabels, computeFloorPolygons } from '../../../core/wallMath';
 import { doorHingeOnRight, doorLeafPlanPoints, doorSwingsInward } from '../../../core/doorLeaf';
 import { computeWallFixtureBoxes } from '../../../core/mepFixtures';
+import { getEntityLevelId } from '../../../core/levels';
 import type { Corner, Wall } from '../../../core/types';
 import type { CanvasDragState } from '../FloorplanSvg2D';
 
@@ -14,14 +15,20 @@ export const RugsLayer = React.memo(function RugsLayer({
   clientToWorldCm: (clientX: number, clientY: number) => { x: number; z: number };
 }) {
   const rugs = useFloorplanStore((s) => s.rugs);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
+  const levelRugs = React.useMemo(
+    () => rugs.filter((r) => getEntityLevelId(r) === activeLevelId),
+    [rugs, activeLevelId]
+  );
+
   return (
     <>
-      {rugs.map((rug) => {
+      {levelRugs.map((rug) => {
         const isSelected = selectedType === 'rug' && selectedId === rug.id;
         return (
           <g
@@ -96,14 +103,57 @@ export const WallsAndOpeningsLayer = React.memo(function WallsAndOpeningsLayer({
   cornerMap: Map<string, Corner>;
   handleWallClick: (event: React.MouseEvent, wall: Wall) => void;
 }) {
-  const walls = useFloorplanStore((s) => s.walls);
-  const corners = useFloorplanStore((s) => s.corners);
-  const roomLabels = useFloorplanStore((s) => s.roomLabels);
-  const openings = useFloorplanStore((s) => s.openings);
-  const fixtures = useFloorplanStore((s) => s.fixtures);
+  const allWalls = useFloorplanStore((s) => s.walls);
+  const allCorners = useFloorplanStore((s) => s.corners);
+  const allRoomLabels = useFloorplanStore((s) => s.roomLabels);
+  const allOpenings = useFloorplanStore((s) => s.openings);
+  const allFixtures = useFloorplanStore((s) => s.fixtures);
+  const levels = useFloorplanStore((s) => s.levels);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
+  const showGhostBelow2D = useFloorplanStore((s) => s.showGhostBelow2D);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedType = useFloorplanStore((s) => s.selectedType);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
+
+  const corners = React.useMemo(
+    () => allCorners.filter((c) => getEntityLevelId(c) === activeLevelId),
+    [allCorners, activeLevelId]
+  );
+  const walls = React.useMemo(
+    () => allWalls.filter((w) => getEntityLevelId(w) === activeLevelId),
+    [allWalls, activeLevelId]
+  );
+  const roomLabels = React.useMemo(
+    () => allRoomLabels.filter((l) => getEntityLevelId(l) === activeLevelId),
+    [allRoomLabels, activeLevelId]
+  );
+  const openings = React.useMemo(
+    () => allOpenings.filter((o) => getEntityLevelId(o) === activeLevelId),
+    [allOpenings, activeLevelId]
+  );
+  const fixtures = React.useMemo(
+    () => allFixtures.filter((fx) => getEntityLevelId(fx) === activeLevelId),
+    [allFixtures, activeLevelId]
+  );
+
+  const ghostBelowWalls = React.useMemo(() => {
+    if (!showGhostBelow2D) return [];
+    const active = levels.find((l) => l.id === activeLevelId);
+    if (!active) return [];
+    const below = levels.find((l) => l.index === active.index - 1);
+    if (!below) return [];
+    const belowCorners = new Map(
+      allCorners.filter((c) => getEntityLevelId(c) === below.id).map((c) => [c.id, c])
+    );
+    return allWalls
+      .filter((w) => getEntityLevelId(w) === below.id)
+      .map((w) => {
+        const s = belowCorners.get(w.startCornerId);
+        const e = belowCorners.get(w.endCornerId);
+        return s && e ? { wall: w, start: s, end: e } : null;
+      })
+      .filter((entry): entry is { wall: Wall; start: Corner; end: Corner } => entry !== null);
+  }, [showGhostBelow2D, levels, activeLevelId, allCorners, allWalls]);
 
   const fixtureBoxes = React.useMemo(() => {
     if (!fixtures || fixtures.length === 0) return [];
@@ -113,6 +163,23 @@ export const WallsAndOpeningsLayer = React.memo(function WallsAndOpeningsLayer({
 
   return (
     <>
+      {ghostBelowWalls.length > 0 && (
+        <g data-testid="ghost-below-walls-2d" pointerEvents="none" opacity={0.28}>
+          {ghostBelowWalls.map(({ wall, start, end }) => (
+            <line
+              key={`ghost-below-${wall.id}`}
+              x1={start.x}
+              y1={start.z}
+              x2={end.x}
+              y2={end.z}
+              stroke="#94a3b8"
+              strokeWidth={wall.thicknessCm}
+              strokeDasharray="10 6"
+              strokeLinecap="square"
+            />
+          ))}
+        </g>
+      )}
       {walls.map((wall) => {
         const start = cornerMap.get(wall.startCornerId);
         const end = cornerMap.get(wall.endCornerId);

@@ -19,6 +19,7 @@ import { computeWallFixtureBoxes } from '../../core/mepFixtures';
 import { computeWallMiterMap, type WallMiterExtents } from '../../core/wallMiter';
 import { computeEffectiveSunLight } from '../../core/windowLight';
 import { FurnitureMesh3D } from './FurnitureMesh3D';
+import { StaircaseMesh3D } from './StaircaseMesh3D';
 import { StudioStage3D } from './StudioStage3D';
 import { RugMesh3D } from './RugMesh3D';
 import { ArchitecturalDimensionLines3D } from './ArchitecturalDimensionLines3D';
@@ -31,7 +32,23 @@ import {
   getParquetBumpTexture,
   getStoneTileBumpTexture,
 } from '../../core/materials/proceduralTextures';
-import { AreaRug, Corner, FurnitureItem, FlooringType, Wall, WallOpening } from '../../core/types';
+import {
+  AreaRug,
+  BuildingLevel,
+  Corner,
+  FurnitureCollisionReport,
+  FurnitureItem,
+  FlooringType,
+  RoofSlope,
+  RoomLabel,
+  Staircase,
+  Wall,
+  WallFixture,
+  WallOpening,
+} from '../../core/types';
+import { getEntityLevelId } from '../../core/levels';
+import { computeLevelSlabs, type LevelSlab } from '../../core/slabMath';
+import { computeStairGeometry } from '../../core/stairsMath';
 import { openingIsWalkthrough, openingLetsLightThrough } from '../../core/doorLeaf';
 import { createFrameThrottle } from '../../core/frameThrottle';
 import {
@@ -811,8 +828,377 @@ export const WallGroup3D = React.memo<WallGroup3DProps>(({
   );
 });
 
+interface FloorTexturesBundle {
+  microcement: THREE.Texture;
+  parquet: THREE.Texture;
+  tile: THREE.Texture;
+  bump: {
+    microcement: THREE.Texture;
+    parquet: THREE.Texture;
+    tile: THREE.Texture;
+  };
+}
+
+function computeRoomFloorShapes(
+  rooms: ReturnType<typeof applyRoomLabels>,
+  arrivingStairHoles: { x: number; z: number }[][] = []
+) {
+  return rooms.map((room, idx) => {
+    const poly = room.netCorners.length >= 3 ? room.netCorners : room.corners;
+    const shape = new THREE.Shape();
+    shape.moveTo(poly[0].x, -poly[0].z);
+    for (let i = 1; i < poly.length; i++) {
+      shape.lineTo(poly[i].x, -poly[i].z);
+    }
+    shape.closePath();
+    const roomHoles = room.netHoles ?? room.holes;
+    const combinedHoles = [...(roomHoles ?? []), ...arrivingStairHoles];
+    for (const hole of combinedHoles) {
+      if (hole.length < 3) continue;
+      const holePath = new THREE.Path();
+      holePath.moveTo(hole[0].x, -hole[0].z);
+      for (let i = 1; i < hole.length; i++) {
+        holePath.lineTo(hole[i].x, -hole[i].z);
+      }
+      holePath.closePath();
+      shape.holes.push(holePath);
+    }
+    return {
+      id: room.id,
+      shape,
+      idx,
+      centroid: room.centroid,
+      areaSqM: room.netAreaSqM > 0 ? room.netAreaSqM : room.areaSqM,
+      name: room.name,
+      flooringType: (room.flooringType ?? 'microcement') as FlooringType,
+    };
+  });
+}
+
+const LevelSlabMesh3D: React.FC<{ slab: LevelSlab; isStudio: boolean }> = React.memo(
+  function LevelSlabMesh3D({ slab, isStudio }) {
+    const geometry = useMemo(() => {
+      if (slab.outerPolygon.length < 3) return null;
+      const shape = new THREE.Shape();
+      shape.moveTo(slab.outerPolygon[0].x, -slab.outerPolygon[0].z);
+      for (let i = 1; i < slab.outerPolygon.length; i++) {
+        shape.lineTo(slab.outerPolygon[i].x, -slab.outerPolygon[i].z);
+      }
+      shape.closePath();
+      for (const hole of slab.holes) {
+        if (hole.length < 3) continue;
+        const holePath = new THREE.Path();
+        holePath.moveTo(hole[0].x, -hole[0].z);
+        for (let i = 1; i < hole.length; i++) {
+          holePath.lineTo(hole[i].x, -hole[i].z);
+        }
+        holePath.closePath();
+        shape.holes.push(holePath);
+      }
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: Math.max(2, slab.thicknessCm),
+        bevelEnabled: false,
+      });
+      geo.rotateX(-Math.PI / 2);
+      return geo;
+    }, [slab]);
+
+    useEffect(() => {
+      return () => {
+        geometry?.dispose();
+      };
+    }, [geometry]);
+
+    if (!geometry) return null;
+
+    return (
+      <mesh
+        geometry={geometry}
+        position={[0, slab.elevationCm - slab.thicknessCm, 0]}
+        receiveShadow
+        castShadow
+      >
+        <meshStandardMaterial
+          color={isStudio ? '#e2e8f0' : '#1e293b'}
+          roughness={0.85}
+          metalness={0.05}
+        />
+      </mesh>
+    );
+  }
+);
+
+const LevelGroup3D: React.FC<{
+  level: BuildingLevel;
+  allLevels: BuildingLevel[];
+  corners: Corner[];
+  walls: Wall[];
+  roomLabels: RoomLabel[];
+  openings: WallOpening[];
+  roofSlopes: RoofSlope[];
+  fixtures: WallFixture[];
+  furniture: FurnitureItem[];
+  rugs: AreaRug[];
+  levelStairs: Staircase[];
+  arrivingStairs: Staircase[];
+  collisionReports: Record<string, FurnitureCollisionReport>;
+  floorTextures: FloorTexturesBundle;
+  renderTheme: 'studio' | 'blueprint';
+  isBeauty: boolean;
+  cutawayEnabled: boolean;
+  showDecor: boolean;
+  selectedId: string | null;
+  selectedIds: string[];
+  selectedType: string | null;
+  sunDirToRoom?: { x: number; y: number; z: number };
+  onSelectWall: (id: string) => void;
+  onSelectOpening: (id: string) => void;
+  onSelectFixture: (id: string) => void;
+  onStartFurnitureDrag: (item: FurnitureItem, hitPoint: THREE.Vector3) => void;
+  onStartRugDrag: (rug: AreaRug, hitPoint: THREE.Vector3) => void;
+  onStartStairDrag: (stair: Staircase, hitPoint: THREE.Vector3) => void;
+}> = React.memo(function LevelGroup3D({
+  level,
+  allLevels,
+  corners,
+  walls,
+  roomLabels,
+  openings,
+  roofSlopes,
+  fixtures,
+  furniture,
+  rugs,
+  levelStairs,
+  arrivingStairs,
+  collisionReports,
+  floorTextures,
+  renderTheme,
+  isBeauty,
+  cutawayEnabled,
+  showDecor,
+  selectedId,
+  selectedIds,
+  selectedType,
+  sunDirToRoom,
+  onSelectWall,
+  onSelectOpening,
+  onSelectFixture,
+  onStartFurnitureDrag,
+  onStartRugDrag,
+  onStartStairDrag,
+}) {
+  const cornerMap = useMemo(
+    () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
+    [corners]
+  );
+
+  const levelCenter = useMemo(() => {
+    if (corners.length === 0) return { x: 250, z: 200 };
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
+    for (const c of corners) {
+      if (c.x < minX) minX = c.x;
+      if (c.x > maxX) maxX = c.x;
+      if (c.z < minZ) minZ = c.z;
+      if (c.z > maxZ) maxZ = c.z;
+    }
+    return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 };
+  }, [corners]);
+
+  const rooms = useMemo(
+    () => applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels),
+    [corners, walls, roomLabels]
+  );
+  const levelMap = useMemo(
+    () => new Map(allLevels.map((l) => [l.id, l])),
+    [allLevels]
+  );
+  const arrivingHoles = useMemo(
+    () =>
+      arrivingStairs.map(
+        (s) =>
+          computeStairGeometry(
+            s,
+            levelMap.get(s.fromLevelId),
+            levelMap.get(s.toLevelId)
+          ).openingPolygonXZ
+      ),
+    [arrivingStairs, levelMap]
+  );
+  const roomFloorShapes = useMemo(
+    () => computeRoomFloorShapes(rooms, arrivingHoles),
+    [rooms, arrivingHoles]
+  );
+  const wallMiterMap = useMemo(() => computeWallMiterMap(corners, walls), [corners, walls]);
+  const roofSlopePlanes = useMemo(
+    () => resolveRoofSlopePlanes(corners, walls, roofSlopes, rooms),
+    [corners, walls, roofSlopes, rooms]
+  );
+  const fixtureBoxes = useMemo(
+    () => computeWallFixtureBoxes(corners, walls, fixtures, rooms),
+    [corners, walls, fixtures, rooms]
+  );
+  const maxCeilingCm = useMemo(
+    () =>
+      walls.length > 0
+        ? Math.max(level.ceilingHeightCm, ...walls.map((w) => w.heightCm))
+        : level.ceilingHeightCm,
+    [walls, level.ceilingHeightCm]
+  );
+  const capMiterMap = useMemo(
+    () =>
+      computeWallMiterMap(
+        corners,
+        walls.map((w) => ({
+          ...w,
+          thicknessCm: w.thicknessCm + WALL_CAP_THICKNESS_OFFSET_CM,
+        }))
+      ),
+    [corners, walls]
+  );
+  const skirtingMiterMap = useMemo(
+    () =>
+      computeWallMiterMap(
+        corners,
+        walls.map((w) => ({
+          ...w,
+          thicknessCm: w.thicknessCm + SKIRTING_THICKNESS_CM * 2,
+        }))
+      ),
+    [corners, walls]
+  );
+  const interiorWallIds = useMemo(
+    () => getInteriorWallIds(corners, walls, rooms),
+    [corners, walls, rooms]
+  );
+  const openingsByWall = useMemo(() => {
+    const map = new Map<string, WallOpening[]>();
+    for (const o of openings) {
+      const list = map.get(o.wallId);
+      if (list) list.push(o);
+      else map.set(o.wallId, [o]);
+    }
+    return map;
+  }, [openings]);
+
+  return (
+    <group name={`building-level-${level.id}`} position={[0, level.elevationCm, 0]}>
+      {roomFloorShapes.map(({ id, shape, flooringType }) => {
+        const isStudio = renderTheme === 'studio';
+        const texture = isStudio ? floorTextures[flooringType] : null;
+        const bumpTexture = isStudio ? floorTextures.bump[flooringType] : null;
+        return (
+          <mesh
+            key={`${level.id}-${id}`}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, 0, 0]}
+            receiveShadow
+          >
+            <shapeGeometry args={[shape]} />
+            <meshPhysicalMaterial
+              {...getFloorMaterialProps(
+                flooringType,
+                isStudio,
+                texture,
+                isBeauty,
+                bumpTexture
+              )}
+            />
+          </mesh>
+        );
+      })}
+
+      {rugs.map((rug) => (
+        <RugMesh3D
+          key={rug.id}
+          widthCm={rug.widthCm}
+          depthCm={rug.depthCm}
+          x={rug.x}
+          z={rug.z}
+          rotationYDeg={rug.rotationYDeg ?? 0}
+          color={renderTheme === 'studio' ? rug.color : '#1e293b'}
+          isSelected={selectedType === 'rug' && selectedId === rug.id}
+          onStartDrag={(pt) => onStartRugDrag(rug, pt)}
+        />
+      ))}
+
+      {walls.map((wall) => {
+        const start = cornerMap.get(wall.startCornerId);
+        const end = cornerMap.get(wall.endCornerId);
+        if (!start || !end) return null;
+        return (
+          <WallGroup3D
+            key={wall.id}
+            wall={wall}
+            start={start}
+            end={end}
+            openings={openingsByWall.get(wall.id) ?? EMPTY_OPENINGS}
+            roomCenter={levelCenter}
+            cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
+            isSelected={selectedType === 'wall' && selectedId === wall.id}
+            showDecor={showDecor}
+            miter={wallMiterMap.get(wall.id)}
+            capMiter={capMiterMap.get(wall.id)}
+            skirtingMiter={skirtingMiterMap.get(wall.id)}
+            sunDirToRoom={sunDirToRoom}
+            onSelectWall={onSelectWall}
+            onSelectOpening={onSelectOpening}
+          />
+        );
+      })}
+
+      {roofSlopePlanes.map((plane) => (
+        <RoofSlopeMesh3D
+          key={plane.slopeId}
+          plane={plane}
+          maxCeilingCm={maxCeilingCm}
+          theme={renderTheme}
+        />
+      ))}
+
+      {fixtureBoxes.map((box) => (
+        <WallFixtureMesh3D
+          key={box.fixtureId}
+          box={box}
+          isSelected={selectedType === 'fixture' && selectedId === box.fixtureId}
+          onSelect={onSelectFixture}
+        />
+      ))}
+
+      {furniture.map((item) => (
+        <FurnitureMesh3D
+          key={item.id}
+          item={item}
+          report={collisionReports[item.id]}
+          isSelected={
+            selectedType === 'furniture' &&
+            (selectedIds.includes(item.id) || selectedId === item.id)
+          }
+          onStartDrag={onStartFurnitureDrag}
+        />
+      ))}
+
+      {levelStairs.map((stair) => (
+        <StaircaseMesh3D
+          key={stair.id}
+          stair={stair}
+          fromLevel={levelMap.get(stair.fromLevelId)}
+          toLevel={levelMap.get(stair.toLevelId)}
+          isSelected={selectedType === 'stair' && selectedId === stair.id}
+          onStartDrag={onStartStairDrag}
+        />
+      ))}
+    </group>
+  );
+});
+
 export const Scene3D: React.FC = () => {
   const { t, language } = useTranslation();
+  const levels = useFloorplanStore((s) => s.levels);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
+  const levelViewMode = useFloorplanStore((s) => s.levelViewMode);
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
@@ -822,6 +1208,7 @@ export const Scene3D: React.FC = () => {
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs =
     useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
+  const stairs = useFloorplanStore((s) => s.stairs);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const viewMode = useFloorplanStore((s) => s.viewMode);
   const cameraPreset = useFloorplanStore((s) => s.cameraPreset);
@@ -846,6 +1233,7 @@ export const Scene3D: React.FC = () => {
   const rotateSelectedFurniture = useFloorplanStore((s) => s.rotateSelectedFurniture);
   const updateFurniture = useFloorplanStore((s) => s.updateFurniture);
   const moveRug = useFloorplanStore((s) => s.moveRug);
+  const moveStair = useFloorplanStore((s) => s.moveStair);
   const activeAlignmentGuides =
     useFloorplanStore((s) => s.activeAlignmentGuides) ?? EMPTY_ARRAY;
   const clearAlignmentGuides = useFloorplanStore(
@@ -854,7 +1242,7 @@ export const Scene3D: React.FC = () => {
   const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
 
   const [draggingFurniture, setDraggingFurniture] = useState<{
-    kind: 'furniture' | 'furniture-group' | 'rug';
+    kind: 'furniture' | 'furniture-group' | 'rug' | 'stair';
     id: string;
     offsetX: number;
     offsetZ: number;
@@ -883,21 +1271,54 @@ export const Scene3D: React.FC = () => {
   const groupDragCommittedDeltaRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const exportRootRef = useRef<THREE.Group | null>(null);
 
-  const cornerMap = useMemo(
-    () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
-    [corners]
+  const activeLevel = useMemo(
+    () => levels.find((l) => l.id === activeLevelId) ?? levels[0] ?? { id: 'level-0', name: 'EG', index: 0, elevationCm: 0, ceilingHeightCm: 250, slabThicknessCm: 22 },
+    [levels, activeLevelId]
   );
 
-  // Compute room bounding box and centroid in cm
+  const visibleLevels = useMemo(() => {
+    if (levelViewMode === 'active-only') {
+      return [activeLevel];
+    }
+    if (levelViewMode === 'ghost-below') {
+      const below = levels.find((l) => l.index === activeLevel.index - 1);
+      return below ? [below, activeLevel] : [activeLevel];
+    }
+    return [...levels].sort((a, b) => a.index - b.index);
+  }, [levels, activeLevel, levelViewMode]);
+
+  const activeCorners = useMemo(
+    () => corners.filter((c) => getEntityLevelId(c) === activeLevel.id),
+    [corners, activeLevel.id]
+  );
+  const activeWalls = useMemo(
+    () => walls.filter((w) => getEntityLevelId(w) === activeLevel.id),
+    [walls, activeLevel.id]
+  );
+  const activeRoomLabels = useMemo(
+    () => roomLabels.filter((l) => getEntityLevelId(l) === activeLevel.id),
+    [roomLabels, activeLevel.id]
+  );
+  const activeRooms = useMemo(
+    () => applyRoomLabels(computeFloorPolygons(activeCorners, activeWalls), activeRoomLabels),
+    [activeCorners, activeWalls, activeRoomLabels]
+  );
+  const activeRoomFloorShapes = useMemo(
+    () => computeRoomFloorShapes(activeRooms),
+    [activeRooms]
+  );
+
+  // Compute room bounding box and centroid in cm (using active level or fallback all corners)
   const roomBounds = useMemo(() => {
-    if (corners.length === 0) {
+    const boundCorners = activeCorners.length > 0 ? activeCorners : corners;
+    if (boundCorners.length === 0) {
       return { minX: 0, maxX: 500, minZ: 0, maxZ: 400, cx: 250, cz: 200 };
     }
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
-    for (const c of corners) {
+    for (const c of boundCorners) {
       if (c.x < minX) minX = c.x;
       if (c.x > maxX) maxX = c.x;
       if (c.z < minZ) minZ = c.z;
@@ -911,96 +1332,13 @@ export const Scene3D: React.FC = () => {
       cx: (minX + maxX) / 2,
       cz: (minZ + maxZ) / 2,
     };
-  }, [corners]);
+  }, [activeCorners, corners]);
 
-  const roomCenter = useMemo(
-    () => ({ x: roomBounds.cx, z: roomBounds.cz }),
-    [roomBounds.cx, roomBounds.cz]
-  );
-
-  // Extract closed 2D floor polygons for all rooms on the XZ plane (computed once per layout change)
-  const rooms = useMemo(
-    () => applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels),
-    [corners, walls, roomLabels]
-  );
-
-  const roomFloorShapes = useMemo(() => {
-    return rooms.map((room, idx) => {
-      const poly = room.netCorners.length >= 3 ? room.netCorners : room.corners;
-      const shape = new THREE.Shape();
-      shape.moveTo(poly[0].x, -poly[0].z);
-      for (let i = 1; i < poly.length; i++) {
-        shape.lineTo(poly[i].x, -poly[i].z);
-      }
-      shape.closePath();
-      const roomHoles = room.netHoles ?? room.holes;
-      if (roomHoles) {
-        for (const hole of roomHoles) {
-          if (hole.length < 3) continue;
-          const holePath = new THREE.Path();
-          holePath.moveTo(hole[0].x, -hole[0].z);
-          for (let i = 1; i < hole.length; i++) {
-            holePath.lineTo(hole[i].x, -hole[i].z);
-          }
-          holePath.closePath();
-          shape.holes.push(holePath);
-        }
-      }
-      return {
-        id: room.id,
-        shape,
-        idx,
-        centroid: room.centroid,
-        areaSqM: room.netAreaSqM > 0 ? room.netAreaSqM : room.areaSqM,
-        name: room.name,
-        flooringType: room.flooringType ?? 'microcement',
-      };
-    });
-  }, [rooms]);
-
-  const wallMiterMap = useMemo(
-    () => computeWallMiterMap(corners, walls),
-    [corners, walls]
-  );
-  const roofSlopePlanes = useMemo(
-    () => resolveRoofSlopePlanes(corners, walls, roofSlopes, rooms),
-    [corners, walls, roofSlopes, rooms]
-  );
-  const fixtureBoxes = useMemo(
-    () => computeWallFixtureBoxes(corners, walls, fixtures, rooms),
-    [corners, walls, fixtures, rooms]
-  );
-  const maxCeilingCm = useMemo(
-    () => (walls.length > 0 ? Math.max(250, ...walls.map((w) => w.heightCm)) : 250),
-    [walls]
-  );
-  const capMiterMap = useMemo(
-    () =>
-      computeWallMiterMap(
-        corners,
-        walls.map((w) => ({
-          ...w,
-          thicknessCm: w.thicknessCm + WALL_CAP_THICKNESS_OFFSET_CM,
-        }))
-      ),
-    [corners, walls]
-  );
-  const skirtingMiterMap = useMemo(
-    () =>
-      computeWallMiterMap(
-        corners,
-        walls.map((w) => ({
-          ...w,
-          thicknessCm: w.thicknessCm + SKIRTING_THICKNESS_CM * 2,
-        }))
-      ),
-    [corners, walls]
-  );
   const effectiveSun = useMemo(
     () =>
       computeEffectiveSunLight({
-        corners,
-        walls,
+        corners: activeCorners,
+        walls: activeWalls,
         openings,
         roomCenter: { cx: roomBounds.cx, cz: roomBounds.cz },
         sunElevationDeg: mood.sunElevationDeg,
@@ -1008,8 +1346,8 @@ export const Scene3D: React.FC = () => {
         alignSunWithWindows: renderTheme === 'studio' && alignSunWithWindows,
       }),
     [
-      corners,
-      walls,
+      activeCorners,
+      activeWalls,
       openings,
       roomBounds.cx,
       roomBounds.cz,
@@ -1063,22 +1401,10 @@ export const Scene3D: React.FC = () => {
     };
   }, [floorTextures]);
 
-  const interiorWallIds = useMemo(
-    () => getInteriorWallIds(corners, walls, rooms),
-    [corners, walls, rooms]
+  const handleSelectFixture = useCallback(
+    (id: string) => selectEntity(id, 'fixture'),
+    [selectEntity]
   );
-
-  // Stable per-wall opening arrays and handlers keep WallGroup3D's memo effective
-  // while furniture is dragged.
-  const openingsByWall = useMemo(() => {
-    const map = new Map<string, WallOpening[]>();
-    for (const o of openings) {
-      const list = map.get(o.wallId);
-      if (list) list.push(o);
-      else map.set(o.wallId, [o]);
-    }
-    return map;
-  }, [openings]);
   const handleSelectWall = useCallback(
     (wallId: string) => selectEntity(wallId, 'wall'),
     [selectEntity]
@@ -1119,6 +1445,27 @@ export const Scene3D: React.FC = () => {
     });
   };
 
+  const levelSlabs = useMemo(
+    () =>
+      computeLevelSlabs({
+        levels,
+        corners,
+        walls,
+        stairs,
+      }),
+    [levels, corners, walls, stairs]
+  );
+
+  const visibleLevelIds = useMemo(
+    () => new Set(visibleLevels.map((l) => l.id)),
+    [visibleLevels]
+  );
+
+  const visibleSlabs = useMemo(
+    () => levelSlabs.filter((slab) => visibleLevelIds.has(slab.levelId)),
+    [levelSlabs, visibleLevelIds]
+  );
+
   const handleStartRugDrag = (rug: AreaRug, hitPoint: THREE.Vector3) => {
     selectEntity(rug.id, 'rug');
     dragHasMovedRef.current = false;
@@ -1127,6 +1474,17 @@ export const Scene3D: React.FC = () => {
       id: rug.id,
       offsetX: hitPoint.x - rug.x,
       offsetZ: hitPoint.z - rug.z,
+    });
+  };
+
+  const handleStartStairDrag = (stair: Staircase, hitPoint: THREE.Vector3) => {
+    selectEntity(stair.id, 'stair');
+    dragHasMovedRef.current = false;
+    setDraggingFurniture({
+      kind: 'stair',
+      id: stair.id,
+      offsetX: hitPoint.x - stair.x,
+      offsetZ: hitPoint.z - stair.z,
     });
   };
 
@@ -1185,6 +1543,8 @@ export const Scene3D: React.FC = () => {
     dragFrame.schedule(() => {
       if (kind === 'rug') {
         moveRug(id, targetX, targetZ, { recordHistory: false });
+      } else if (kind === 'stair') {
+        moveStair(id, targetX, targetZ, { recordHistory: false });
       } else if (
         kind === 'furniture-group' &&
         anchorStartX !== undefined &&
@@ -1357,114 +1717,50 @@ export const Scene3D: React.FC = () => {
 
         {/* Exportable Architecture & Furniture Root (scaled cm -> m on GLB/USDZ export) */}
         <group ref={exportRootRef} name="exportable-architecture-root">
-          {/* Room Hardwood/Tile/Microcement Floor Meshes */}
-          {roomFloorShapes.map(({ id, shape, flooringType }) => {
-            const isStudio = renderTheme === 'studio';
-            const texture = isStudio ? floorTextures[flooringType] : null;
-            const bumpTexture = isStudio
-              ? floorTextures.bump[flooringType]
-              : null;
-
-            return (
-              <mesh
-                key={id}
-                rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, 0, 0]}
-                receiveShadow
-              >
-                <shapeGeometry args={[shape]} />
-                <meshPhysicalMaterial
-                  {...getFloorMaterialProps(
-                    flooringType,
-                    isStudio,
-                    texture,
-                    isBeauty,
-                    bumpTexture
-                  )}
-                />
-              </mesh>
-            );
-          })}
-
-          {/* Textured Architectural Area Rugs */}
-          {rugs.map((rug) => (
-            <RugMesh3D
-              key={rug.id}
-              widthCm={rug.widthCm}
-              depthCm={rug.depthCm}
-              x={rug.x}
-              z={rug.z}
-              rotationYDeg={rug.rotationYDeg ?? 0}
-              color={renderTheme === 'studio' ? rug.color : '#1e293b'}
-              isSelected={selectedType === 'rug' && selectedId === rug.id}
-              onStartDrag={(pt) => handleStartRugDrag(rug, pt)}
+          {visibleSlabs.map((slab) => (
+            <LevelSlabMesh3D
+              key={slab.id}
+              slab={slab}
+              isStudio={renderTheme === 'studio'}
             />
           ))}
-
-          {/* 3D Walls with Cutaway, Openings & Window Curtains */}
-          {walls.map((wall) => {
-            const start = cornerMap.get(wall.startCornerId);
-            const end = cornerMap.get(wall.endCornerId);
-            if (!start || !end) return null;
-
-            return (
-              <WallGroup3D
-                key={wall.id}
-                wall={wall}
-                start={start}
-                end={end}
-                openings={openingsByWall.get(wall.id) ?? EMPTY_OPENINGS}
-                roomCenter={roomCenter}
-                cutawayEnabled={cutawayEnabled && !interiorWallIds.has(wall.id)}
-                isSelected={selectedType === 'wall' && selectedId === wall.id}
-                showDecor={showDecor}
-                miter={wallMiterMap.get(wall.id)}
-                capMiter={capMiterMap.get(wall.id)}
-                skirtingMiter={skirtingMiterMap.get(wall.id)}
-                sunDirToRoom={renderTheme === 'studio' ? effectiveSun.dirToRoom : undefined}
-                onSelectWall={handleSelectWall}
-                onSelectOpening={handleSelectOpening}
-              />
-            );
-          })}
-
-          {/* 3D Roof Slopes (Dachschrägen) */}
-          {roofSlopePlanes.map((plane) => (
-            <RoofSlopeMesh3D
-              key={plane.slopeId}
-              plane={plane}
-              maxCeilingCm={maxCeilingCm}
-              theme={renderTheme}
-            />
-          ))}
-
-          {/* 3D Wall MEP Fixtures (Radiators, Sockets, Switches, Data, Water, Shafts) */}
-          {fixtureBoxes.map((box) => (
-            <WallFixtureMesh3D
-              key={box.fixtureId}
-              box={box}
-              isSelected={selectedType === 'fixture' && selectedId === box.fixtureId}
-              onSelect={(id) => selectEntity(id, 'fixture')}
-            />
-          ))}
-
-          {/* 3D Furniture Items */}
-          {furniture.map((item) => (
-            <FurnitureMesh3D
-              key={item.id}
-              item={item}
-              report={collisionReports[item.id]}
-              isSelected={
-                selectedType === 'furniture' &&
-                (selectedIds.includes(item.id) || selectedId === item.id)
-              }
-              onStartDrag={handleStartFurnitureDrag}
+          {visibleLevels.map((lvl) => (
+            <LevelGroup3D
+              key={lvl.id}
+              level={lvl}
+              allLevels={levels}
+              corners={corners.filter((c) => getEntityLevelId(c) === lvl.id)}
+              walls={walls.filter((w) => getEntityLevelId(w) === lvl.id)}
+              roomLabels={roomLabels.filter((l) => getEntityLevelId(l) === lvl.id)}
+              openings={openings.filter((o) => getEntityLevelId(o) === lvl.id)}
+              roofSlopes={roofSlopes.filter((s) => getEntityLevelId(s) === lvl.id)}
+              fixtures={fixtures.filter((fx) => getEntityLevelId(fx) === lvl.id)}
+              furniture={furniture.filter((f) => getEntityLevelId(f) === lvl.id)}
+              rugs={rugs.filter((r) => getEntityLevelId(r) === lvl.id)}
+              levelStairs={stairs.filter((s) => s.fromLevelId === lvl.id)}
+              arrivingStairs={stairs.filter((s) => s.toLevelId === lvl.id)}
+              collisionReports={collisionReports}
+              floorTextures={floorTextures}
+              renderTheme={renderTheme}
+              isBeauty={isBeauty}
+              cutawayEnabled={cutawayEnabled}
+              showDecor={showDecor}
+              selectedId={selectedId}
+              selectedIds={selectedIds}
+              selectedType={selectedType}
+              sunDirToRoom={renderTheme === 'studio' ? effectiveSun.dirToRoom : undefined}
+              onSelectWall={handleSelectWall}
+              onSelectOpening={handleSelectOpening}
+              onSelectFixture={handleSelectFixture}
+              onStartFurnitureDrag={handleStartFurnitureDrag}
+              onStartRugDrag={handleStartRugDrag}
+              onStartStairDrag={handleStartStairDrag}
             />
           ))}
         </group>
 
-        {/* Floor-stamped architectural room text */}
-        {roomFloorShapes.map(({ id, centroid, areaSqM, idx, name }) => {
+        {/* Floor-stamped architectural room text (active level) */}
+        {activeRoomFloorShapes.map(({ id, centroid, areaSqM, idx, name }) => {
           const areaFormatted =
             language === 'en'
               ? areaSqM.toFixed(1)
@@ -1473,8 +1769,8 @@ export const Scene3D: React.FC = () => {
           const title = (name ?? defaultName).toUpperCase();
           return (
             <Text
-              key={`label-${id}`}
-              position={[centroid.x, 1.2, centroid.z]}
+              key={`label-${activeLevel.id}-${id}`}
+              position={[centroid.x, activeLevel.elevationCm + 1.2, centroid.z]}
               rotation={[-Math.PI / 2, 0, 0]}
               color={renderTheme === 'studio' ? '#64748b' : '#94a3b8'}
               fontSize={18}
@@ -1492,7 +1788,7 @@ export const Scene3D: React.FC = () => {
           <mesh
             userData={{ exportIgnore: true }}
             rotation={[-Math.PI / 2, 0, 0]}
-            position={[roomBounds.cx, 0.5, roomBounds.cz]}
+            position={[roomBounds.cx, activeLevel.elevationCm + 0.5, roomBounds.cz]}
             onPointerMove={handleDragPlaneMove}
             onPointerUp={handleDragPlaneUp}
             onPointerCancel={handleDragPlaneUp}
@@ -1506,7 +1802,7 @@ export const Scene3D: React.FC = () => {
         {gizmoData && (
           <group name="furniture-transform-gizmo-3d" userData={{ exportIgnore: true }}>
             <mesh
-              position={[gizmoData.pivot.x, 2.5, gizmoData.pivot.z]}
+              position={[gizmoData.pivot.x, activeLevel.elevationCm + 2.5, gizmoData.pivot.z]}
               rotation={[-Math.PI / 2, 0, 0]}
               onPointerDown={(e) => {
                 e.stopPropagation();
@@ -1542,7 +1838,10 @@ export const Scene3D: React.FC = () => {
               <group
                 position={[
                   gizmoData.single.x,
-                  gizmoData.single.elevationCm + gizmoData.single.heightCm + 18,
+                  activeLevel.elevationCm +
+                    gizmoData.single.elevationCm +
+                    gizmoData.single.heightCm +
+                    18,
                   gizmoData.single.z,
                 ]}
                 onPointerDown={(e) => {
@@ -1574,8 +1873,8 @@ export const Scene3D: React.FC = () => {
           <Line
             key={`guide-3d-${idx}`}
             points={[
-              [g.start.x, 2.2, g.start.z],
-              [g.end.x, 2.2, g.end.z],
+              [g.start.x, activeLevel.elevationCm + 2.2, g.start.z],
+              [g.end.x, activeLevel.elevationCm + 2.2, g.end.z],
             ]}
             color={g.kind === 'flush' ? '#ec4899' : '#06b6d4'}
             lineWidth={2.5}
@@ -1587,12 +1886,14 @@ export const Scene3D: React.FC = () => {
 
         {/* Exterior Architectural Perimeter Dimension Lines */}
         {showDimensions3D && (
-          <ArchitecturalDimensionLines3D
-            corners={corners}
-            walls={walls}
-            roomBounds={roomBounds}
-            theme={renderTheme}
-          />
+          <group position={[0, activeLevel.elevationCm, 0]}>
+            <ArchitecturalDimensionLines3D
+              corners={activeCorners}
+              walls={activeWalls}
+              roomBounds={roomBounds}
+              theme={renderTheme}
+            />
+          </group>
         )}
 
         {/* Ergonomics & Passage Clearance Heatmap Overlay */}

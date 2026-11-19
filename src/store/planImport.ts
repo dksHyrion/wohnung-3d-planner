@@ -1,9 +1,11 @@
 import { adoptOverlayImage } from '../core/overlayImageStore';
 import { isFurnitureVisualType } from '../core/furnitureVisual';
+import { normalizeLevels } from '../core/levels';
 import { sanitizeWallSideFinish } from '../core/materials/wallFinishes';
 import {
   AreaRug,
   BackgroundImageOverlay,
+  BuildingLevel,
   Corner,
   FloorplanData,
   FurnitureCategory,
@@ -11,6 +13,8 @@ import {
   LayoutVariant,
   RoofSlope,
   RoomLabel,
+  Staircase,
+  StaircaseType,
   Wall,
   WallFixture,
   WallFixtureType,
@@ -26,10 +30,18 @@ export interface ParsedPlan {
   roomLabels: RoomLabel[];
   roofSlopes: RoofSlope[];
   fixtures: WallFixture[];
+  levels?: BuildingLevel[];
+  stairs?: Staircase[];
   variants: LayoutVariant[];
   activeVariantId: string | null;
   backgroundImage: BackgroundImageOverlay | null;
   importedWasDataUrl: boolean;
+}
+
+function optLevelId(raw: unknown): { levelId?: string } {
+  return typeof raw === 'string' && raw.trim().length > 0
+    ? { levelId: raw.trim().slice(0, 80) }
+    : {};
 }
 
 const MAX_ENTITIES_PER_TYPE = 1000;
@@ -118,6 +130,7 @@ function sanitizeFurnitureList(
       color: typeof f.color === 'string' ? f.color : '#6366f1',
       snappedWallId,
       isRealFurniture: Boolean(f.isRealFurniture),
+      ...optLevelId(f.levelId),
       brand: typeof f.brand === 'string' ? f.brand.slice(0, 100) : undefined,
       modelName: typeof f.modelName === 'string' ? f.modelName.slice(0, 100) : undefined,
       articleNumber:
@@ -209,6 +222,7 @@ function sanitizeRugsList(rawList: unknown): AreaRug[] {
         z: clamp(Number(r.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
         rotationYDeg: finiteOr(r.rotationYDeg, 0),
         color: typeof r.color === 'string' ? r.color : undefined,
+        ...optLevelId(r.levelId),
       });
     }
   }
@@ -245,6 +259,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
         id,
         x: clamp(Number(c.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
         z: clamp(Number(c.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+        ...optLevelId(c.levelId),
       });
     }
 
@@ -278,6 +293,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
         heightCm: clamp(Number(w.heightCm), 50, 1000),
         ...(posFinish ? { posFinish } : {}),
         ...(negFinish ? { negFinish } : {}),
+        ...optLevelId(w.levelId),
       });
     }
 
@@ -321,6 +337,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
         heightCm: clamp(Number(o.heightCm), 1, 1000),
         sillHeightCm: clamp(Number(o.sillHeightCm), 0, 1000),
         swingDirection,
+        ...optLevelId(o.levelId),
       });
     }
 
@@ -349,6 +366,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
             x: clamp(Number(label.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
             z: clamp(Number(label.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
             ...(flooringType ? { flooringType } : {}),
+            ...optLevelId(label.levelId),
           });
         }
       }
@@ -410,6 +428,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
           kneeWallHeightCm,
           pitchDeg,
           ...(side ? { side } : {}),
+          ...optLevelId(s.levelId),
         });
       }
     }
@@ -451,6 +470,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
           ...(typeof fx.label === 'string' && fx.label.trim()
             ? { label: fx.label.trim().slice(0, 80) }
             : {}),
+          ...optLevelId(fx.levelId),
         });
       }
     }
@@ -479,6 +499,87 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
         ? parsed.activeVariantId
         : null;
 
+    const levels = Array.isArray(parsed.levels)
+      ? normalizeLevels(
+          parsed.levels
+            .filter(
+              (lvl): lvl is BuildingLevel =>
+                Boolean(lvl) &&
+                typeof lvl === 'object' &&
+                typeof lvl.id === 'string' &&
+                lvl.id.trim().length > 0 &&
+                Number.isFinite(lvl.index) &&
+                Number.isFinite(lvl.ceilingHeightCm) &&
+                Number.isFinite(lvl.slabThicknessCm),
+            )
+            .map((lvl) => ({
+              id: lvl.id.trim().slice(0, 80),
+              name:
+                typeof lvl.name === 'string' && lvl.name.trim()
+                  ? lvl.name.trim().slice(0, 80)
+                  : lvl.id.trim(),
+              index: Math.round(lvl.index),
+              elevationCm: finiteOr(lvl.elevationCm, 0),
+              ceilingHeightCm: clamp(lvl.ceilingHeightCm, 100, 600),
+              slabThicknessCm: clamp(lvl.slabThicknessCm, 5, 100),
+            })),
+        )
+      : undefined;
+
+    const VALID_STAIR_TYPES = new Set<StaircaseType>([
+      'straight',
+      'l-shaped',
+      'u-shaped',
+    ]);
+    const stairs: Staircase[] | undefined = Array.isArray(parsed.stairs)
+      ? (() => {
+          const seenStairIds = new Set<string>();
+          const out: Staircase[] = [];
+          for (const st of parsed.stairs.slice(0, 100)) {
+            if (
+              !st ||
+              typeof st !== 'object' ||
+              typeof st.fromLevelId !== 'string' ||
+              typeof st.toLevelId !== 'string' ||
+              !Number.isFinite(st.x) ||
+              !Number.isFinite(st.z)
+            ) {
+              continue;
+            }
+            const id = dedupeId(typeof st.id === 'string' ? st.id : '', seenStairIds, 'stair');
+            const type: StaircaseType = VALID_STAIR_TYPES.has(st.type)
+              ? st.type
+              : 'straight';
+            out.push({
+              id,
+              type,
+              fromLevelId: st.fromLevelId.trim().slice(0, 80),
+              toLevelId: st.toLevelId.trim().slice(0, 80),
+              x: clamp(Number(st.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+              z: clamp(Number(st.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
+              rotationYDeg: finiteOr(st.rotationYDeg, 0),
+              widthCm: clamp(finiteOr(st.widthCm, 100), 60, 300),
+              treadDepthCm: clamp(finiteOr(st.treadDepthCm, 27), 18, 45),
+              riserCount:
+                typeof st.riserCount === 'number' && Number.isFinite(st.riserCount)
+                  ? Math.round(clamp(st.riserCount, 3, 40))
+                  : undefined,
+              landingLengthCm:
+                typeof st.landingLengthCm === 'number' && Number.isFinite(st.landingLengthCm)
+                  ? clamp(st.landingLengthCm, 60, 300)
+                  : undefined,
+              turnDirection:
+                st.turnDirection === 'left' || st.turnDirection === 'right'
+                  ? st.turnDirection
+                  : undefined,
+              hasRailing: typeof st.hasRailing === 'boolean' ? st.hasRailing : true,
+              color: typeof st.color === 'string' ? st.color.slice(0, 40) : undefined,
+            });
+          }
+          return out;
+        })()
+      : undefined;
+
     return {
       corners,
       walls,
@@ -488,6 +589,8 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       roomLabels,
       roofSlopes,
       fixtures,
+      ...(levels ? { levels } : {}),
+      ...(stairs ? { stairs } : {}),
       variants,
       activeVariantId,
       backgroundImage,

@@ -7,6 +7,7 @@ import {
   CornersLayer,
   FurnitureLayer,
   OverlaysAndGuidesLayer,
+  StairsLayer,
   VariantGhostLayer,
 } from './layers/FurnitureAndOverlaysLayers';
 
@@ -27,6 +28,13 @@ export type CanvasDragState =
   | {
       type: 'rug';
       rugId: string;
+      offsetX: number;
+      offsetZ: number;
+      hasMoved?: boolean;
+    }
+  | {
+      type: 'stair';
+      stairId: string;
       offsetX: number;
       offsetZ: number;
       hasMoved?: boolean;
@@ -68,6 +76,7 @@ export function FloorplanSvg2D({
       <RoomsLayer roomPolygons={roomPolygons} />
       <RugsLayer setDragState={setDragState} clientToWorldCm={clientToWorldCm} />
       <WallsAndOpeningsLayer cornerMap={cornerMap} handleWallClick={handleWallClick} />
+      <StairsLayer setDragState={setDragState} clientToWorldCm={clientToWorldCm} />
       <FurnitureLayer setDragState={setDragState} clientToWorldCm={clientToWorldCm} />
       <VariantGhostLayer />
       <OverlaysAndGuidesLayer

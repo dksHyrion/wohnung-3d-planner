@@ -10,7 +10,8 @@
 Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-State und den Render-Komponenten:
 
 1. **`src/core/` (Pure Domain Logic):**
-   * `types.ts`: Domänenmodelle (`Corner`, `Wall`, `WallOpening`, `OpeningType`, `FurnitureItem`, `AreaRug`, `RoofSlope`, `AlignmentGuide`, `FurnitureCollisionReport`, `BackgroundImageOverlay`, `PassageClearance`, `PassageClearanceReport`).
+   * `types.ts`: Domänenmodelle (`BuildingLevel`, `Staircase`, `Corner`, `Wall`, `WallOpening`, `OpeningType`, `FurnitureItem`, `AreaRug`, `RoofSlope`, `AlignmentGuide`, `FurnitureCollisionReport`, `BackgroundImageOverlay`, `PassageClearance`, `PassageClearanceReport`).
+   * `levels.ts`, `stairsMath.ts`, `slabMath.ts`: Geschossverwaltung (`scopeFloorplanToLevel`, `normalizeLevels`), parametrische Treppengeometrie inkl. DIN 18065 (`computeStairGeometry`) und Geschossdecken mit Treppen-Ausschnitten (`computeLevelSlabs`).
    * `geometry2d.ts`: Gemeinsame 2D-Schnittgeometrie (`segmentsIntersect2D`).
    * `wallMath.ts`, `wallMiter.ts`, `wallSubSegments.ts`: 1D-Wandprojektion (`checkWallFitCm`), Wandlängen-Änderung (`setWallLengthCm`), automatischer X-Schnitt (`splitCrossingWalls`), Winkelhalbierenden-Gehrungen (`computeWallMiterMap`), Öffnungs-Subsegmente (`computeWallSubSegments`), Mehrraum-/Loch-Extraktion (`computeFloorPolygons` mit `holes`/`netHoles`), Snapping (`findWallSnap`) und Cutaway (`shouldCutawayWall`).
    * `roofSlopeMath.ts`: Dachschrägen-Ebenen (`resolveRoofSlopePlanes`), Höhenabfrage (`getEffectiveCeilingHeightAt`), 2D-Höhenlinien (`1,00 m` / `2,00 m`), 3D-Flächenquads und WoFlV § 4 Berechnung (`computeRoomWoFlVBreakdown`).
@@ -30,8 +31,10 @@ Die Anwendung trennt mathematische Geometrie-/Kollisionslogik strikt vom UI-Stat
    * `state.ts` hält `FloorplanState`, `CameraPreset` und `SelectableEntityType`. `geometry.ts`, `view.ts`, `history.ts` und `deps.ts` importieren den Typ von dort.
    * `useFloorplanStore.ts` baut den Store mit `createStore` und exportiert den Hook `useFloorplanStore`. Die Aktionsnamen bleiben. `getState`, `setState`, `subscribe` und `getInitialState` bleiben am Hook. Ergänzt sind `moveCorner(id, x, z, { recordHistory?: boolean })` und `moveFurniture(id, x, z, snapThresholdCm, { recordHistory?: boolean })` gegen Undo-Flutung beim Ziehen, `removeWall`, `removeCorner`, `selectRoom`, `updateRoom` sowie `propagateAttachedChildren` für gekoppelte Objekte (`attachedToId`).
    * `getInitialState` auf dem Store-Objekt gibt `getState()` zurück. `renderToStaticMarkup` liest diese Funktion. Eine spätere Zuweisung nur am Hook trifft sie nicht.
-   * `geometry.ts`: Schlanker Orchestrator (< 50 Zeilen), der die Domain-Slices aus `src/store/slices/` aggregiert (`furnitureSlice.ts`, `wallSlice.ts`, `rugSlice.ts`, `presetSlice.ts`) und `propagateAttachedChildren` re-exportiert.
+   * `geometry.ts`: Schlanker Orchestrator, der die Domain-Slices aus `src/store/slices/` aggregiert (`furnitureSlice.ts`, `wallSlice.ts`, `rugSlice.ts`, `presetSlice.ts`, `variantSlice.ts`, `levelSlice.ts`, `stairSlice.ts`) und `propagateAttachedChildren` re-exportiert.
    * `src/store/slices/`:
+     * `levelSlice.ts`: Mehrgeschossigkeit (`levels`, `activeLevelId`, `levelViewMode`, `showGhostBelow2D`).
+     * `stairSlice.ts`: Parametrische Treppen (`addStair`, `updateStair`, `moveStair`, `removeStair`).
      * `furnitureSlice.ts`: Möbel-CRUD, Katalog-Reset, Reale Möbel und Hierarchische Objektkopplung (`propagateAttachedChildren`).
    * `wallSlice.ts`: Wände (inkl. Wandstärken-Sync auf gesnappte Möbel & Kinder), Ecken, Öffnungen, `RoofSlope`-CRUD (`addRoofSlope`, `updateRoofSlope`, `removeRoofSlope`) und Raum-Labels.
    * `rugSlice.ts`: Teppich-Verwaltung (`AreaRug`).

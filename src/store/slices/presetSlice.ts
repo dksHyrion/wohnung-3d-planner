@@ -4,6 +4,7 @@ import {
 } from '../../core/ergonomicsEngine';
 import { sharedErgonomicsWorkerClient } from '../../core/workers/ergonomicsWorkerClient';
 import { PRESET_FLOORPLANS } from '../../core/presets';
+import { DEFAULT_LEVEL_ID, normalizeLevels, scopeFloorplanToLevel } from '../../core/levels';
 import type { StoreDeps } from '../deps';
 import type { FloorplanState } from '../state';
 
@@ -32,20 +33,25 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
       }
 
       if (!sharedErgonomicsWorkerClient.isWorkerSupported()) {
+        const planData = {
+          corners: state.corners,
+          walls: state.walls,
+          openings: state.openings,
+          furniture: state.furniture,
+          roomLabels: state.roomLabels,
+          levels: state.levels,
+          stairs: state.stairs,
+        };
+        const scoped = scopeFloorplanToLevel(planData, state.activeLevelId);
         const passageReport = evaluatePassageClearances(
-          state.furniture,
-          state.walls,
-          state.corners
+          scoped.furniture,
+          scoped.walls,
+          scoped.corners
         );
         const ergonomicsScorecard = evaluateErgonomicsScorecard(
-          {
-            corners: state.corners,
-            walls: state.walls,
-            openings: state.openings,
-            furniture: state.furniture,
-            roomLabels: state.roomLabels,
-          },
-          passageReport
+          planData,
+          passageReport,
+          { levelId: state.activeLevelId }
         );
         set({
           showPassageHeatmap: true,
@@ -68,6 +74,8 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
             openings: state.openings,
             furniture: state.furniture,
             roomLabels: state.roomLabels,
+            levels: state.levels,
+            stairs: state.stairs,
           },
           { immediate: true }
         )
@@ -85,6 +93,9 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
       const preset = PRESET_FLOORPLANS[presetKey];
       if (!preset) return;
       const cloned = cloneFloorplanData(preset.data);
+      const levels = normalizeLevels(cloned.levels);
+      const activeLevelId =
+        levels.find((l) => l.index === 0)?.id ?? levels[0]?.id ?? DEFAULT_LEVEL_ID;
       setWithCollisions({
         corners: cloned.corners,
         walls: cloned.walls,
@@ -94,6 +105,9 @@ export function createPresetSlice(deps: StoreDeps): PresetActions {
         roomLabels: cloned.roomLabels ?? [],
         roofSlopes: cloned.roofSlopes ?? [],
         fixtures: cloned.fixtures ?? [],
+        levels,
+        activeLevelId,
+        stairs: cloned.stairs ?? [],
         layoutVariants: cloned.variants ?? [],
         activeVariantId: cloned.activeVariantId ?? null,
         ghostVariantId: null,

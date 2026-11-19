@@ -5,17 +5,21 @@ import { layoutFurnitureParts } from '../furnitureShapes';
 import { doorHingeOnRight, doorSwingsInward } from '../doorLeaf';
 import { computeWallPlanPolygons } from './wallExportPolygons';
 import { computeWallFixtureBoxes } from '../mepFixtures';
+import { DEFAULT_LEVEL_ID, normalizeLevels, scopeFloorplanToLevel } from '../levels';
+import { computeStairGeometry } from '../stairsMath';
 import type { Language } from '../../i18n/types';
 
 export interface DxfExportOptions {
   includeFurniture?: boolean;
   includeDimensions?: boolean;
   language?: Language;
+  levelId?: string;
 }
 
 const DXF_LAYERS: Array<{ name: string; color: number }> = [
   { name: 'WALLS', color: 7 },
   { name: 'OPENINGS', color: 4 },
+  { name: 'STAIRS', color: 5 },
   { name: 'FURNITURE', color: 3 },
   { name: 'RUGS', color: 8 },
   { name: 'DIMENSIONS', color: 1 },
@@ -149,9 +153,19 @@ function rotateLocalPoint(
  * Global CAD coordinate convention: 1 DXF unit = 1.0 cm, Y = -Z (top-down north-up).
  */
 export function exportFloorplanDxf(
-  data: FloorplanData,
+  rawData: FloorplanData,
   options: DxfExportOptions = {}
 ): string {
+  const allLevels = normalizeLevels(rawData.levels);
+  const targetLevelId =
+    options.levelId ??
+    allLevels.find((l) => l.index === 0)?.id ??
+    allLevels[0]?.id ??
+    DEFAULT_LEVEL_ID;
+  const data =
+    options.levelId || allLevels.length > 1
+      ? scopeFloorplanToLevel(rawData, targetLevelId)
+      : rawData;
   const includeFurniture = options.includeFurniture !== false;
   const includeDimensions = options.includeDimensions !== false;
   const isEn = options.language === 'en';
@@ -187,6 +201,30 @@ export function exportFloorplanDxf(
   pushPair(out, 2, 'ENTITIES');
 
   const cornerMap = new Map(data.corners.map((c) => [c.id, c]));
+
+  // 0b. Stairs touching this level
+  const levelStairs = (rawData.stairs ?? []).filter(
+    (st) => st.fromLevelId === targetLevelId || st.toLevelId === targetLevelId
+  );
+  if (levelStairs.length > 0) {
+    const levelMap = new Map(allLevels.map((l) => [l.id, l]));
+    for (const st of levelStairs) {
+      const geom = computeStairGeometry(
+        st,
+        levelMap.get(st.fromLevelId),
+        levelMap.get(st.toLevelId)
+      );
+      addClosedPolyline(out, 'STAIRS', geom.footprintPolygonXZ);
+      for (const tl of geom.treadLines) {
+        addLine(out, 'STAIRS', tl.x1, dxfY(tl.z1), tl.x2, dxfY(tl.z2));
+      }
+      for (let i = 1; i < geom.walkArrowPolylineXZ.length; i++) {
+        const a = geom.walkArrowPolylineXZ[i - 1];
+        const b = geom.walkArrowPolylineXZ[i];
+        addLine(out, 'STAIRS', a.x, dxfY(a.z), b.x, dxfY(b.z));
+      }
+    }
+  }
 
   // 1. Mitered & opening-cut wall polygons
   const wallPolygons = computeWallPlanPolygons(data.corners, data.walls, data.openings);

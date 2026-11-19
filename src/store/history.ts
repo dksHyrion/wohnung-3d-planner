@@ -10,6 +10,7 @@ import { wouldClobberSavedPlan } from './autosave';
 import { parsePlanJson } from './planImport';
 import { writePlanFile } from './planFile';
 import type { FloorplanState } from './state';
+import { normalizeLevels } from '../core/levels';
 
 type HistoryActions = Pick<
   FloorplanState,
@@ -60,11 +61,19 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       ...previousSnapshot.furniture.map((f) => f.id),
       ...(previousSnapshot.rugs ?? []).map((r) => r.id),
       ...(previousSnapshot.fixtures ?? []).map((fx) => fx.id),
+      ...(previousSnapshot.stairs ?? []).map((st) => st.id),
     ]);
     const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
+    const prevLevels = normalizeLevels(previousSnapshot.levels);
+    const nextActiveLevel = prevLevels.some((l) => l.id === state.activeLevelId)
+      ? state.activeLevelId
+      : prevLevels[0].id;
 
     setWithCollisions(
       {
+        levels: prevLevels,
+        activeLevelId: nextActiveLevel,
+        stairs: previousSnapshot.stairs ?? [],
         corners: previousSnapshot.corners,
         walls: previousSnapshot.walls,
         openings: previousSnapshot.openings,
@@ -106,11 +115,19 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
       ...nextSnapshot.furniture.map((f) => f.id),
       ...(nextSnapshot.rugs ?? []).map((r) => r.id),
       ...(nextSnapshot.fixtures ?? []).map((fx) => fx.id),
+      ...(nextSnapshot.stairs ?? []).map((st) => st.id),
     ]);
     const keepSelection = state.selectedId ? validEntityIds.has(state.selectedId) : false;
+    const nextLevels = normalizeLevels(nextSnapshot.levels);
+    const nextActiveLevel = nextLevels.some((l) => l.id === state.activeLevelId)
+      ? state.activeLevelId
+      : nextLevels[0].id;
 
     setWithCollisions(
       {
+        levels: nextLevels,
+        activeLevelId: nextActiveLevel,
+        stairs: nextSnapshot.stairs ?? [],
         corners: nextSnapshot.corners,
         walls: nextSnapshot.walls,
         openings: nextSnapshot.openings,
@@ -341,6 +358,8 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
     }
     const payload = {
       schemaVersion: 1,
+      levels: state.levels,
+      stairs: state.stairs,
       corners: state.corners,
       walls: state.walls,
       openings: state.openings,
@@ -359,9 +378,13 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
   importJson: (jsonStr) => {
     const parsed = parsePlanJson(jsonStr);
     if (!parsed) return false;
-    const { importedWasDataUrl, variants, activeVariantId, ...plan } = parsed;
+    const { importedWasDataUrl, variants, activeVariantId, levels, stairs, ...plan } = parsed;
+    const normalizedLevels = normalizeLevels(levels);
     setWithCollisions({
       ...plan,
+      levels: normalizedLevels,
+      activeLevelId: normalizedLevels[0].id,
+      stairs,
       layoutVariants: variants,
       activeVariantId,
       ghostVariantId: null,

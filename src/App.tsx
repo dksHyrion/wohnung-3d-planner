@@ -66,6 +66,8 @@ export const App: React.FC = () => {
           state.removeCorner(state.selectedId);
         } else if (state.selectedType === 'rug') {
           state.removeRug(state.selectedId);
+        } else if (state.selectedType === 'stair') {
+          state.removeStair(state.selectedId);
         }
       } else if (e.key === 'Escape') {
         const state = useFloorplanStore.getState();

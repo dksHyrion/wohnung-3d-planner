@@ -13,6 +13,12 @@ import { diningTableLayout, layoutFurnitureParts, localPartWorldCenter } from '.
 import { resolveFurnitureVisual } from './furnitureVisual';
 import { OSAKA_POSES } from './knownFurniture';
 import { evaluateFloorplanCollisions } from './collisionEngine';
+import {
+  DEFAULT_LEVEL_ID,
+  normalizeLevels,
+  scopeFloorplanToLevel,
+} from './levels';
+import { computeStairGeometry } from './stairsMath';
 
 export type DeliveryStatus = 'fits' | 'tilted-fit' | 'blocked';
 export type ScorecardGrade = 'A' | 'B' | 'C' | 'D';
@@ -922,35 +928,100 @@ function gradeFromScore(score: number): ScorecardGrade {
 
 export function evaluateErgonomicsScorecard(
   data: FloorplanData,
-  precomputedPassageReport?: PassageClearanceReport | null
+  precomputedPassageReport?: PassageClearanceReport | null,
+  options?: { levelId?: string }
 ): ErgonomicsScorecardReport {
-  const rooms = applyRoomLabels(computeFloorPolygons(data.corners, data.walls), data.roomLabels);
-  const passageReport =
-    precomputedPassageReport ?? evaluatePassageClearances(data.furniture, data.walls, data.corners);
+  const levels = normalizeLevels(data.levels);
+  const targetLevelId =
+    options?.levelId ??
+    levels.find((l) => l.index === 0)?.id ??
+    levels[0]?.id ??
+    DEFAULT_LEVEL_ID;
+  const scoped =
+    options?.levelId || levels.length > 1
+      ? scopeFloorplanToLevel(data, targetLevelId)
+      : data;
 
-  const walkGrid = buildWalkabilityGrid(data, true, 5);
-  const wallGrid = buildWalkabilityGrid(data, false, 10);
-  const { seeds, hasEntranceSeed } = findSeedPointsForWalkthroughs(data, rooms);
+  const rooms = applyRoomLabels(
+    computeFloorPolygons(scoped.corners, scoped.walls),
+    scoped.roomLabels
+  );
+  const passageReport =
+    !options?.levelId && levels.length <= 1 && precomputedPassageReport
+      ? precomputedPassageReport
+      : evaluatePassageClearances(scoped.furniture, scoped.walls, scoped.corners);
+
+  const walkGrid = buildWalkabilityGrid(scoped, true, 5);
+  const wallGrid = buildWalkabilityGrid(scoped, false, 10);
+  const seedInfo = findSeedPointsForWalkthroughs(scoped, rooms);
+  let { seeds, hasEntranceSeed } = seedInfo;
+
+  // Cross-floor stair reachability: if targetLevelId connects via stairs to a level that has an entrance seed,
+  // inject the stair landing point(s) on targetLevelId as reachable entry seeds.
+  const stairs = data.stairs ?? [];
+  if (stairs.length > 0) {
+    const levelMap = new Map(levels.map((l) => [l.id, l]));
+    const seedLevelIds = new Set<string>();
+    for (const lvl of levels) {
+      const lvlScoped = scopeFloorplanToLevel(data, lvl.id);
+      const lvlRooms = applyRoomLabels(
+        computeFloorPolygons(lvlScoped.corners, lvlScoped.walls),
+        lvlScoped.roomLabels
+      );
+      if (findSeedPointsForWalkthroughs(lvlScoped, lvlRooms).hasEntranceSeed) {
+        seedLevelIds.add(lvl.id);
+      }
+    }
+    // BFS over stair connections to mark reachable levels
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const st of stairs) {
+        if (seedLevelIds.has(st.fromLevelId) && !seedLevelIds.has(st.toLevelId)) {
+          seedLevelIds.add(st.toLevelId);
+          changed = true;
+        }
+        if (seedLevelIds.has(st.toLevelId) && !seedLevelIds.has(st.fromLevelId)) {
+          seedLevelIds.add(st.fromLevelId);
+          changed = true;
+        }
+      }
+    }
+    if (seedLevelIds.has(targetLevelId)) {
+      for (const st of stairs) {
+        if (st.toLevelId !== targetLevelId && st.fromLevelId !== targetLevelId) continue;
+        const geom = computeStairGeometry(
+          st,
+          levelMap.get(st.fromLevelId),
+          levelMap.get(st.toLevelId)
+        );
+        const pt = st.toLevelId === targetLevelId ? geom.exitPointXZ : geom.entryPointXZ;
+        seeds = [...seeds, pt];
+        hasEntranceSeed = true;
+      }
+    }
+  }
+
   const visitedWalk = hasEntranceSeed
     ? floodWalkableCells(walkGrid, seeds, MIN_WALK_HALF_WIDTH_CM)
     : new Uint8Array(walkGrid.cols * walkGrid.rows);
 
   const roomSpatial = findRoomReachabilityAndTurning(walkGrid, visitedWalk, rooms, hasEntranceSeed);
   const unreachableFurnitureIds = findUnreachableFurniture(
-    data,
+    scoped,
     walkGrid,
     visitedWalk,
     rooms,
     hasEntranceSeed
   );
-  const deliveryChecks = evaluateDeliveryRoutes(data, seeds, hasEntranceSeed);
-  const chairPullbackIssues = evaluateChairPullbackIssues(data, wallGrid);
-  const foldOpenDiffs = evaluateFoldOpenDiff(data);
+  const deliveryChecks = evaluateDeliveryRoutes(scoped, seeds, hasEntranceSeed);
+  const chairPullbackIssues = evaluateChairPullbackIssues(scoped, wallGrid);
+  const foldOpenDiffs = evaluateFoldOpenDiff(scoped);
 
   // Map each furniture item to its room index
   const furnitureRoomIdx = new Map<string, number>();
   const footprintPerRoomCm2 = new Array<number>(rooms.length).fill(0);
-  for (const f of data.furniture) {
+  for (const f of scoped.furniture) {
     if (!isFloorFurniture(f)) continue;
     const ri = rooms.findIndex((r) => isPointInRoom(f.x, f.z, r));
     if (ri >= 0) {

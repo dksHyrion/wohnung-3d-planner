@@ -21,12 +21,14 @@ import { selectFurnitureIdsInMarquee } from '../../core/groupTransformMath';
 import { BackgroundOverlayControls } from './BackgroundOverlayControls';
 import { CanvasDragState, FloorplanSvg2D } from './FloorplanSvg2D';
 import { createFrameThrottle } from '../../core/frameThrottle';
+import { getEntityLevelId } from '../../core/levels';
 
 export const FloorplanCanvas2D: React.FC = () => {
   const { t } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roomLabels = useFloorplanStore((s) => s.roomLabels);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const measureStart = useFloorplanStore((s) => s.measureStart);
   const measureEnd = useFloorplanStore((s) => s.measureEnd);
@@ -50,6 +52,7 @@ export const FloorplanCanvas2D: React.FC = () => {
   const moveFurniture = useFloorplanStore((s) => s.moveFurniture);
   const moveSelectedFurniture = useFloorplanStore((s) => s.moveSelectedFurniture);
   const moveRug = useFloorplanStore((s) => s.moveRug);
+  const moveStair = useFloorplanStore((s) => s.moveStair);
   const clearAlignmentGuides = useFloorplanStore((s) => s.clearAlignmentGuides);
   const addWallWithCorners = useFloorplanStore((s) => s.addWallWithCorners);
   const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
@@ -182,9 +185,26 @@ export const FloorplanCanvas2D: React.FC = () => {
     return () => window.removeEventListener('keydown', handleWallKeyDown);
   }, [dragState?.type, orthoSnapEnabled, polylineWalls, addWallWithCorners, setActiveTool]);
 
+  const levelCorners = useMemo(
+    () => corners.filter((c) => getEntityLevelId(c) === activeLevelId),
+    [corners, activeLevelId]
+  );
+  const levelWalls = useMemo(
+    () => walls.filter((w) => getEntityLevelId(w) === activeLevelId),
+    [walls, activeLevelId]
+  );
+  const levelRoomLabels = useMemo(
+    () => roomLabels.filter((l) => getEntityLevelId(l) === activeLevelId),
+    [roomLabels, activeLevelId]
+  );
+  const levelFurniture = useMemo(
+    () => furniture.filter((f) => getEntityLevelId(f) === activeLevelId),
+    [furniture, activeLevelId]
+  );
+
   const cornerMap = useMemo(
-    () => new Map<string, Corner>(corners.map((c) => [c.id, c])),
-    [corners]
+    () => new Map<string, Corner>(levelCorners.map((c) => [c.id, c])),
+    [levelCorners]
   );
 
   const clientToWorldCm = useCallback(
@@ -220,7 +240,7 @@ export const FloorplanCanvas2D: React.FC = () => {
   }, []);
 
   const handleResetView = () => {
-    setViewBox(computeFitViewBox(corners));
+    setViewBox(computeFitViewBox(levelCorners.length > 0 ? levelCorners : corners));
   };
 
   const handleSvgPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -435,6 +455,18 @@ export const FloorplanCanvas2D: React.FC = () => {
       return;
     }
 
+    if (dragState.type === 'stair') {
+      if (!dragState.hasMoved) {
+        pushUndoSnapshot();
+        dragState.hasMoved = true;
+      }
+      const { stairId } = dragState;
+      const x = snapToGridCm(pt.x - dragState.offsetX);
+      const z = snapToGridCm(pt.z - dragState.offsetZ);
+      dragFrame.schedule(() => moveStair(stairId, x, z, { recordHistory: false }));
+      return;
+    }
+
     if (dragState.type === 'draw-wall') {
       const parsedLen = parseFloat(wallLengthInput);
       if (Number.isFinite(parsedLen) && parsedLen >= 1 && wallLengthInput.length > 0) {
@@ -529,7 +561,7 @@ export const FloorplanCanvas2D: React.FC = () => {
       }
     }
     if (dragState?.type === 'marquee') {
-      const ids = selectFurnitureIdsInMarquee(furniture, dragState);
+      const ids = selectFurnitureIdsInMarquee(levelFurniture, dragState);
       selectMultipleFurniture(ids);
     }
     if (dragState?.type === 'furniture' || dragState?.type === 'rug') {
@@ -590,8 +622,8 @@ export const FloorplanCanvas2D: React.FC = () => {
   );
 
   const roomPolygons = useMemo(
-    () => applyRoomLabels(computeFloorPolygons(corners, walls), roomLabels),
-    [corners, walls, roomLabels]
+    () => applyRoomLabels(computeFloorPolygons(levelCorners, levelWalls), levelRoomLabels),
+    [levelCorners, levelWalls, levelRoomLabels]
   );
 
   return (

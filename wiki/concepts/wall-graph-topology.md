@@ -84,3 +84,10 @@ Sobald mehrere Räume aneinander anschließen (z. B. L-Schnitt-Hauptraum `24,3 m
 * **Modellierung an Kniestockwänden (`RoofSlope`):** Eine Dachschräge referenziert `wallId` mit Kniestockhöhe `kneeWallHeightCm` (ab Wandinnenfläche), Dachneigung `pitchDeg` (5°–75°) und optionaler Innenseite `side?: 'pos' | 'neg'`.
 * **Höhenfunktion & Konturen:** Für jeden Punkt im Spannbereich der Wand gilt $h(d) = h_{\text{kniestock}} + d \cdot \tan(\alpha)$ begrenzt auf die Deckenhöhe. `computeRoofSlopeContourLines` liefert die **1,00 m**- und **2,00 m**-Höhenlinien für die 2D-Arbeitsfläche.
 * **WoFlV-Anrechnung (`computeRoomWoFlVBreakdown`):** Integriert über das lichte Innenpolygon (`netCorners`, `netHoles`): Flächen $\ge 200\text{ cm}$ zu $100\,\%$, $100\dots 200\text{ cm}$ zu $50\,\%$ und $< 100\text{ cm}$ zu $0\,\%$ (`woflvAreaSqM`) — separat neben der unveränderten **Lichten Innenfläche (`netAreaSqM`)**.
+
+---
+
+## 7. Mehrgeschossigkeit (`levels.ts`), Geschossdecken (`slabMath.ts`) & Treppen (`stairsMath.ts`)
+
+* **Geschoss-Scoping (`src/core/levels.ts`):** `BuildingLevel` definiert `index`, `elevationCm` (FOK), `ceilingHeightCm` und `slabThicknessCm`. Elemente ohne `levelId` gehören abwärtskompatibel zu `DEFAULT_LEVEL_ID = 'level-0'`; `scopeFloorplanToLevel` filtert alle flachen Arrays pro Etage für `computeFloorPolygons`, Exporte und Ergonomie.
+* **Deckenplatten & Treppenlöcher (`slabMath.ts` & `stairsMath.ts`):** `computeStairGeometry` berechnet gerade, L- und U-Treppen inkl. DIN-18065-Schrittmaß (`2s + a`), 2D-Lauflinie und `openingPolygonXZ`. `computeLevelSlabs` erzeugt obere Geschossdecken und schneidet ankommende Treppenöffnungen (`toLevelId === level.id`) als `THREE.Shape.holes` aus Boden- und Decken-Meshes aus.

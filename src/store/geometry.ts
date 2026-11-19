@@ -5,6 +5,8 @@ import { createWallSlice } from './slices/wallSlice';
 import { createRugSlice } from './slices/rugSlice';
 import { createPresetSlice } from './slices/presetSlice';
 import { createVariantSlice } from './slices/variantSlice';
+import { createLevelSlice } from './slices/levelSlice';
+import { createStairSlice } from './slices/stairSlice';
 
 export type GeometryActions = Pick<
   FloorplanState,
@@ -45,6 +47,16 @@ export type GeometryActions = Pick<
   | 'setGhostVariantId'
   | 'renameLayoutVariant'
   | 'deleteLayoutVariant'
+  | 'addLevel'
+  | 'updateLevel'
+  | 'removeLevel'
+  | 'setActiveLevel'
+  | 'setLevelViewMode'
+  | 'setShowGhostBelow2D'
+  | 'addStair'
+  | 'updateStair'
+  | 'moveStair'
+  | 'removeStair'
   | 'loadPreset'
 >;
 
@@ -57,5 +69,7 @@ export function createGeometryActions(deps: StoreDeps): GeometryActions {
     ...createFurnitureSlice(deps),
     ...createRugSlice(deps),
     ...createVariantSlice(deps),
+    ...createLevelSlice(deps),
+    ...createStairSlice(deps),
   };
 }
