@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
 import { parsePlanJson } from '../src/store/planImport';
+import { InspectorSidebar } from '../src/components/sidebar/InspectorSidebar';
+import { FloorplanCanvas2D } from '../src/components/editor2d/FloorplanCanvas2D';
+import { TopBar } from '../src/components/layout/TopBar';
 import { adoptOverlayImage } from '../src/core/overlayImageStore';
 import {
   wouldClobberSavedPlan,
@@ -216,6 +221,49 @@ describe('Store, Import & Persistence Fixes', () => {
       const exported = useFloorplanStore.getState().exportJson();
       const parsed = JSON.parse(exported);
       expect(parsed.schemaVersion).toBe(1);
+    });
+
+    it('imports legacy autosave JSON without stairs or levels without crashing UI rendering', () => {
+      const legacyJson = JSON.stringify({
+        schemaVersion: 1,
+        corners: [
+          { id: 'c1', x: 0, z: 0 },
+          { id: 'c2', x: 400, z: 0 },
+          { id: 'c3', x: 400, z: 400 },
+          { id: 'c4', x: 0, z: 400 },
+        ],
+        walls: [
+          { id: 'w1', startCornerId: 'c1', endCornerId: 'c2', thicknessCm: 15, heightCm: 250 },
+          { id: 'w2', startCornerId: 'c2', endCornerId: 'c3', thicknessCm: 15, heightCm: 250 },
+          { id: 'w3', startCornerId: 'c3', endCornerId: 'c4', thicknessCm: 15, heightCm: 250 },
+          { id: 'w4', startCornerId: 'c4', endCornerId: 'c1', thicknessCm: 15, heightCm: 250 },
+        ],
+        openings: [],
+        furniture: [],
+      });
+
+      const ok = useFloorplanStore.getState().importJson(legacyJson);
+      expect(ok).toBe(true);
+
+      const state = useFloorplanStore.getState();
+      expect(Array.isArray(state.stairs)).toBe(true);
+      expect(state.stairs).toEqual([]);
+      expect(state.levels.length).toBeGreaterThanOrEqual(1);
+
+      const topBarHtml = ReactDOMServer.renderToStaticMarkup(
+        React.createElement(TopBar)
+      );
+      expect(topBarHtml.length).toBeGreaterThan(0);
+
+      const sidebarHtml = ReactDOMServer.renderToStaticMarkup(
+        React.createElement(InspectorSidebar)
+      );
+      expect(sidebarHtml.length).toBeGreaterThan(0);
+
+      const canvasHtml = ReactDOMServer.renderToStaticMarkup(
+        React.createElement(FloorplanCanvas2D)
+      );
+      expect(canvasHtml).toContain('<svg');
     });
   });
 });

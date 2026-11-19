@@ -73,7 +73,7 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
   * cm-genaues Arbeiten mit Fangrastern (1, 5, 10, 25 cm), 90°-Orthogonal-Winkelfang, numerischer Längen-Eingabe und Polyline-Zeichnen.
   * Dynamische Wand-/Eckpunkt-Topologie, seitengetrennte Wandbeläge (`posFinish` / `negFinish`: Putz, Akzentfarbe, Holzlamellen, Fliesen, Mikrozement, Marmor) und automatische Netto-Raumstempel (**Lichte Innenfläche** in m²).
   * 5 architektonische Wandöffnungen: Türen (mit 90°-Schwenkbogen), Fenster (inkl. 3D-Fensterrahmen & Griff), Schiebetüren, Durchgänge und Balkontüren.
-  * Dachschrägen (`RoofSlope`) mit 1 m / 2 m Konturlinien und automatischer **WoFlV § 4**-Wohnflächenberechnung sowie Haustechnik-Elemente (Heizkörper, Steckdosen, Schalter, Daten-/Wasseranschlüsse, Schächte).
+  * Dachschrägen (`RoofSlope`) mit 1 m / 2 m Konturlinien und automatischer **Dachschrägen-Flächenanrechnung (100 % / 50 % / 0 %)** sowie Haustechnik-Elemente (Heizkörper, Steckdosen, Schalter, Daten-/Wasseranschlüsse, Schächte).
   * Multi-Selektion per `Shift+Klick` und 2D-Marquee-Auswahlrahmen plus interaktive **3D-Transform-Gizmos** (Rotations-Ring & vertikaler Höhen-Handle).
 
 * **🛋️ Möbel-Inventar, Custom-`.glb`-Upload & A/B-Varianten:**

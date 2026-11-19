@@ -380,16 +380,21 @@ export function createHistoryActions(deps: StoreDeps): HistoryActions {
     if (!parsed) return false;
     const { importedWasDataUrl, variants, activeVariantId, levels, stairs, ...plan } = parsed;
     const normalizedLevels = normalizeLevels(levels);
+    const activeLevelId =
+      normalizedLevels.find((l) => l.index === 0)?.id ?? normalizedLevels[0].id;
     setWithCollisions({
       ...plan,
       levels: normalizedLevels,
-      activeLevelId: normalizedLevels[0].id,
-      stairs,
+      activeLevelId,
+      stairs: stairs ?? [],
       layoutVariants: variants,
       activeVariantId,
       ghostVariantId: null,
       selectedId: null,
+      selectedIds: [],
       selectedType: null,
+      selectedRoomId: null,
+      activeAlignmentGuides: [],
     });
     const importedImage = plan.backgroundImage;
     if (importedImage?.imageId) {

@@ -31,7 +31,7 @@ export interface ParsedPlan {
   roofSlopes: RoofSlope[];
   fixtures: WallFixture[];
   levels?: BuildingLevel[];
-  stairs?: Staircase[];
+  stairs: Staircase[];
   variants: LayoutVariant[];
   activeVariantId: string | null;
   backgroundImage: BackgroundImageOverlay | null;
@@ -531,7 +531,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       'l-shaped',
       'u-shaped',
     ]);
-    const stairs: Staircase[] | undefined = Array.isArray(parsed.stairs)
+    const stairs: Staircase[] = Array.isArray(parsed.stairs)
       ? (() => {
           const seenStairIds = new Set<string>();
           const out: Staircase[] = [];
@@ -578,7 +578,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
           }
           return out;
         })()
-      : undefined;
+      : [];
 
     return {
       corners,
@@ -590,7 +590,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
       roofSlopes,
       fixtures,
       ...(levels ? { levels } : {}),
-      ...(stairs ? { stairs } : {}),
+      stairs,
       variants,
       activeVariantId,
       backgroundImage,
