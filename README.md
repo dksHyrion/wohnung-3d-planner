@@ -64,40 +64,40 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 
 ## 2. Kern-Features & Highlights
 
-* **📐 Präziser 2D-Grundriss-Editor:**
-  * cm-genaues Arbeiten mit Fangrastern (1, 5, 10, 25 cm) und 90°-Orthogonal-Winkelfang.
-  * Dynamische Wand- und Eckpunkt-Topologie, Wandstärken und automatische Netto-Raumstempel (**Lichte Innenfläche** in m²).
-  * 5 architektonische Wandöffnungen: Türen (mit 90°-Schwenkbogen), Fenster, Schiebetüren, Durchgänge und Balkontüren.
-  * Interaktiver Teppich-Editor (`AreaRug`) mit 2D/3D-Dragging, Farb-Presets und 90°-Rotation.
+* **🏢 Mehrgeschossigkeit, Decken & Parametrische Treppen (Sprints 12–14):**
+  * Beliebige Etagen-Stapelung (`UG`, `EG`, `1. OG`, `DG` …) mit FOK-Höhenführung (`elevationCm`), lichter Geschosshöhe, Deckenstärke und optionaler Übernahme der Außenwände.
+  * 2D-Geisterlinie (`showGhostBelow2D`) zum Durchpausen des darunterliegenden Geschosses und flexible 3D-Ansichtsmodi (*Alle gestapelt*, *Nur aktives*, *Aktiv + Geist darunter*).
+  * Parametrische Treppen (`straight`, `l-shaped`, `u-shaped`) mit Live-**DIN-18065-Schrittmaßprüfung** (`2s + a`), Geländerpfosten, DIN-2D-Lauflinie und automatischen **Decken-Ausschnitten (`THREE.Shape.holes`)** durch obere Geschossdecken.
 
-* **🛋️ Möbel- & Inventar-System:**
-  * Über 30 detailgetreue parametrische 3D-Architekturmodelle (Schränke, Tische, Sofas, Küchenzeilen, Designer-Möbel).
-  * Strikte Trennung von Optik (`visual`) und Benennung – kein Name-Sniffing.
-  * Surface Stacking / Physische Kopplung (`attachedToId`): Zubehör wie Monitore bewegt sich synchron mit Trägermöbeln.
-  * Flexible Unterscheidung zwischen realem Inventar und generischen Raum-Platzhaltern.
+* **📐 Präziser 2D-Grundriss-Editor & Multi-Selektion:**
+  * cm-genaues Arbeiten mit Fangrastern (1, 5, 10, 25 cm), 90°-Orthogonal-Winkelfang, numerischer Längen-Eingabe und Polyline-Zeichnen.
+  * Dynamische Wand-/Eckpunkt-Topologie, seitengetrennte Wandbeläge (`posFinish` / `negFinish`: Putz, Akzentfarbe, Holzlamellen, Fliesen, Mikrozement, Marmor) und automatische Netto-Raumstempel (**Lichte Innenfläche** in m²).
+  * 5 architektonische Wandöffnungen: Türen (mit 90°-Schwenkbogen), Fenster (inkl. 3D-Fensterrahmen & Griff), Schiebetüren, Durchgänge und Balkontüren.
+  * Dachschrägen (`RoofSlope`) mit 1 m / 2 m Konturlinien und automatischer **WoFlV § 4**-Wohnflächenberechnung sowie Haustechnik-Elemente (Heizkörper, Steckdosen, Schalter, Daten-/Wasseranschlüsse, Schächte).
+  * Multi-Selektion per `Shift+Klick` und 2D-Marquee-Auswahlrahmen plus interaktive **3D-Transform-Gizmos** (Rotations-Ring & vertikaler Höhen-Handle).
 
-* **⚡ Kollisions- & Ergonomie-Engine (DIN 18040):**
-  * Mitrotierende 3D-Kollisionsboxen (`THREE.OBB`) und Separating Axis Theorem (SAT).
-  * Realistische Compound-Kollision für Tische mit Stuhllücken, L-Ecksofas und Betten.
-  * Analytische Durchgangs- und Engstellenprüfung nach DIN 18040 mit Ampel-Klassifizierung (< 60 cm rot, 60–90 cm amber, 90–120 cm grün) und Live-Engstellen-Counter.
-  * Magnetisches Kante-an-Kante-Snapping und Smart Alignment Guides beim Verschieben von Möbeln.
+* **🛋️ Möbel-Inventar, Custom-`.glb`-Upload & A/B-Varianten:**
+  * Über 30 detailgetreue parametrische 3D-Architekturmodelle (inkl. BoConcept Osaka mit klappbarer Schlafsofa-Pose, Inwerk Masterlift, Vitsœ 606, Küchen & Bad-Objekte).
+  * Eigener **Custom-`.glb`-Möbelimport** mit automatischer m→cm-Skalierung und Offline-IndexedDB-Speicherung (`customModelStore`).
+  * Surface Stacking (`attachedToId`), interaktiver Teppich-Editor (`AreaRug`) sowie **A/B-Stellproben-Varianten** mit 2D/3D-Ghost-Diff-Vergleich.
 
-* **🎨 Cinematische Archviz-Beleuchtung (100 % Offline):**
-  * Stufenlose Tageszeit-Engine (6:00 bis 22:00 Uhr) mit dynamischem Sonnenstand, Dämmerungslicht und Leuchtmittel-Emissionsregelung.
-  * Autarkes prozedurales IBL via `<Environment>` und parametrischen `<Lightformer>`s (keine externen CDN-Downloads).
-  * High-End Post-Processing Pipeline: N8AO Ambient Occlusion (36 cm Radius), selektiver Bloom, AgX-Tonemapping und Antialiasing.
-  * 0-Pass `⚡ Performance`-Modus für flüssige 60 FPS auf leistungsschwächerer Hardware.
-  * Menschliche Ego-Perspektive auf 170 cm oder 115 cm Augenhöhe mit verzerrungsfreiem 55°-FOV.
+* **⚡ Kollisions- & Ergonomie-2.0-Engine (WebWorker, DIN 18040 & Neufert):**
+  * Etagen-isolierte 3D-Kollisionsboxen (`THREE.OBB`), SAT, hohle Wandöffnungs-Subsegmente, Treppenschacht-Prüfung, Dachschrägen-Höhencheck und 30-cm-Heizkörper-Wärmestau.
+  * **Ergonomie 2.0 im WebWorker** (non-blocking): 2D-EDT-Erreichbarkeit ab Eingang/Treppe (auch geschossübergreifend), C-Space-Möbel-Lieferweg, DIN 18040-2 150-cm-Wendekreis, Stuhl-Rückzugsraum, Klapp-Simulation sowie Blendungs-/Sichtachsen-Check.
+  * Magnetisches Kante-an-Kante-Snapping und Smart Alignment Guides in 2D und 3D.
 
-* **📏 Maßband, Tracing & 1:50-Plan-Export:**
-  * Freies interaktives 2D-Maßband mit minimaler Kante-zu-Kante-Distanz (SAT) zu Möbeln und Wänden.
-  * Grundriss-Unterleger (PNG, JPG, WebP, SVG) mit 2-Punkt-Referenzkalibrierung und lokaler IndexedDB-Speicherung.
-  * Druckfertiger, maßstabsgetreuer 2D-Architektur-Vektorexport (SVG 1:50 / 1:100) mit DIN-Plankopf, Maßstabsbalken und Bemaßungsketten.
+* **🎨 Cinematische Archviz-Beleuchtung & WASD-Begehung (100 % Offline):**
+  * Stufenlose Tageszeit-Engine (6:00 bis 22:00 Uhr), autarkes Lightformer-IBL (keine externen CDN-Downloads), N8AO Ambient Occlusion, Selective Bloom, AgX-Tonemapping und `⚡ Performance`-Modus.
+  * Interaktive **WASD-/Pfeiltasten-Ego-Begehung** auf einstellbarer Augenhöhe (170 cm / 115 cm) inkl. Türdurchgang und Wandgleiten.
 
-* **🛡️ Session-Sicherheit & Privatsphäre:**
-  * 30-Schritt-Verlaufsspeicher (Undo/Redo via `Ctrl+Z` / `Ctrl+Y`) mit transaktionssicherem Drag-Handling.
-  * Lokale Sicherung im Browser (LocalStorage) und portabler JSON-Import/-Export.
-  * 100 % lokal und privat: Keine Serverübertragung, lokale Pläne im git-ignorierten Ordner `privat/`.
+* **📏 CAD-Import, Maßband & Multi-Format-Export (SVG, DXF, BOM, GLB, USDZ):**
+  * **Strukturierter CAD-/Scan-Import:** ASCII-DXF (`LINE`/`LWPOLYLINE`/`POLYLINE`), Vektor-SVG (`M/L/H/V/Z`) und Apple RoomPlan `CapturedRoom`-JSON mit automatischer Topologie-Verschmelzung.
+  * Grundriss-Unterleger (PNG, JPG, WebP, SVG) mit 2-Punkt-Referenzkalibrierung und IndexedDB-Speicherung sowie freies 2D-Maßband.
+  * **Exporte:** Maßstabsgetreues **1:50 / 1:100 / 1:200 SVG** (inkl. Etagentitel & Treppen), **AutoCAD R12 DXF** (Layer `WALLS`, `OPENINGS`, `STAIRS`, `MEP`, `FURNITURE`, `DIMENSIONS`), **CSV/Markdown-Stück- & Flächenbilanz** pro Geschoss sowie **`.glb` & `.usdz` (AR)** im korrekten Meter-Maßstab (`1 cm -> 0.01 m`).
+
+* **🛡️ Session-Sicherheit, URL-Sharing & Privatsphäre:**
+  * 30-Schritt-Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), LocalStorage-Autosave, komprimiertes **URL-Hash-Sharing** (`#plan=gz:...`) und portabler JSON-Import/-Export.
+  * 100 % lokal und privat: Keine Serverübertragung, private Pläne im git-ignorierten Ordner `privat/`.
 
 ---
 
@@ -107,10 +107,10 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 | :--- | :--- |
 | **3D & Rendering** | **Three.js (r170)**, **React Three Fiber (`@react-three/fiber`)**, **`@react-three/drei`** |
 | **Post-Processing** | **`@react-three/postprocessing`** (N8AO, Selective Bloom, AgX Tonemapping, SMAA) |
-| **Geometrie & Mathe** | **`THREE.OBB`** + Separating Axis Theorem (SAT) + 1D-Skalarprodukt-Wandprojektion |
-| **Frontend & UI** | **React 18**, **TypeScript 5**, **Zustand** (Store-Slices), **Lucide React** |
-| **2D-Engine** | Natives React + SVG (`viewBox` in cm, Pan/Zoom, 90°-Türschwenkbögen) |
-| **Build & Testing** | **Vite 5** (HMR & Tree-Shaking), **Vitest 2** (Unit- & Integrationstests) |
+| **Geometrie & Mathe** | **`THREE.OBB`** + SAT + 2D-EDT + WebWorker (`ergonomicsWorker`) |
+| **Frontend & UI** | **React 18**, **TypeScript 5**, **Zustand 5** (Domain-Slices), **Lucide React**, **DE/EN i18n** |
+| **2D-Engine & Exporte** | Natives React + SVG, `GLTFExporter` / `USDZExporter`, AutoCAD R12 DXF, RFC-4180 CSV/BOM |
+| **Build & Testing** | **Vite 5**, **Vitest 2** (80 Suites / 696 Tests), **Playwright** (E2E) |
 | **Wissensbasis** | **Karpathy LLM-Wiki Pattern** (`SCHEMA.md`, `raw/`, `wiki/index.md`, `wiki/log.md`) |
 
 ---
@@ -120,10 +120,12 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 ```text
 wohnung-3d-planner/
 ├── src/
-│   ├── core/         # Geometrie, Wand-Graph, SAT-Kollision, Ergonomie, Katalog & Presets
-│   ├── store/        # Zustand-Store (Slices: geometry, view, history)
-│   └── components/   # 2D-SVG-Canvas, 3D-R3F-Szene, Beleuchtung & Inspektoren
-├── tests/            # 45 Vitest-Testdateien (Wandgeometrie, Kollision, Ergonomie, SVG-Export)
+│   ├── core/         # Geometrie, Mehrgeschossigkeit, Treppen/Decken, SAT/OBB-Kollision, Ergonomie-Worker, CAD-Import/-Export
+│   ├── store/        # Zustand-Store (Slices: wall, furniture, rug, level, stair, variant, preset; view, history)
+│   ├── i18n/         # Vollständig typisierte DE/EN-Übersetzungen (100 % Key-Parität)
+│   └── components/   # 2D-SVG-Canvas, 3D-R3F-Szene, Treppen/Decken, Beleuchtung & Inspektoren
+├── tests/            # 80 Vitest-Testdateien (Geometrie, Mehrgeschossigkeit, Treppen, Kollision, Ergonomie, Exporte)
+├── e2e/              # Playwright End-to-End Browser-Tests
 ├── wiki/             # Vernetzte LLM-Wissensbasis (Konzepte, Architektur, Audit-Log)
 ├── raw/              # Referenz-Quellen und GitHub-Benchmark-Dokumentation
 ├── privat/           # Lokale private Pläne & Notizen (in .gitignore)
