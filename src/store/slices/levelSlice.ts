@@ -178,14 +178,17 @@ export function createLevelSlice(deps: StoreDeps): LevelActions {
       const state = get();
       if (!state.levels.some((l) => l.id === levelId)) return;
       if (state.activeLevelId === levelId) return;
-      set({
-        activeLevelId: levelId,
-        selectedId: null,
-        selectedIds: [],
-        selectedType: null,
-        selectedRoomId: null,
-        activeAlignmentGuides: [],
-      });
+      setWithCollisions(
+        {
+          activeLevelId: levelId,
+          selectedId: null,
+          selectedIds: [],
+          selectedType: null,
+          selectedRoomId: null,
+          activeAlignmentGuides: [],
+        },
+        false
+      );
     },
 
     setLevelViewMode: (mode) => set({ levelViewMode: mode }),

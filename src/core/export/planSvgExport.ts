@@ -84,10 +84,29 @@ export function computePlanBoundingBoxCm(
   return { minX, maxX, minZ, maxZ };
 }
 
+function resolveScopedExportData(
+  rawData: FloorplanData,
+  options: PlanExportOptions
+) {
+  const allLevels = normalizeLevels(rawData.levels);
+  const targetLevelId =
+    options.levelId ??
+    allLevels.find((l) => l.index === 0)?.id ??
+    allLevels[0]?.id ??
+    DEFAULT_LEVEL_ID;
+  const targetLevel = allLevels.find((l) => l.id === targetLevelId) ?? allLevels[0];
+  const data =
+    options.levelId || allLevels.length > 1
+      ? scopeFloorplanToLevel(rawData, targetLevelId)
+      : rawData;
+  return { allLevels, targetLevelId, targetLevel, data };
+}
+
 export function computePlanFit(
-  data: FloorplanData,
+  rawData: FloorplanData,
   options: PlanExportOptions
 ): PlanFitInfo {
+  const { data } = resolveScopedExportData(rawData, options);
   const paper = options.paperSize ?? 'A4';
   const orientation = options.orientation ?? 'landscape';
 
@@ -153,18 +172,9 @@ export function exportScaledFloorplanSvg(
   rawData: FloorplanData,
   options: PlanExportOptions
 ): string {
-  const allLevels = normalizeLevels(rawData.levels);
-  const targetLevelId =
-    options.levelId ??
-    allLevels.find((l) => l.index === 0)?.id ??
-    allLevels[0]?.id ??
-    DEFAULT_LEVEL_ID;
-  const targetLevel = allLevels.find((l) => l.id === targetLevelId) ?? allLevels[0];
-  const data =
-    options.levelId || allLevels.length > 1
-      ? scopeFloorplanToLevel(rawData, targetLevelId)
-      : rawData;
-  const fitInfo = computePlanFit(data, options);
+  const { allLevels, targetLevelId, targetLevel, data } =
+    resolveScopedExportData(rawData, options);
+  const fitInfo = computePlanFit(rawData, options);
   const effectiveScale = fitInfo.effectiveScale;
   const scaleRatio = effectiveScale === '1:200' ? 0.05 : effectiveScale === '1:100' ? 0.1 : 0.2; // mm per cm
   const paper = options.paperSize ?? 'A4';

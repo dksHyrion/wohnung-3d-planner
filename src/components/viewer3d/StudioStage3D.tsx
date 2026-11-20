@@ -135,6 +135,7 @@ export function computeDominantWindowDirection(
 export interface StudioStage3DProps {
   roomBounds: RoomBounds;
   theme?: 'studio' | 'blueprint';
+  elevationCm?: number;
 }
 
 /**
@@ -149,6 +150,7 @@ export interface StudioStage3DProps {
 export const StudioStage3D: React.FC<StudioStage3DProps> = ({
   roomBounds,
   theme,
+  elevationCm = 0,
 }) => {
   const storeTheme = useFloorplanStore((s) => s.renderTheme);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
@@ -156,7 +158,9 @@ export const StudioStage3D: React.FC<StudioStage3DProps> = ({
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const openings = useFloorplanStore((s) => s.openings);
+  const furniture = useFloorplanStore((s) => s.furniture);
   const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
+  const bounceLightRef = useRef<THREE.DirectionalLight>(null);
   const activeTheme = theme ?? storeTheme;
   const isStudio = activeTheme === 'studio';
   const isBeauty = qualityMode === 'beauty' && isStudio;
@@ -210,12 +214,18 @@ export const StudioStage3D: React.FC<StudioStage3DProps> = ({
     : [roomBounds.cx + 500, 750, roomBounds.cz + 400];
 
   useEffect(() => {
-    if (sunLightRef.current) {
-      if (sunTargetRef.current) {
+    if (sunTargetRef.current) {
+      sunTargetRef.current.updateMatrixWorld();
+      if (sunLightRef.current) {
         sunLightRef.current.target = sunTargetRef.current;
-        sunTargetRef.current.updateMatrixWorld();
         sunLightRef.current.updateMatrixWorld();
       }
+      if (bounceLightRef.current) {
+        bounceLightRef.current.target = sunTargetRef.current;
+        bounceLightRef.current.updateMatrixWorld();
+      }
+    }
+    if (sunLightRef.current) {
       sunLightRef.current.shadow.camera.updateProjectionMatrix();
       sunLightRef.current.shadow.needsUpdate = true;
     }
@@ -226,6 +236,7 @@ export const StudioStage3D: React.FC<StudioStage3DProps> = ({
     effectiveSunPosition[0],
     effectiveSunPosition[1],
     effectiveSunPosition[2],
+    isStudio,
   ]);
 
   // Memoize Lightformer children so geometry changes don't re-trigger cube camera bakes unless colors change
@@ -324,20 +335,23 @@ export const StudioStage3D: React.FC<StudioStage3DProps> = ({
       {/* Simulated Radiosity / Upward Floor Bounce Light (Oak Floor Reflection) */}
       {isStudio && (
         <directionalLight
+          ref={bounceLightRef}
           name="floor-bounce-light"
-          position={[roomBounds.cx - 200, 10, roomBounds.cz - 200]}
-          target={sunTargetRef.current || undefined}
+          position={[roomBounds.cx - 200, elevationCm + 10, roomBounds.cz - 200]}
           color="#fed7aa"
           intensity={0.32}
         />
       )}
 
-      {/* Floor-Level Contact Shadows directly under furniture on the apartment floor (Y = 0.05cm) */}
+      {/* Floor-Level Contact Shadows directly under furniture on the active floor */}
       {isStudio && (
         <ContactShadows
+          key={`cs-${elevationCm}-${walls.length}-${furniture.length}-${furniture
+            .map((f) => `${Math.round(f.x / 5)},${Math.round(f.z / 5)},${Math.round(f.rotationYDeg / 15)}`)
+            .join('|')}`}
           name="floor-contact-shadows"
-          position={[roomBounds.cx, 0.05, roomBounds.cz]}
-          scale={[spanX + 160, spanZ + 160]}
+          position={[roomBounds.cx, elevationCm + 0.05, roomBounds.cz]}
+          scale={[Math.ceil((spanX + 160) / 50) * 50, Math.ceil((spanZ + 160) / 50) * 50]}
           resolution={isBeauty ? 1024 : 512}
           far={isBeauty ? 100 : 80}
           blur={isBeauty ? 2.4 : 3.2}

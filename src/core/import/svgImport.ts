@@ -15,7 +15,7 @@ export interface SvgImportResult {
 }
 
 function extractAttr(tag: string, attrName: string): string | null {
-  const re = new RegExp(`\\b${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i');
+  const re = new RegExp(`(?:^|\\s)${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i');
   const match = re.exec(tag);
   return match ? (match[1] ?? match[2] ?? '') : null;
 }
@@ -148,7 +148,53 @@ function parseSvgPathSegments(
       continue;
     }
 
-    // Skip unsupported curve tokens gracefully
+    // Advance curX/curY on curve commands so subsequent relative commands & Z stay aligned
+    if (cmd === 'C' || cmd === 'c') {
+      const nums = [nextNum(), nextNum(), nextNum(), nextNum(), nextNum(), nextNum()];
+      if (nums.some((n) => n === null)) break;
+      const ex = nums[4] as number;
+      const ey = nums[5] as number;
+      curX = cmd === 'c' ? curX + ex : ex;
+      curY = cmd === 'c' ? curY + ey : ey;
+      continue;
+    }
+    if (cmd === 'S' || cmd === 's' || cmd === 'Q' || cmd === 'q') {
+      const nums = [nextNum(), nextNum(), nextNum(), nextNum()];
+      if (nums.some((n) => n === null)) break;
+      const ex = nums[2] as number;
+      const ey = nums[3] as number;
+      const isRel = cmd === 's' || cmd === 'q';
+      curX = isRel ? curX + ex : ex;
+      curY = isRel ? curY + ey : ey;
+      continue;
+    }
+    if (cmd === 'T' || cmd === 't') {
+      const ex = nextNum();
+      const ey = nextNum();
+      if (ex === null || ey === null) break;
+      curX = cmd === 't' ? curX + ex : ex;
+      curY = cmd === 't' ? curY + ey : ey;
+      continue;
+    }
+    if (cmd === 'A' || cmd === 'a') {
+      const nums = [
+        nextNum(),
+        nextNum(),
+        nextNum(),
+        nextNum(),
+        nextNum(),
+        nextNum(),
+        nextNum(),
+      ];
+      if (nums.some((n) => n === null)) break;
+      const ex = nums[5] as number;
+      const ey = nums[6] as number;
+      curX = cmd === 'a' ? curX + ex : ex;
+      curY = cmd === 'a' ? curY + ey : ey;
+      continue;
+    }
+
+    // Skip any unknown token gracefully
     idx++;
   }
 
@@ -168,6 +214,8 @@ export function parseSvgFloorplan(
 
   const taggedSegments: TaggedSegment[] = [];
   const groupStack: string[] = [];
+  const SKIP_SUBTREE_TAGS = new Set(['defs', 'pattern', 'clippath', 'mask']);
+  let skipDepth = 0;
 
   const tagRe = /<\/?([a-zA-Z0-9:-]+)([^>]*)>/g;
   let match: RegExpExecArray | null;
@@ -178,6 +226,16 @@ export function parseSvgFloorplan(
     const attrs = match[2] ?? '';
     const isClosing = full.startsWith('</');
     const isSelfClosing = full.endsWith('/>');
+
+    if (SKIP_SUBTREE_TAGS.has(tagName)) {
+      if (isClosing) {
+        skipDepth = Math.max(0, skipDepth - 1);
+      } else if (!isSelfClosing) {
+        skipDepth++;
+      }
+      continue;
+    }
+    if (skipDepth > 0) continue;
 
     if (tagName === 'g') {
       if (isClosing) {
@@ -251,7 +309,7 @@ export function parseSvgFloorplan(
         h > 0
       ) {
         // Long thin rects represent single wall bars; normal rects represent room/box outlines
-        if (w >= h * 3 && h <= 45) {
+        if (w >= h * 3 && h * scale <= 45) {
           pushSeg({
             x1: x * scale,
             z1: (y + h / 2) * scale,
@@ -259,7 +317,7 @@ export function parseSvgFloorplan(
             z2: (y + h / 2) * scale,
             thicknessCm: Math.max(5, h * scale),
           });
-        } else if (h >= w * 3 && w <= 45) {
+        } else if (h >= w * 3 && w * scale <= 45) {
           pushSeg({
             x1: (x + w / 2) * scale,
             z1: y * scale,

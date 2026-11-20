@@ -8,16 +8,25 @@ import {
   getPassageBadgeTextColor,
 } from '../../core/ergonomicsEngine';
 
-export const PassageClearance3D: React.FC = () => {
+export const PassageClearance3D: React.FC<{ elevationCm?: number }> = ({
+  elevationCm,
+}) => {
   const showPassageHeatmap = useFloorplanStore((s) => s.showPassageHeatmap);
   const passageReport = useFloorplanStore((s) => s.passageReport);
+  const levels = useFloorplanStore((s) => s.levels);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
 
   if (!showPassageHeatmap || !passageReport) {
     return null;
   }
 
+  const effectiveElevationCm =
+    elevationCm ??
+    levels.find((l) => l.id === activeLevelId)?.elevationCm ??
+    0;
+
   return (
-    <group name="passage-clearance-3d">
+    <group name="passage-clearance-3d" position={[0, effectiveElevationCm, 0]}>
       {passageReport.passages.map((p) => {
         const dx = p.point2.x - p.point1.x;
         const dz = p.point2.z - p.point1.z;

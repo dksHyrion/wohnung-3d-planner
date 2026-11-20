@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import {
+  PLAN_AUTOSAVE_MAX_BYTES,
   PLAN_AUTOSAVE_RELATIVE,
   readPlanAutosave,
   writePlanAutosave,
@@ -11,17 +12,31 @@ function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let settled = false;
     req.on('data', (chunk: Buffer) => {
+      if (settled) return;
       size += chunk.length;
       if (size > maxBytes) {
+        settled = true;
+        chunks.length = 0;
+        req.resume();
         reject(new Error('too-large'));
-        req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
+    req.on('end', () => {
+      if (!settled) {
+        settled = true;
+        resolve(Buffer.concat(chunks).toString('utf8'));
+      }
+    });
+    req.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        reject(err);
+      }
+    });
   });
 }
 
@@ -111,12 +126,13 @@ async function routePlanRequest(
     }
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json; charset=utf-8');
+    res.setHeader('x-content-type-options', 'nosniff');
     res.end(text);
     return;
   }
 
   if (req.method === 'PUT') {
-    const contentType = req.headers['content-type'] ?? '';
+    const contentType = (req.headers['content-type'] ?? '').toLowerCase();
     if (!contentType.includes('application/json')) {
       res.statusCode = 415;
       res.end();
@@ -125,14 +141,16 @@ async function routePlanRequest(
 
     let body = '';
     try {
-      body = await readBody(req, 1_500_000);
-    } catch {
-      res.statusCode = 413;
+      body = await readBody(req, PLAN_AUTOSAVE_MAX_BYTES);
+    } catch (err) {
+      res.statusCode =
+        err instanceof Error && err.message === 'too-large' ? 413 : 400;
       res.end();
       return;
     }
     const result = await writePlanAutosave(filePath, body);
-    res.statusCode = result === 'ok' ? 204 : 400;
+    res.statusCode =
+      result === 'ok' ? 204 : result === 'too-large' ? 413 : 400;
     res.end();
     return;
   }

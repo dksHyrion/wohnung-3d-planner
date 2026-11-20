@@ -275,7 +275,7 @@ export function computeRoomWoFlVBreakdown(
   }
 
   const span = Math.max(maxX - minX, maxZ - minZ);
-  const stepCm = Math.max(1.5, Math.min(2.0, span / 200));
+  const stepCm = Math.max(2.0, span / 200);
 
   let totalSamples = 0;
   let fullSamples = 0;

@@ -166,10 +166,19 @@ export function parseRoomPlanJson(jsonText: string): RoomPlanImportResult | null
   for (const w of raw.walls) {
     const tr = readMatrixTransform(w.transform);
     const dims = w.dimensions;
-    if (!tr || !Array.isArray(dims) || dims.length < 2) continue;
+    if (
+      !tr ||
+      !Array.isArray(dims) ||
+      dims.length < 2 ||
+      !Number.isFinite(dims[0]) ||
+      !Number.isFinite(dims[1])
+    ) {
+      continue;
+    }
+    const rawDepth = dims[2] !== undefined && Number.isFinite(dims[2]) ? dims[2] : 0.15;
     const lengthCm = Math.max(10, dims[0] * 100);
-    const heightCm = Math.max(50, (dims[1] ?? 2.5) * 100);
-    const thicknessCm = Math.max(5, (dims[2] ?? 0.15) * 100);
+    const heightCm = Math.max(50, dims[1] * 100);
+    const thicknessCm = Math.max(5, rawDepth * 100);
     const halfLen = lengthCm / 2;
     rawSegments.push({
       x1: tr.cxCm - tr.tx * halfLen,
@@ -218,8 +227,16 @@ export function parseRoomPlanJson(jsonText: string): RoomPlanImportResult | null
     for (const op of items) {
       const tr = readMatrixTransform(op.transform);
       const dims = op.dimensions;
-      if (!tr || !Array.isArray(dims) || dims.length < 2) continue;
-      const widthCm = Math.max(20, Number((dims[0] * 100).toFixed(1)));
+      if (
+        !tr ||
+        !Array.isArray(dims) ||
+        dims.length < 2 ||
+        !Number.isFinite(dims[0]) ||
+        !Number.isFinite(dims[1])
+      ) {
+        continue;
+      }
+      const rawWidthCm = Math.max(20, Number((dims[0] * 100).toFixed(1)));
       const heightCm = Math.max(30, Number((dims[1] * 100).toFixed(1)));
       const hit = projectPointToBestWall(
         tr.cxCm + shiftX,
@@ -231,6 +248,8 @@ export function parseRoomPlanJson(jsonText: string): RoomPlanImportResult | null
       const start = cornerMap.get(hit.wall.startCornerId)!;
       const end = cornerMap.get(hit.wall.endCornerId)!;
       const wallLen = Math.hypot(end.x - start.x, end.z - start.z);
+      if (wallLen < 20) continue;
+      const widthCm = Number(Math.min(rawWidthCm, wallLen).toFixed(1));
       const clampedOffset = Math.max(
         0,
         Math.min(Math.max(0, wallLen - widthCm), hit.offsetFromStartCm - widthCm / 2)
@@ -263,7 +282,16 @@ export function parseRoomPlanJson(jsonText: string): RoomPlanImportResult | null
     for (const obj of raw.objects) {
       const tr = readMatrixTransform(obj.transform);
       const dims = obj.dimensions;
-      if (!tr || !Array.isArray(dims) || dims.length < 3) continue;
+      if (
+        !tr ||
+        !Array.isArray(dims) ||
+        dims.length < 3 ||
+        !Number.isFinite(dims[0]) ||
+        !Number.isFinite(dims[1]) ||
+        !Number.isFinite(dims[2])
+      ) {
+        continue;
+      }
       const mapped = mapRoomPlanObjectCategory(obj.category);
       const widthCm = Math.max(10, Math.round(dims[0] * 100));
       const heightCm = Math.max(10, Math.round(dims[1] * 100));

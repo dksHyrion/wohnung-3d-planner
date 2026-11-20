@@ -533,6 +533,7 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
     ]);
     const stairs: Staircase[] = Array.isArray(parsed.stairs)
       ? (() => {
+          const validLevelIds = new Set((levels ?? []).map((l) => l.id));
           const seenStairIds = new Set<string>();
           const out: Staircase[] = [];
           for (const st of parsed.stairs.slice(0, 100)) {
@@ -546,6 +547,15 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
             ) {
               continue;
             }
+            const fromLevelId = st.fromLevelId.trim().slice(0, 80);
+            const toLevelId = st.toLevelId.trim().slice(0, 80);
+            if (
+              !validLevelIds.has(fromLevelId) ||
+              !validLevelIds.has(toLevelId) ||
+              fromLevelId === toLevelId
+            ) {
+              continue;
+            }
             const id = dedupeId(typeof st.id === 'string' ? st.id : '', seenStairIds, 'stair');
             const type: StaircaseType = VALID_STAIR_TYPES.has(st.type)
               ? st.type
@@ -553,8 +563,8 @@ export function parsePlanJson(jsonStr: string): ParsedPlan | null {
             out.push({
               id,
               type,
-              fromLevelId: st.fromLevelId.trim().slice(0, 80),
-              toLevelId: st.toLevelId.trim().slice(0, 80),
+              fromLevelId,
+              toLevelId,
               x: clamp(Number(st.x), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
               z: clamp(Number(st.z), -MAX_DIMENSION_CM, MAX_DIMENSION_CM),
               rotationYDeg: finiteOr(st.rotationYDeg, 0),

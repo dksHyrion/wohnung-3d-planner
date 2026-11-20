@@ -39,9 +39,17 @@ interface DxfPair {
 }
 
 function tokenizeDxf(content: string): DxfPair[] {
-  const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const cleaned = content
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+  const lines = cleaned.split('\n');
+  let startIdx = 0;
+  while (startIdx < lines.length && lines[startIdx].trim() === '') {
+    startIdx++;
+  }
   const pairs: DxfPair[] = [];
-  for (let i = 0; i + 1 < lines.length; i += 2) {
+  for (let i = startIdx; i + 1 < lines.length; i += 2) {
     const code = Number.parseInt(lines[i].trim(), 10);
     if (!Number.isFinite(code)) continue;
     pairs.push({ code, value: lines[i + 1].trim() });

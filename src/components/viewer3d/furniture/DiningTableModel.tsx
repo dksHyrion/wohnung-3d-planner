@@ -100,7 +100,7 @@ export const DiningTableModel: React.FC<FurnitureModelProps> = ({
 
       {/* 3. Centerpiece Ceramic Fruit Bowl with Green Apples (as in Bild 1) */}
       {showDecor && (
-        <group name="fruit-bowl" position={[0, height / 2 + topH / 2, 0]}>
+        <group name="fruit-bowl" position={[0, height / 2, 0]}>
           {/* Ceramic Footed Fruit Bowl */}
           <mesh position={[0, 3, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[11, 6, 4.5, 24]} />

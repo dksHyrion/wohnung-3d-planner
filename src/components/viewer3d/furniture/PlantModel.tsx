@@ -56,7 +56,7 @@ export const PlantModel: React.FC<FurnitureModelProps> = ({
       </mesh>
 
       {/* Decorative Ceramic Rim Collar */}
-      <mesh position={[0, -height / 2 + potH - 1, 0]}>
+      <mesh position={[0, -height / 2 + potH - 1, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[potR, 1.2, 12, 32]} />
         <meshStandardMaterial
           color={potColor}

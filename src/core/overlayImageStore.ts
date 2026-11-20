@@ -59,15 +59,20 @@ export function runtimeUrlForOverlay(imageId: string | undefined): string {
 function openDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) {
-        db.createObjectStore(DB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
+    try {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
   });
 }
 
@@ -173,13 +178,20 @@ function dataUrlToBlob(dataUrl: string): Blob | null {
   const header = dataUrl.slice(0, comma);
   const payload = dataUrl.slice(comma + 1);
   const mime = /data:([^;,]+)/.exec(header)?.[1] ?? 'application/octet-stream';
+  if (!/;base64/i.test(header)) {
+    try {
+      return new Blob([decodeURIComponent(payload)], { type: mime });
+    } catch {
+      return new Blob([payload], { type: mime });
+    }
+  }
   try {
     const binary = atob(payload);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return new Blob([bytes], { type: mime });
   } catch {
-    return new Blob([dataUrl], { type: mime });
+    return null;
   }
 }
 

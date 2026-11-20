@@ -208,7 +208,11 @@ export function computeRoomBalanceSummary(
 
 function escapeCsvCell(value: string | number | boolean | null): string {
   if (value === null || value === undefined) return '';
-  const str = String(value);
+  let str = String(value);
+  // Prevent CSV formula / DDE injection in Excel and other spreadsheet apps
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

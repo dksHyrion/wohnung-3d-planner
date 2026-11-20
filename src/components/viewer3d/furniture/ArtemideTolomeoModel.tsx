@@ -98,13 +98,6 @@ export const ArtemideTolomeoModel = React.memo<FurnitureModelProps>(
         </mesh>
 
         {/* 3. Primary Cantilever Arm (Angles forward and slightly downward) */}
-        {/* Computes angled cylinder between Joint 1 and Joint 2 */}
-        <group position={[0, height / 2 - canopyH - 12, canopyZ]}>
-          <lineSegments>
-            <bufferGeometry />
-          </lineSegments>
-        </group>
-
         {/* Arm Segment 1: Joint 1 -> Elbow */}
         {(() => {
           const dy = armMidY - (height / 2 - canopyH - 12);
@@ -249,7 +242,11 @@ export const ArtemideTolomeoModel = React.memo<FurnitureModelProps>(
 
         {/* 4. Conical Diffuser Shade (Parchment Paper / Satinstoff) */}
         {/* Open top ring */}
-        <mesh position={[0, -height / 2 + diffH, shadeZ]} castShadow>
+        <mesh
+          position={[0, -height / 2 + diffH, shadeZ]}
+          rotation={[Math.PI / 2, 0, 0]}
+          castShadow
+        >
           <torusGeometry args={[diffR * 0.38, 0.5, 12, 32]} />
           <meshStandardMaterial
             color={aluminiumColor}

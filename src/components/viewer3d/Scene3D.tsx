@@ -84,7 +84,15 @@ declare global {
 }
 
 const EMPTY_ARRAY: readonly never[] = Object.freeze([]);
+const EMPTY_CORNERS: Corner[] = [];
+const EMPTY_WALLS: Wall[] = [];
+const EMPTY_ROOM_LABELS: RoomLabel[] = [];
 const EMPTY_OPENINGS: WallOpening[] = [];
+const EMPTY_ROOF_SLOPES: RoofSlope[] = [];
+const EMPTY_FIXTURES: WallFixture[] = [];
+const EMPTY_FURNITURE: FurnitureItem[] = [];
+const EMPTY_RUGS: AreaRug[] = [];
+const EMPTY_STAIRS: Staircase[] = [];
 
 /** Minimal structural view of drei's OrbitControls instance (exposed as an EventDispatcher by useThree). */
 interface OrbitControlsLike {
@@ -166,7 +174,13 @@ const RendererConfigController: React.FC<{
     }
 
     const handleSnapshotRequest = (e: Event) => {
+      const prevToneMapping = gl.toneMapping;
       try {
+        // In Beauty mode gl.toneMapping is NoToneMapping (handled by EffectComposer).
+        // Re-enable AgXToneMapping for the synchronous gl.render snapshot so PNG colors match.
+        if (isBeauty) {
+          gl.toneMapping = THREE.AgXToneMapping;
+        }
         gl.render(scene, camera);
         const detail = (e as CustomEvent<{ prefix?: string } | undefined>).detail;
         const prefix = detail?.prefix ?? 'wohnung-3d';
@@ -183,6 +197,8 @@ const RendererConfigController: React.FC<{
         }
       } catch (err) {
         console.error('Failed to capture snapshot in render listener:', err);
+      } finally {
+        gl.toneMapping = prevToneMapping;
       }
     };
 
@@ -249,8 +265,14 @@ const GhostVariantOverlay3D: React.FC = () => {
   const ghostVariantId = useFloorplanStore((s) => s.ghostVariantId);
   const layoutVariants = useFloorplanStore((s) => s.layoutVariants);
   const furniture = useFloorplanStore((s) => s.furniture);
+  const levels = useFloorplanStore((s) => s.levels);
   const rugs =
     useFloorplanStore((s) => s.rugs) ?? (EMPTY_ARRAY as unknown as AreaRug[]);
+
+  const levelElevationMap = useMemo(
+    () => new Map(levels.map((l) => [l.id, l.elevationCm])),
+    [levels]
+  );
 
   const ghostVariant = useMemo(
     () =>
@@ -274,37 +296,43 @@ const GhostVariantOverlay3D: React.FC = () => {
 
   return (
     <group name="variant-ghost-overlay-3d" userData={{ exportIgnore: true }}>
-      {ghostItems.map((item) => (
-        <mesh
-          key={`ghost-3d-${item.id}`}
-          position={[item.x, item.elevationCm + item.heightCm / 2, item.z]}
-          rotation={[0, (item.rotationYDeg * Math.PI) / 180, 0]}
-          raycast={() => null}
-        >
-          <boxGeometry args={[item.widthCm, item.heightCm, item.depthCm]} />
-          <meshBasicMaterial
-            color="#a855f7"
-            transparent
-            opacity={0.24}
-            depthWrite={false}
-            wireframe={false}
+      {ghostItems.map((item) => {
+        const baseY = levelElevationMap.get(getEntityLevelId(item)) ?? 0;
+        return (
+          <mesh
+            key={`ghost-3d-${item.id}`}
+            position={[item.x, baseY + item.elevationCm + item.heightCm / 2, item.z]}
+            rotation={[0, (item.rotationYDeg * Math.PI) / 180, 0]}
+            raycast={() => null}
+          >
+            <boxGeometry args={[item.widthCm, item.heightCm, item.depthCm]} />
+            <meshBasicMaterial
+              color="#a855f7"
+              transparent
+              opacity={0.24}
+              depthWrite={false}
+              wireframe={false}
+            />
+          </mesh>
+        );
+      })}
+      {diff.movedFurniture.map(({ ghost, active }) => {
+        const baseY = levelElevationMap.get(getEntityLevelId(ghost)) ?? 0;
+        return (
+          <Line
+            key={`ghost-3d-line-${ghost.id}`}
+            points={[
+              [ghost.x, baseY + 4, ghost.z],
+              [active.x, baseY + 4, active.z],
+            ]}
+            color="#c084fc"
+            lineWidth={2}
+            dashed
+            dashSize={8}
+            gapSize={5}
           />
-        </mesh>
-      ))}
-      {diff.movedFurniture.map(({ ghost, active }) => (
-        <Line
-          key={`ghost-3d-line-${ghost.id}`}
-          points={[
-            [ghost.x, 4, ghost.z],
-            [active.x, 4, active.z],
-          ]}
-          color="#c084fc"
-          lineWidth={2}
-          dashed
-          dashSize={8}
-          gapSize={5}
-        />
-      ))}
+        );
+      })}
     </group>
   );
 };
@@ -1323,17 +1351,52 @@ export const Scene3D: React.FC = () => {
     return [...levels].sort((a, b) => a.index - b.index);
   }, [levels, activeLevel, levelViewMode]);
 
+  const entitiesByLevel = useMemo(() => {
+    const groupBy = <T extends { levelId?: string }>(items: T[]) => {
+      const map = new Map<string, T[]>();
+      for (const item of items) {
+        const lid = getEntityLevelId(item);
+        const list = map.get(lid);
+        if (list) list.push(item);
+        else map.set(lid, [item]);
+      }
+      return map;
+    };
+    const stairsFrom = new Map<string, Staircase[]>();
+    const stairsTo = new Map<string, Staircase[]>();
+    for (const st of stairs) {
+      const fromList = stairsFrom.get(st.fromLevelId);
+      if (fromList) fromList.push(st);
+      else stairsFrom.set(st.fromLevelId, [st]);
+      const toList = stairsTo.get(st.toLevelId);
+      if (toList) toList.push(st);
+      else stairsTo.set(st.toLevelId, [st]);
+    }
+    return {
+      corners: groupBy(corners),
+      walls: groupBy(walls),
+      roomLabels: groupBy(roomLabels),
+      openings: groupBy(openings),
+      roofSlopes: groupBy(roofSlopes),
+      fixtures: groupBy(fixtures),
+      furniture: groupBy(furniture),
+      rugs: groupBy(rugs),
+      stairsFrom,
+      stairsTo,
+    };
+  }, [corners, walls, roomLabels, openings, roofSlopes, fixtures, furniture, rugs, stairs]);
+
   const activeCorners = useMemo(
-    () => corners.filter((c) => getEntityLevelId(c) === activeLevel.id),
-    [corners, activeLevel.id]
+    () => entitiesByLevel.corners.get(activeLevel.id) ?? EMPTY_CORNERS,
+    [entitiesByLevel.corners, activeLevel.id]
   );
   const activeWalls = useMemo(
-    () => walls.filter((w) => getEntityLevelId(w) === activeLevel.id),
-    [walls, activeLevel.id]
+    () => entitiesByLevel.walls.get(activeLevel.id) ?? EMPTY_WALLS,
+    [entitiesByLevel.walls, activeLevel.id]
   );
   const activeRoomLabels = useMemo(
-    () => roomLabels.filter((l) => getEntityLevelId(l) === activeLevel.id),
-    [roomLabels, activeLevel.id]
+    () => entitiesByLevel.roomLabels.get(activeLevel.id) ?? EMPTY_ROOM_LABELS,
+    [entitiesByLevel.roomLabels, activeLevel.id]
   );
   const activeRooms = useMemo(
     () => applyRoomLabels(computeFloorPolygons(activeCorners, activeWalls), activeRoomLabels),
@@ -1733,7 +1796,7 @@ export const Scene3D: React.FC = () => {
         />
 
         {/* Architectural Studio Stage, Lighting & Contact Shadows */}
-        <StudioStage3D roomBounds={roomBounds} />
+        <StudioStage3D roomBounds={roomBounds} elevationCm={activeLevel.elevationCm} />
 
         {/* Centimeter Floor Grid (10 cm cell / 100 cm section) */}
         <Grid
@@ -1766,16 +1829,16 @@ export const Scene3D: React.FC = () => {
               key={lvl.id}
               level={lvl}
               allLevels={levels}
-              corners={corners.filter((c) => getEntityLevelId(c) === lvl.id)}
-              walls={walls.filter((w) => getEntityLevelId(w) === lvl.id)}
-              roomLabels={roomLabels.filter((l) => getEntityLevelId(l) === lvl.id)}
-              openings={openings.filter((o) => getEntityLevelId(o) === lvl.id)}
-              roofSlopes={roofSlopes.filter((s) => getEntityLevelId(s) === lvl.id)}
-              fixtures={fixtures.filter((fx) => getEntityLevelId(fx) === lvl.id)}
-              furniture={furniture.filter((f) => getEntityLevelId(f) === lvl.id)}
-              rugs={rugs.filter((r) => getEntityLevelId(r) === lvl.id)}
-              levelStairs={stairs.filter((s) => s.fromLevelId === lvl.id)}
-              arrivingStairs={stairs.filter((s) => s.toLevelId === lvl.id)}
+              corners={entitiesByLevel.corners.get(lvl.id) ?? EMPTY_CORNERS}
+              walls={entitiesByLevel.walls.get(lvl.id) ?? EMPTY_WALLS}
+              roomLabels={entitiesByLevel.roomLabels.get(lvl.id) ?? EMPTY_ROOM_LABELS}
+              openings={entitiesByLevel.openings.get(lvl.id) ?? EMPTY_OPENINGS}
+              roofSlopes={entitiesByLevel.roofSlopes.get(lvl.id) ?? EMPTY_ROOF_SLOPES}
+              fixtures={entitiesByLevel.fixtures.get(lvl.id) ?? EMPTY_FIXTURES}
+              furniture={entitiesByLevel.furniture.get(lvl.id) ?? EMPTY_FURNITURE}
+              rugs={entitiesByLevel.rugs.get(lvl.id) ?? EMPTY_RUGS}
+              levelStairs={entitiesByLevel.stairsFrom.get(lvl.id) ?? EMPTY_STAIRS}
+              arrivingStairs={entitiesByLevel.stairsTo.get(lvl.id) ?? EMPTY_STAIRS}
               collisionReports={collisionReports}
               floorTextures={floorTextures}
               renderTheme={renderTheme}

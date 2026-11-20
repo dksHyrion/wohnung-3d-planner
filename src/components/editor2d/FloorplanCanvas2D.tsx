@@ -66,7 +66,14 @@ export const FloorplanCanvas2D: React.FC = () => {
     y: number;
     w: number;
     h: number;
-  }>(() => computeFitViewBox(corners));
+  }>(() => {
+    const initialLevelCorners = corners.filter(
+      (c) => getEntityLevelId(c) === activeLevelId
+    );
+    return computeFitViewBox(
+      initialLevelCorners.length > 0 ? initialLevelCorners : corners
+    );
+  });
   const viewBoxRef = useRef(viewBox);
   viewBoxRef.current = viewBox;
 
@@ -336,6 +343,10 @@ export const FloorplanCanvas2D: React.FC = () => {
       return;
     }
 
+    if (e.button !== 0) {
+      return;
+    }
+
     selectEntity(null, null);
     setDragState({
       type: 'pan',
@@ -348,6 +359,28 @@ export const FloorplanCanvas2D: React.FC = () => {
   // One store commit per animation frame while dragging; pointer up flushes the last position.
   const dragFrame = useRef(createFrameThrottle()).current;
   const groupDragCommittedDeltaRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
+
+  useEffect(() => {
+    return () => {
+      dragFrame.cancel();
+    };
+  }, [dragFrame]);
+
+  useEffect(() => {
+    if (!dragState || dragState.type === 'draw-wall') return;
+    const handleWindowPointerEnd = () => {
+      dragFrame.flush();
+      clearAlignmentGuides();
+      groupDragCommittedDeltaRef.current = { x: 0, z: 0 };
+      setDragState(null);
+    };
+    window.addEventListener('pointerup', handleWindowPointerEnd);
+    window.addEventListener('pointercancel', handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener('pointerup', handleWindowPointerEnd);
+      window.removeEventListener('pointercancel', handleWindowPointerEnd);
+    };
+  }, [dragState, dragFrame, clearAlignmentGuides]);
 
   const handleSvgPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (activeTool === 'calibrate-scale' && calibrationPoints.p1 && !calibrationPoints.p2) {

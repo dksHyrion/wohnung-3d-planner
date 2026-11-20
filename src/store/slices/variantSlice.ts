@@ -37,7 +37,7 @@ export function createVariantSlice(deps: StoreDeps): VariantActions {
         rugs: snapshot.rugs,
       };
 
-      set({
+      setWithCollisions({
         layoutVariants: [...state.layoutVariants, variant],
         activeVariantId: id,
       });
@@ -102,7 +102,8 @@ export function createVariantSlice(deps: StoreDeps): VariantActions {
       const trimmed = name.trim();
       if (!trimmed) return;
       const state = get();
-      set({
+      if (!state.layoutVariants.some((v) => v.id === variantId)) return;
+      setWithCollisions({
         layoutVariants: state.layoutVariants.map((v) =>
           v.id === variantId ? { ...v, name: trimmed } : v
         ),
@@ -111,8 +112,9 @@ export function createVariantSlice(deps: StoreDeps): VariantActions {
 
     deleteLayoutVariant: (variantId) => {
       const state = get();
+      if (!state.layoutVariants.some((v) => v.id === variantId)) return;
       const next = state.layoutVariants.filter((v) => v.id !== variantId);
-      set({
+      setWithCollisions({
         layoutVariants: next,
         activeVariantId:
           state.activeVariantId === variantId ? null : state.activeVariantId,

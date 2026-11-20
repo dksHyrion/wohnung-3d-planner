@@ -82,14 +82,18 @@ export function prepareExportSceneGroup(
       const checkInvisible = (mat: THREE.Material | undefined) =>
         Boolean(mat && mat.transparent && mat.opacity <= 0.001);
       if (Array.isArray(mesh.material)) {
-        if (mesh.material.every(checkInvisible)) {
+        if (mesh.material.length === 0) {
+          const fallback = new THREE.MeshStandardMaterial();
+          disposables.push(fallback);
+          mesh.material = fallback;
+        } else if (mesh.material.every(checkInvisible)) {
           toRemove.push(node);
           return;
+        } else {
+          mesh.material = mesh.material.map((m) =>
+            coerceToStandardMaterial(m, disposables)
+          );
         }
-        const primary = mesh.material[0];
-        mesh.material = primary
-          ? coerceToStandardMaterial(primary, disposables)
-          : coerceToStandardMaterial(new THREE.MeshStandardMaterial(), disposables);
       } else if (mesh.material) {
         if (checkInvisible(mesh.material)) {
           toRemove.push(node);

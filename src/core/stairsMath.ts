@@ -151,12 +151,16 @@ export function computeStairGeometry(
   const localArrow: PointXZ[] = [];
   let rawFootprintLocal: PointXZ[] = [];
 
-  const landingLen = Math.max(
+  const baseLandingLen = Math.max(
     60,
     stair.landingLengthCm && Number.isFinite(stair.landingLengthCm)
       ? stair.landingLengthCm
       : widthCm
   );
+  const landingLen =
+    stair.type === 'l-shaped'
+      ? Math.max(widthCm, baseLandingLen)
+      : baseLandingLen;
   const turnSign = stair.turnDirection === 'left' ? -1 : 1;
 
   if (stair.type === 'straight') {

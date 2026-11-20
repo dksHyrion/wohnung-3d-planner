@@ -175,7 +175,7 @@ export const KitchenIslandModel: React.FC<FurnitureModelProps> = ({
 
       {/* 5. Center Fruit Bowl on Island Countertop (as in Bild 1) */}
       {showDecor && (
-        <group position={[0, height / 2 + stoneThickness / 2, -depth * 0.08]}>
+        <group position={[0, height / 2, -depth * 0.08]}>
           <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[9, 5, 3.8, 24]} />
             <meshStandardMaterial color={bowlColor} roughness={0.2} metalness={0.05} />

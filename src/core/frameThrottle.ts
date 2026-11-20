@@ -7,6 +7,8 @@ export interface FrameThrottle {
   schedule: (fn: () => void) => void;
   /** Runs a pending callback now, e.g. on pointer up so the final position is committed. */
   flush: () => void;
+  /** Cancels any pending scheduled callback without running it (e.g. on unmount). */
+  cancel: () => void;
 }
 
 export function createFrameThrottle(): FrameThrottle {
@@ -33,6 +35,13 @@ export function createFrameThrottle(): FrameThrottle {
       if (handle === null) return;
       cancelAnimationFrame(handle);
       run();
+    },
+    cancel() {
+      if (handle !== null) {
+        cancelAnimationFrame(handle);
+        handle = null;
+      }
+      pending = null;
     },
   };
 }

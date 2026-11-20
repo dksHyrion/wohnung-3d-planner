@@ -68,6 +68,8 @@ export const App: React.FC = () => {
           state.removeRug(state.selectedId);
         } else if (state.selectedType === 'stair') {
           state.removeStair(state.selectedId);
+        } else if (state.selectedType === 'fixture') {
+          state.removeFixture(state.selectedId);
         }
       } else if (e.key === 'Escape') {
         const state = useFloorplanStore.getState();
@@ -104,11 +106,25 @@ export const App: React.FC = () => {
       });
     };
 
+    let suppressAutosave = false;
+    const scheduler = createAutosaveScheduler((json) => {
+      useFloorplanStore.getState().saveToLocalStorage(json);
+    });
+    const unsub = useFloorplanStore.subscribe((state, prev) => {
+      if (suppressAutosave) return;
+      scheduler.notify(prev, state, () => useFloorplanStore.getState().exportJson());
+    });
+
     if (hasSharedHash) {
       void decodeFloorplanFromUrlHash(rawHash).then((sharedPlan) => {
         if (cancelled) return;
         if (sharedPlan) {
-          useFloorplanStore.getState().importJson(JSON.stringify(sharedPlan));
+          suppressAutosave = true;
+          try {
+            useFloorplanStore.getState().importJson(JSON.stringify(sharedPlan));
+          } finally {
+            suppressAutosave = false;
+          }
           return;
         }
         restoreLocalFallback();
@@ -117,15 +133,8 @@ export const App: React.FC = () => {
       restoreLocalFallback();
     }
 
-    const scheduler = createAutosaveScheduler((json) => {
-      useFloorplanStore.getState().saveToLocalStorage(json);
-    });
-    const unsub = useFloorplanStore.subscribe((state, prev) => {
-      scheduler.notify(prev, state, () => useFloorplanStore.getState().exportJson());
-    });
     const writePlan = () => {
       scheduler.flush();
-      saveToLocalStorage();
     };
     const handleHide = () => {
       if (document.visibilityState === 'hidden') writePlan();

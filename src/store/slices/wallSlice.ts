@@ -424,6 +424,9 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         z: Number(z.toFixed(2)),
       };
 
+      const affectedWallIds = new Set<string>();
+      const wallLengths = new Map<string, number>();
+
       // Ensure no connected wall becomes shorter than 10 cm
       for (const wall of state.walls) {
         if (wall.startCornerId === cornerId || wall.endCornerId === cornerId) {
@@ -438,6 +441,8 @@ export function createWallSlice(deps: StoreDeps): WallActions {
             if (geom.lengthCm < 10) {
               return;
             }
+            affectedWallIds.add(wall.id);
+            wallLengths.set(wall.id, geom.lengthCm);
           }
         }
       }
@@ -446,7 +451,55 @@ export function createWallSlice(deps: StoreDeps): WallActions {
         c.id === cornerId ? { ...c, x: candidatePos.x, z: candidatePos.z } : c
       );
 
-      setWithCollisions({ corners }, recordHistory);
+      const openings =
+        affectedWallIds.size > 0
+          ? state.openings.map((op) => {
+              const len = wallLengths.get(op.wallId);
+              if (len === undefined) return op;
+              const widthCm = Math.min(op.widthCm, Math.max(10, len - 2));
+              const maxOffset = Math.max(0, len - widthCm);
+              const offsetFromStartCm = Math.max(
+                0,
+                Math.min(maxOffset, op.offsetFromStartCm)
+              );
+              if (
+                widthCm === op.widthCm &&
+                offsetFromStartCm === op.offsetFromStartCm
+              ) {
+                return op;
+              }
+              return { ...op, widthCm, offsetFromStartCm };
+            })
+          : state.openings;
+
+      const fixtures =
+        affectedWallIds.size > 0
+          ? state.fixtures.map((fx) => {
+              const len = wallLengths.get(fx.wallId);
+              if (len === undefined) return fx;
+              const halfW = fx.widthCm / 2;
+              const offsetFromStartCm = Math.max(
+                halfW,
+                Math.min(Math.max(halfW, len - halfW), fx.offsetFromStartCm)
+              );
+              return offsetFromStartCm === fx.offsetFromStartCm
+                ? fx
+                : { ...fx, offsetFromStartCm };
+            })
+          : state.fixtures;
+
+      const furniture =
+        affectedWallIds.size > 0
+          ? realignSnappedFurnitureOnWalls(
+              state.corners,
+              corners,
+              state.walls,
+              state.furniture,
+              affectedWallIds
+            )
+          : state.furniture;
+
+      setWithCollisions({ corners, openings, fixtures, furniture }, recordHistory);
     },
 
     removeWall: (wallId) => {

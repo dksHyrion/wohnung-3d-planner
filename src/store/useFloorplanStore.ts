@@ -158,6 +158,8 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       (patch.roomLabels !== undefined && patch.roomLabels !== state.roomLabels) ||
       (patch.roofSlopes !== undefined && patch.roofSlopes !== state.roofSlopes) ||
       (patch.fixtures !== undefined && patch.fixtures !== state.fixtures) ||
+      (patch.layoutVariants !== undefined && patch.layoutVariants !== state.layoutVariants) ||
+      (patch.activeVariantId !== undefined && patch.activeVariantId !== state.activeVariantId) ||
       (patch.backgroundImage !== undefined && patch.backgroundImage !== state.backgroundImage);
 
     const historyPatch = recordHistory && hasDataChanged ? pushHistory() : {};

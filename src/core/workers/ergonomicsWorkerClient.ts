@@ -22,11 +22,11 @@ import type {
 export interface WorkerLike {
   postMessage: (data: unknown) => void;
   addEventListener: (
-    type: 'message',
+    type: 'message' | 'error' | 'messageerror',
     listener: (event: MessageEvent) => void
   ) => void;
   removeEventListener: (
-    type: 'message',
+    type: 'message' | 'error' | 'messageerror',
     listener: (event: MessageEvent) => void
   ) => void;
   terminate: () => void;
@@ -117,13 +117,49 @@ export function createErgonomicsWorkerClient(
     }
   };
 
+  const resetBrokenWorker = () => {
+    for (const [id, entry] of pendingResolvers) {
+      pendingResolvers.delete(id);
+      entry.resolve(null);
+    }
+    if (worker) {
+      try {
+        worker.removeEventListener('message', handleWorkerMessage);
+        worker.removeEventListener('error', handleWorkerError);
+        worker.removeEventListener('messageerror', handleWorkerError);
+        worker.terminate();
+      } catch {
+        // Ignore cleanup errors on broken worker
+      }
+      worker = null;
+    }
+  };
+
+  const handleWorkerError = () => {
+    resetBrokenWorker();
+  };
+
   const ensureWorker = (): WorkerLike => {
     if (!worker) {
       const factory = options.workerFactory ?? defaultWorkerFactory;
       worker = factory();
       worker.addEventListener('message', handleWorkerMessage);
+      worker.addEventListener('error', handleWorkerError);
+      worker.addEventListener('messageerror', handleWorkerError);
     }
     return worker;
+  };
+
+  const safePostMessage = (requestId: number, req: ErgonomicsWorkerRequest) => {
+    try {
+      ensureWorker().postMessage(req);
+    } catch {
+      const entry = pendingResolvers.get(requestId);
+      if (entry) {
+        pendingResolvers.delete(requestId);
+        entry.resolve(null);
+      }
+    }
   };
 
   const clearDebounce = () => {
@@ -192,7 +228,7 @@ export function createErgonomicsWorkerClient(
           payload: data,
           ...(opts?.levelId ? { levelId: opts.levelId } : {}),
         };
-        ensureWorker().postMessage(req);
+        safePostMessage(requestId, req);
       };
 
       if (opts?.immediate || debounceMs <= 0) {
@@ -217,7 +253,7 @@ export function createErgonomicsWorkerClient(
             payload: data,
             ...(opts?.levelId ? { levelId: opts.levelId } : {}),
           };
-          ensureWorker().postMessage(req);
+          safePostMessage(requestId, req);
         }, debounceMs);
       });
     },
@@ -240,7 +276,7 @@ export function createErgonomicsWorkerClient(
           kind: 'compare-variants',
           payload: { baseArchitecture, variants },
         };
-        ensureWorker().postMessage(req);
+        safePostMessage(requestId, req);
       });
     },
 

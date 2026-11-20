@@ -199,7 +199,8 @@ export function getParquetTexture(): THREE.CanvasTexture {
 
       for (let p = -1; p < 3; p++) {
         const x = p * plankLength + xOffset;
-        const colorIdx = Math.floor(pseudoNoise(r, p, 33) * oakColors.length);
+        const wrappedP = ((p % 2) + 2) % 2;
+        const colorIdx = Math.floor(pseudoNoise(r, wrappedP, 33) * oakColors.length);
         const plankColor = oakColors[colorIdx];
 
         ctx.fillStyle = plankColor;
@@ -553,8 +554,14 @@ export function getMarbleQuartzTexture(): THREE.CanvasTexture {
       while (curY < size) {
         curY += stepY;
         const drift = (pseudoNoise(curX, curY, v * 17) - 0.48) * 18;
-        curX = (curX + drift + size) % size;
-        ctx.lineTo(curX, curY);
+        const rawNextX = curX + drift;
+        const nextX = ((rawNextX % size) + size) % size;
+        if (Math.abs(nextX - curX) > size * 0.5) {
+          ctx.moveTo(nextX, curY);
+        } else {
+          ctx.lineTo(nextX, curY);
+        }
+        curX = nextX;
       }
       ctx.stroke();
 

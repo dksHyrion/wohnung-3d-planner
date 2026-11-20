@@ -68,7 +68,7 @@ export const ArchitecturalDimensionLines3D: React.FC<
         offsetCm,
         unit,
       }),
-    [corners, roomBounds, offsetCm, unit]
+    [corners, walls, roomBounds, offsetCm, unit]
   );
 
   const lineColor = DIMENSION_LINE_COLOR;

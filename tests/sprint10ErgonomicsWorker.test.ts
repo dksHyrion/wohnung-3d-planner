@@ -16,11 +16,17 @@ class MockWorker implements WorkerLike {
   public posted: unknown[] = [];
   public terminated = false;
 
-  addEventListener(type: 'message', listener: (event: MessageEvent) => void): void {
+  addEventListener(
+    type: 'message' | 'error' | 'messageerror',
+    listener: (event: MessageEvent) => void
+  ): void {
     if (type === 'message') this.listeners.add(listener);
   }
 
-  removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void {
+  removeEventListener(
+    type: 'message' | 'error' | 'messageerror',
+    listener: (event: MessageEvent) => void
+  ): void {
     if (type === 'message') this.listeners.delete(listener);
   }
 

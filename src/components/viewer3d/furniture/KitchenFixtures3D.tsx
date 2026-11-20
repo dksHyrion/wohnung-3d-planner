@@ -152,7 +152,7 @@ export const KitchenSinkWithFaucet3D: React.FC<KitchenSinkWithFaucet3DProps> = (
             />
           </mesh>
           {/* Swan-Neck Curved Spout */}
-          <mesh position={[0, 21, 6]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <mesh position={[0, 18, 6]} rotation={[0, Math.PI / 2, 0]} castShadow>
             <torusGeometry args={[6, 1.0, 12, 24, Math.PI]} />
             <meshStandardMaterial
               color={faucetColor}
