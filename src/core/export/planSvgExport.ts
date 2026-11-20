@@ -540,14 +540,24 @@ export function exportScaledFloorplanSvg(
   }
 
   // Exterior Dimension Chains
-  if (options.includeDimensions !== false && data.walls.length > 0) {
+  if (options.includeDimensions !== false && data.walls.length > 0 && data.corners.length > 0) {
+    let rawMinX = Infinity;
+    let rawMaxX = -Infinity;
+    let rawMinZ = Infinity;
+    let rawMaxZ = -Infinity;
+    for (const c of data.corners) {
+      if (c.x < rawMinX) rawMinX = c.x;
+      if (c.x > rawMaxX) rawMaxX = c.x;
+      if (c.z < rawMinZ) rawMinZ = c.z;
+      if (c.z > rawMaxZ) rawMaxZ = c.z;
+    }
     const roomBounds = {
-      minX,
-      maxX,
-      minZ,
-      maxZ,
-      cx: (minX + maxX) / 2,
-      cz: (minZ + maxZ) / 2,
+      minX: rawMinX,
+      maxX: rawMaxX,
+      minZ: rawMinZ,
+      maxZ: rawMaxZ,
+      cx: (rawMinX + rawMaxX) / 2,
+      cz: (rawMinZ + rawMaxZ) / 2,
     };
     const dimChains = computeExteriorDimensionChains(
       data.corners,

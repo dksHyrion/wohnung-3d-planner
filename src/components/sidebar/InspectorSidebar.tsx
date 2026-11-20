@@ -189,6 +189,7 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
 
   const candidateParents = useMemo(() => {
     if (!selectedFurniture) return [];
+    const targetLevelId = getEntityLevelId(selectedFurniture);
     const descendants = new Set<string>([selectedFurniture.id]);
     let changed = true;
     while (changed) {
@@ -204,7 +205,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
         }
       }
     }
-    return furniture.filter((f) => !descendants.has(f.id));
+    return furniture.filter(
+      (f) => !descendants.has(f.id) && getEntityLevelId(f) === targetLevelId
+    );
   }, [furniture, selectedFurniture]);
 
   const getRoomCenter = () => {

@@ -4,6 +4,7 @@ import { FlooringType, RoomPolygon } from '../../core/types';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { computeRoomWoFlVBreakdown, resolveRoofSlopePlanes } from '../../core/roofSlopeMath';
+import { getEntityLevelId } from '../../core/levels';
 
 export interface RoomInspectorProps {
   selectedRoom: RoomPolygon;
@@ -28,14 +29,29 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
   const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
 
   const woflvBreakdown = React.useMemo(() => {
-    if (!roofSlopes || roofSlopes.length === 0) return null;
-    const planes = resolveRoofSlopePlanes(corners, walls, roofSlopes, [selectedRoom]);
-    const maxCeilingCm = walls.length > 0 ? Math.max(250, ...walls.map((w) => w.heightCm)) : 250;
+    const levelCorners = corners.filter((c) => getEntityLevelId(c) === activeLevelId);
+    const levelWalls = walls.filter((w) => getEntityLevelId(w) === activeLevelId);
+    const levelWallIds = new Set(levelWalls.map((w) => w.id));
+    const levelRoofSlopes = (roofSlopes ?? []).filter(
+      (rs) =>
+        levelWallIds.has(rs.wallId) &&
+        (rs.levelId === undefined || rs.levelId === activeLevelId)
+    );
+    if (levelRoofSlopes.length === 0) return null;
+    const planes = resolveRoofSlopePlanes(
+      levelCorners,
+      levelWalls,
+      levelRoofSlopes,
+      [selectedRoom]
+    );
+    const maxCeilingCm =
+      levelWalls.length > 0 ? Math.max(250, ...levelWalls.map((w) => w.heightCm)) : 250;
     const res = computeRoomWoFlVBreakdown(selectedRoom, planes, maxCeilingCm);
     return res.hasRoofSlopes ? res : null;
-  }, [corners, walls, roofSlopes, selectedRoom]);
+  }, [corners, walls, roofSlopes, activeLevelId, selectedRoom]);
 
   const fallbackName = `${t('inspector.room.defaultName')} ${roomIndex + 1}`;
   const displayName = selectedRoom.name ?? fallbackName;

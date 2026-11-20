@@ -11,6 +11,7 @@ import {
   RoomLabel,
 } from './types';
 import { segmentInteriorIntersection2D } from './geometry2d';
+import { getEntityLevelId } from './levels';
 
 export type { FlooringType, RoomPolygon };
 
@@ -760,8 +761,12 @@ export function splitWallsAtCorner(
       ? generateId('w')
       : `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
+  const cornerLevelId = getEntityLevelId(currentCorner);
   for (let i = 0; i < currentWalls.length; i++) {
     const wall = currentWalls[i];
+    if (getEntityLevelId(wall) !== cornerLevelId) {
+      continue;
+    }
     if (wall.startCornerId === currentCorner.id || wall.endCornerId === currentCorner.id) {
       continue;
     }
@@ -873,10 +878,14 @@ export function splitCrossingWalls(
     z: number;
   }
 
+  const newWallLevelId = getEntityLevelId(newWall);
   const hits: CrossingHit[] = [];
   const cornerMap = new Map(currentCorners.map((c) => [c.id, c]));
 
   for (const w of currentWalls) {
+    if (getEntityLevelId(w) !== newWallLevelId) {
+      continue;
+    }
     if (
       w.startCornerId === newWall.startCornerId ||
       w.startCornerId === newWall.endCornerId ||
@@ -917,12 +926,15 @@ export function splitCrossingWalls(
 
   for (const hit of hits) {
     const existingCorner = currentCorners.find(
-      (c) => Math.hypot(c.x - hit.x, c.z - hit.z) < 0.5
+      (c) =>
+        getEntityLevelId(c) === newWallLevelId &&
+        Math.hypot(c.x - hit.x, c.z - hit.z) < 0.5
     );
     const junctionCorner: Corner = existingCorner ?? {
       id: generateId('c'),
       x: hit.x,
       z: hit.z,
+      ...(newWall.levelId ? { levelId: newWall.levelId } : {}),
     };
     if (!existingCorner) {
       currentCorners.push(junctionCorner);

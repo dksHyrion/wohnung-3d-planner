@@ -1,23 +1,35 @@
 export const AUTOSAVE_DELAY_MS = 400;
 
 export interface PlanSlice {
+  levels?: unknown;
+  stairs?: unknown;
   corners: unknown;
   walls: unknown;
   openings: unknown;
   furniture: unknown;
   rugs: unknown;
   roomLabels: unknown;
+  roofSlopes?: unknown;
+  fixtures?: unknown;
+  layoutVariants?: unknown;
+  activeVariantId?: unknown;
   backgroundImage: unknown;
 }
 
 export function planContentChanged(prev: PlanSlice, next: PlanSlice): boolean {
   return (
+    prev.levels !== next.levels ||
+    prev.stairs !== next.stairs ||
     prev.corners !== next.corners ||
     prev.walls !== next.walls ||
     prev.openings !== next.openings ||
     prev.furniture !== next.furniture ||
     prev.rugs !== next.rugs ||
     prev.roomLabels !== next.roomLabels ||
+    prev.roofSlopes !== next.roofSlopes ||
+    prev.fixtures !== next.fixtures ||
+    prev.layoutVariants !== next.layoutVariants ||
+    prev.activeVariantId !== next.activeVariantId ||
     prev.backgroundImage !== next.backgroundImage
   );
 }

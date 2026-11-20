@@ -915,6 +915,7 @@ export const VariantGhostLayer = React.memo(function VariantGhostLayer() {
   const layoutVariants = useFloorplanStore((s) => s.layoutVariants);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs = useFloorplanStore((s) => s.rugs);
+  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
 
   const ghostVariant = ghostVariantId
     ? layoutVariants.find((v) => v.id === ghostVariantId)
@@ -922,7 +923,18 @@ export const VariantGhostLayer = React.memo(function VariantGhostLayer() {
 
   if (!ghostVariant) return null;
 
-  const diff = computeVariantDiff({ furniture, rugs }, ghostVariant);
+  const levelFurniture = furniture.filter((f) => getEntityLevelId(f) === activeLevelId);
+  const levelRugs = rugs.filter((r) => getEntityLevelId(r) === activeLevelId);
+  const levelGhostVariant = {
+    ...ghostVariant,
+    furniture: ghostVariant.furniture.filter((f) => getEntityLevelId(f) === activeLevelId),
+    rugs: ghostVariant.rugs.filter((r) => getEntityLevelId(r) === activeLevelId),
+  };
+
+  const diff = computeVariantDiff(
+    { furniture: levelFurniture, rugs: levelRugs },
+    levelGhostVariant
+  );
   const ghostItems = [
     ...diff.ghostOnlyFurniture,
     ...diff.movedFurniture.map((m) => m.ghost),

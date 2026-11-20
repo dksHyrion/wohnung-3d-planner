@@ -284,7 +284,8 @@ function sampleSurfaceDistWorld(grid: WalkabilityGrid, x: number, z: number): nu
 function buildWalkabilityGrid(
   data: FloorplanData,
   includeFurniture: boolean,
-  minCellSizeCm: number
+  minCellSizeCm: number,
+  blockedStairPolygons: Point2D[][] = []
 ): WalkabilityGrid {
   let minX = Infinity;
   let maxX = -Infinity;
@@ -330,6 +331,10 @@ function buildWalkabilityGrid(
   const wallPolys = computeWallPlanPolygons(data.corners, data.walls, walkthroughOpenings);
   for (const wp of wallPolys) {
     rasterizePolygon(wp.polygon, minX, minZ, cellSizeCm, cols, rows, blocked);
+  }
+
+  for (const stairPoly of blockedStairPolygons) {
+    rasterizePolygon(stairPoly, minX, minZ, cellSizeCm, cols, rows, blocked);
   }
 
   if (includeFurniture) {
@@ -926,6 +931,47 @@ function gradeFromScore(score: number): ScorecardGrade {
   return 'D';
 }
 
+function isPointNearVisitedWalkCell(
+  grid: WalkabilityGrid,
+  visited: Uint8Array,
+  pt: Point2D
+): boolean {
+  const sc = Math.floor((pt.x - grid.minX) / grid.cellSizeCm);
+  const sr = Math.floor((pt.z - grid.minZ) / grid.cellSizeCm);
+  for (let dr = -4; dr <= 4; dr++) {
+    for (let dc = -4; dc <= 4; dc++) {
+      const c = sc + dc;
+      const r = sr + dr;
+      if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows) continue;
+      if (visited[r * grid.cols + c] === 1) return true;
+    }
+  }
+  return false;
+}
+
+function collectBlockedStairPolygonsForLevel(
+  stairs: FloorplanData['stairs'],
+  levelMap: Map<string, ReturnType<typeof normalizeLevels>[number]>,
+  levelId: string
+): Point2D[][] {
+  const polys: Point2D[][] = [];
+  for (const st of stairs ?? []) {
+    if (st.fromLevelId !== levelId && st.toLevelId !== levelId) continue;
+    const geom = computeStairGeometry(
+      st,
+      levelMap.get(st.fromLevelId),
+      levelMap.get(st.toLevelId)
+    );
+    if (st.fromLevelId === levelId) {
+      polys.push(geom.footprintPolygonXZ);
+    }
+    if (st.toLevelId === levelId) {
+      polys.push(geom.openingPolygonXZ);
+    }
+  }
+  return polys;
+}
+
 export function evaluateErgonomicsScorecard(
   data: FloorplanData,
   precomputedPassageReport?: PassageClearanceReport | null,
@@ -951,60 +997,126 @@ export function evaluateErgonomicsScorecard(
       ? precomputedPassageReport
       : evaluatePassageClearances(scoped.furniture, scoped.walls, scoped.corners);
 
-  const walkGrid = buildWalkabilityGrid(scoped, true, 5);
-  const wallGrid = buildWalkabilityGrid(scoped, false, 10);
+  const stairs = data.stairs ?? [];
+  const levelMap = new Map(levels.map((l) => [l.id, l]));
+  const targetStairPolys = collectBlockedStairPolygonsForLevel(
+    stairs,
+    levelMap,
+    targetLevelId
+  );
+
+  const walkGrid = buildWalkabilityGrid(scoped, true, 5, targetStairPolys);
+  const wallGrid = buildWalkabilityGrid(scoped, false, 10, targetStairPolys);
   const seedInfo = findSeedPointsForWalkthroughs(scoped, rooms);
   let { seeds, hasEntranceSeed } = seedInfo;
+  let visitedWalk = hasEntranceSeed
+    ? floodWalkableCells(walkGrid, seeds, MIN_WALK_HALF_WIDTH_CM)
+    : new Uint8Array(walkGrid.cols * walkGrid.rows);
 
-  // Cross-floor stair reachability: if targetLevelId connects via stairs to a level that has an entrance seed,
-  // inject the stair landing point(s) on targetLevelId as reachable entry seeds.
-  const stairs = data.stairs ?? [];
-  if (stairs.length > 0) {
-    const levelMap = new Map(levels.map((l) => [l.id, l]));
-    const seedLevelIds = new Set<string>();
+  // Cross-floor stair reachability: propagate entrance reachability only across stairs
+  // whose departure/arrival landing is actually reachable on the source level.
+  if (stairs.length > 0 && levels.length > 1) {
+    interface LevelReachState {
+      grid: WalkabilityGrid;
+      seeds: Point2D[];
+      hasEntranceSeed: boolean;
+      visited: Uint8Array;
+    }
+    const reachByLevel = new Map<string, LevelReachState>();
     for (const lvl of levels) {
+      if (lvl.id === targetLevelId) {
+        reachByLevel.set(lvl.id, {
+          grid: walkGrid,
+          seeds: [...seeds],
+          hasEntranceSeed,
+          visited: visitedWalk,
+        });
+        continue;
+      }
       const lvlScoped = scopeFloorplanToLevel(data, lvl.id);
       const lvlRooms = applyRoomLabels(
         computeFloorPolygons(lvlScoped.corners, lvlScoped.walls),
         lvlScoped.roomLabels
       );
-      if (findSeedPointsForWalkthroughs(lvlScoped, lvlRooms).hasEntranceSeed) {
-        seedLevelIds.add(lvl.id);
-      }
+      const lvlStairPolys = collectBlockedStairPolygonsForLevel(
+        stairs,
+        levelMap,
+        lvl.id
+      );
+      const lvlGrid = buildWalkabilityGrid(lvlScoped, true, 5, lvlStairPolys);
+      const lvlSeedInfo = findSeedPointsForWalkthroughs(lvlScoped, lvlRooms);
+      const lvlVisited = lvlSeedInfo.hasEntranceSeed
+        ? floodWalkableCells(lvlGrid, lvlSeedInfo.seeds, MIN_WALK_HALF_WIDTH_CM)
+        : new Uint8Array(lvlGrid.cols * lvlGrid.rows);
+      reachByLevel.set(lvl.id, {
+        grid: lvlGrid,
+        seeds: [...lvlSeedInfo.seeds],
+        hasEntranceSeed: lvlSeedInfo.hasEntranceSeed,
+        visited: lvlVisited,
+      });
     }
-    // BFS over stair connections to mark reachable levels
+
+    const stairGeoms = stairs.map((st) => ({
+      stair: st,
+      geom: computeStairGeometry(
+        st,
+        levelMap.get(st.fromLevelId),
+        levelMap.get(st.toLevelId)
+      ),
+    }));
+    const propagatedKeys = new Set<string>();
+
     let changed = true;
     while (changed) {
       changed = false;
-      for (const st of stairs) {
-        if (seedLevelIds.has(st.fromLevelId) && !seedLevelIds.has(st.toLevelId)) {
-          seedLevelIds.add(st.toLevelId);
+      for (const { stair, geom } of stairGeoms) {
+        const fromState = reachByLevel.get(stair.fromLevelId);
+        const toState = reachByLevel.get(stair.toLevelId);
+        if (!fromState || !toState) continue;
+
+        const fwdKey = `${stair.id}:fwd`;
+        if (
+          !propagatedKeys.has(fwdKey) &&
+          fromState.hasEntranceSeed &&
+          isPointNearVisitedWalkCell(fromState.grid, fromState.visited, geom.entryPointXZ)
+        ) {
+          propagatedKeys.add(fwdKey);
+          toState.seeds.push(geom.exitPointXZ);
+          toState.hasEntranceSeed = true;
+          toState.visited = floodWalkableCells(
+            toState.grid,
+            toState.seeds,
+            MIN_WALK_HALF_WIDTH_CM
+          );
           changed = true;
         }
-        if (seedLevelIds.has(st.toLevelId) && !seedLevelIds.has(st.fromLevelId)) {
-          seedLevelIds.add(st.fromLevelId);
+
+        const revKey = `${stair.id}:rev`;
+        if (
+          !propagatedKeys.has(revKey) &&
+          toState.hasEntranceSeed &&
+          isPointNearVisitedWalkCell(toState.grid, toState.visited, geom.exitPointXZ)
+        ) {
+          propagatedKeys.add(revKey);
+          fromState.seeds.push(geom.entryPointXZ);
+          fromState.hasEntranceSeed = true;
+          fromState.visited = floodWalkableCells(
+            fromState.grid,
+            fromState.seeds,
+            MIN_WALK_HALF_WIDTH_CM
+          );
           changed = true;
         }
       }
     }
-    if (seedLevelIds.has(targetLevelId)) {
-      for (const st of stairs) {
-        if (st.toLevelId !== targetLevelId && st.fromLevelId !== targetLevelId) continue;
-        const geom = computeStairGeometry(
-          st,
-          levelMap.get(st.fromLevelId),
-          levelMap.get(st.toLevelId)
-        );
-        const pt = st.toLevelId === targetLevelId ? geom.exitPointXZ : geom.entryPointXZ;
-        seeds = [...seeds, pt];
-        hasEntranceSeed = true;
-      }
+
+    const targetState = reachByLevel.get(targetLevelId);
+    if (targetState) {
+      seeds = targetState.seeds;
+      hasEntranceSeed = targetState.hasEntranceSeed;
+      visitedWalk = targetState.visited;
     }
   }
-
-  const visitedWalk = hasEntranceSeed
-    ? floodWalkableCells(walkGrid, seeds, MIN_WALK_HALF_WIDTH_CM)
-    : new Uint8Array(walkGrid.cols * walkGrid.rows);
 
   const roomSpatial = findRoomReachabilityAndTurning(walkGrid, visitedWalk, rooms, hasEntranceSeed);
   const unreachableFurnitureIds = findUnreachableFurniture(

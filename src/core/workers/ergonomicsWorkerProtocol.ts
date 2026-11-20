@@ -8,6 +8,11 @@ import {
   compareLayoutVariants,
   type VariantComparisonReport,
 } from '../layoutVariants';
+import {
+  DEFAULT_LEVEL_ID,
+  normalizeLevels,
+  scopeFloorplanToLevel,
+} from '../levels';
 import type { FloorplanData, LayoutVariant } from '../types';
 
 export type ErgonomicsWorkerRequest =
@@ -15,6 +20,7 @@ export type ErgonomicsWorkerRequest =
       requestId: number;
       kind: 'evaluate-ergonomics';
       payload: FloorplanData;
+      levelId?: string;
     }
   | {
       requestId: number;
@@ -49,12 +55,24 @@ export function processErgonomicsWorkerRequest(
   try {
     if (req.kind === 'evaluate-ergonomics') {
       const data = req.payload;
+      const levels = normalizeLevels(data.levels);
+      const targetLevelId =
+        req.levelId ??
+        levels.find((l) => l.index === 0)?.id ??
+        levels[0]?.id ??
+        DEFAULT_LEVEL_ID;
+      const scoped =
+        req.levelId || levels.length > 1
+          ? scopeFloorplanToLevel(data, targetLevelId)
+          : data;
       const passageReport = evaluatePassageClearances(
-        data.furniture,
-        data.walls,
-        data.corners
+        scoped.furniture,
+        scoped.walls,
+        scoped.corners
       );
-      const ergonomicsScorecard = evaluateErgonomicsScorecard(data, passageReport);
+      const ergonomicsScorecard = evaluateErgonomicsScorecard(data, passageReport, {
+        levelId: targetLevelId,
+      });
       return {
         requestId: req.requestId,
         kind: 'evaluate-ergonomics',

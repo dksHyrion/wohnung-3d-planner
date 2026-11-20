@@ -2,6 +2,8 @@ import type { FloorplanData } from '../types';
 
 export const PLAN_HASH_PREFIX = '#plan=';
 export const DEFAULT_MAX_SHARE_HASH_LENGTH = 32768;
+export const MAX_DECODE_HASH_LENGTH = 262_144;
+export const MAX_DECOMPRESSED_BYTES = 1_500_000;
 
 export type ShareUrlResult =
   | { ok: true; url: string; hashLength: number }
@@ -38,13 +40,38 @@ function base64UrlToBytes(b64url: string): Uint8Array | null {
 
 async function pipeBytesThroughTransform(
   bytes: Uint8Array,
-  transform: ReadableWritablePair<Uint8Array, BufferSource>
+  transform: ReadableWritablePair<Uint8Array, BufferSource>,
+  maxOutputBytes: number = MAX_DECOMPRESSED_BYTES
 ): Promise<Uint8Array> {
   const readable = new Blob([new Uint8Array(bytes)])
     .stream()
     .pipeThrough(transform);
-  const buf = await new Response(readable).arrayBuffer();
-  return new Uint8Array(buf);
+  const reader = readable.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        total += value.byteLength;
+        if (total > maxOutputBytes) {
+          await reader.cancel();
+          throw new Error('Decompressed payload exceeds safety limit');
+        }
+        chunks.push(value);
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }
 
 async function gzipCompressBytes(bytes: Uint8Array): Promise<Uint8Array | null> {
@@ -71,6 +98,8 @@ async function gzipDecompressBytes(bytes: Uint8Array): Promise<Uint8Array | null
  */
 export function stripTransientForUrl(data: FloorplanData): FloorplanData {
   return {
+    ...(data.levels ? { levels: data.levels } : {}),
+    ...(data.stairs ? { stairs: data.stairs } : {}),
     corners: data.corners,
     walls: data.walls,
     openings: data.openings,
@@ -121,8 +150,9 @@ function isValidFloorplanShape(parsed: unknown): parsed is FloorplanData {
 export async function decodeFloorplanFromUrlHash(
   hash: string
 ): Promise<FloorplanData | null> {
+  if (!hash || hash.length > MAX_DECODE_HASH_LENGTH) return null;
   const payload = extractPlanHashParam(hash);
-  if (!payload) return null;
+  if (!payload || payload.length > MAX_DECODE_HASH_LENGTH) return null;
 
   let jsonBytes: Uint8Array | null = null;
 
@@ -132,6 +162,7 @@ export async function decodeFloorplanFromUrlHash(
     jsonBytes = await gzipDecompressBytes(compressed);
   } else if (payload.startsWith('b64:')) {
     jsonBytes = base64UrlToBytes(payload.slice(4));
+    if (jsonBytes && jsonBytes.byteLength > MAX_DECOMPRESSED_BYTES) return null;
   } else {
     return null;
   }

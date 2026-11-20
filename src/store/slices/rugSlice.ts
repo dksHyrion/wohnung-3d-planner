@@ -39,7 +39,8 @@ export function createRugSlice(deps: StoreDeps): RugActions {
       return newRug.id;
     },
 
-    updateRug: (rugId, patch) => {
+    updateRug: (rugId, patch, options) => {
+      const recordHistory = options?.recordHistory ?? true;
       const state = get();
       const existing = state.rugs.find((r) => r.id === rugId);
       if (!existing) return;
@@ -74,7 +75,7 @@ export function createRugSlice(deps: StoreDeps): RugActions {
               : r.rotationYDeg,
         };
       });
-      setWithCollisions({ rugs });
+      setWithCollisions({ rugs }, recordHistory);
     },
 
     moveRug: (rugId, x, z, options) => {

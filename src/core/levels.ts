@@ -100,7 +100,7 @@ export function scopeFloorplanToLevel(
   );
   const wallIds = new Set(walls.map((w) => w.id));
   const openings = data.openings.filter(
-    (o) => getEntityLevelId(o) === levelId && wallIds.has(o.wallId)
+    (o) => wallIds.has(o.wallId) && (o.levelId === undefined || o.levelId === levelId)
   );
   const furniture = data.furniture.filter(
     (f) => getEntityLevelId(f) === levelId
@@ -110,10 +110,10 @@ export function scopeFloorplanToLevel(
     (rl) => getEntityLevelId(rl) === levelId
   );
   const roofSlopes = (data.roofSlopes ?? []).filter(
-    (rs) => getEntityLevelId(rs) === levelId && wallIds.has(rs.wallId)
+    (rs) => wallIds.has(rs.wallId) && (rs.levelId === undefined || rs.levelId === levelId)
   );
   const fixtures = (data.fixtures ?? []).filter(
-    (fx) => getEntityLevelId(fx) === levelId && wallIds.has(fx.wallId)
+    (fx) => wallIds.has(fx.wallId) && (fx.levelId === undefined || fx.levelId === levelId)
   );
 
   return {

@@ -8,6 +8,11 @@ import {
   compareLayoutVariants,
   type VariantComparisonReport,
 } from '../layoutVariants';
+import {
+  DEFAULT_LEVEL_ID,
+  normalizeLevels,
+  scopeFloorplanToLevel,
+} from '../levels';
 import type { FloorplanData, LayoutVariant } from '../types';
 import type {
   ErgonomicsWorkerRequest,
@@ -41,7 +46,7 @@ export interface ErgonomicsWorkerClient {
   isWorkerSupported: () => boolean;
   evaluateErgonomicsAsync: (
     data: FloorplanData,
-    options?: { immediate?: boolean }
+    options?: { immediate?: boolean; levelId?: string }
   ) => Promise<ErgonomicsEvalResult | null>;
   compareVariantsAsync: (
     baseArchitecture: Omit<FloorplanData, 'furniture' | 'rugs'>,
@@ -144,14 +149,25 @@ export function createErgonomicsWorkerClient(
 
     evaluateErgonomicsAsync: (data, opts) => {
       if (!isWorkerSupported()) {
+        const levels = normalizeLevels(data.levels);
+        const targetLevelId =
+          opts?.levelId ??
+          levels.find((l) => l.index === 0)?.id ??
+          levels[0]?.id ??
+          DEFAULT_LEVEL_ID;
+        const scoped =
+          opts?.levelId || levels.length > 1
+            ? scopeFloorplanToLevel(data, targetLevelId)
+            : data;
         const passageReport = evaluatePassageClearances(
-          data.furniture,
-          data.walls,
-          data.corners
+          scoped.furniture,
+          scoped.walls,
+          scoped.corners
         );
         const ergonomicsScorecard = evaluateErgonomicsScorecard(
           data,
-          passageReport
+          passageReport,
+          { levelId: targetLevelId }
         );
         return Promise.resolve({ passageReport, ergonomicsScorecard });
       }
@@ -174,6 +190,7 @@ export function createErgonomicsWorkerClient(
           requestId,
           kind: 'evaluate-ergonomics',
           payload: data,
+          ...(opts?.levelId ? { levelId: opts.levelId } : {}),
         };
         ensureWorker().postMessage(req);
       };
@@ -198,6 +215,7 @@ export function createErgonomicsWorkerClient(
             requestId,
             kind: 'evaluate-ergonomics',
             payload: data,
+            ...(opts?.levelId ? { levelId: opts.levelId } : {}),
           };
           ensureWorker().postMessage(req);
         }, debounceMs);

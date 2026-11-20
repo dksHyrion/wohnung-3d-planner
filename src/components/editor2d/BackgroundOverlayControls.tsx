@@ -8,9 +8,11 @@ export const BackgroundOverlayControls: React.FC = () => {
   const backgroundImage = useFloorplanStore((s) => s.backgroundImage);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const updateBackgroundImage = useFloorplanStore((s) => s.updateBackgroundImage);
+  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
   const removeBackgroundImage = useFloorplanStore((s) => s.removeBackgroundImage);
   const startCalibration = useFloorplanStore((s) => s.startCalibration);
   const cancelCalibration = useFloorplanStore((s) => s.cancelCalibration);
+  const opacityUndoPushedRef = React.useRef(false);
 
   if (!backgroundImage) {
     return null;
@@ -66,9 +68,28 @@ export const BackgroundOverlayControls: React.FC = () => {
           max="1"
           step="0.05"
           value={opacity}
-          onChange={(e) =>
-            updateBackgroundImage({ opacity: parseFloat(e.target.value) })
-          }
+          onPointerDown={() => {
+            if (!opacityUndoPushedRef.current) {
+              pushUndoSnapshot();
+              opacityUndoPushedRef.current = true;
+            }
+          }}
+          onPointerUp={() => {
+            opacityUndoPushedRef.current = false;
+          }}
+          onBlur={() => {
+            opacityUndoPushedRef.current = false;
+          }}
+          onChange={(e) => {
+            if (!opacityUndoPushedRef.current) {
+              pushUndoSnapshot();
+              opacityUndoPushedRef.current = true;
+            }
+            updateBackgroundImage(
+              { opacity: parseFloat(e.target.value) },
+              { recordHistory: false }
+            );
+          }}
           aria-label={t('dialogs.overlay.opacityAria')}
           aria-valuetext={`${opacityPercent}%`}
           title={t('dialogs.overlay.opacityTooltip', { percent: opacityPercent })}

@@ -13,15 +13,37 @@ export interface CustomGlbModelProps {
   fallback: React.ReactNode;
 }
 
-function disposeObjectSubtree(root: THREE.Object3D): void {
+function disposeMaterialWithTextures(
+  material: THREE.Material,
+  disposedTextures: Set<THREE.Texture>
+): void {
+  const matRecord = material as unknown as Record<string, unknown>;
+  for (const value of Object.values(matRecord)) {
+    if (value instanceof THREE.Texture && !disposedTextures.has(value)) {
+      disposedTextures.add(value);
+      value.dispose();
+    }
+  }
+  material.dispose();
+}
+
+export function disposeObjectSubtree(root: THREE.Object3D): void {
+  const disposedTextures = new Set<THREE.Texture>();
+  const disposedMaterials = new Set<THREE.Material>();
   root.traverse((node) => {
     const mesh = node as THREE.Mesh;
     if (mesh.isMesh) {
       mesh.geometry?.dispose();
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach((m) => m.dispose());
-      } else {
-        mesh.material?.dispose();
+      const mats = Array.isArray(mesh.material)
+        ? mesh.material
+        : mesh.material
+          ? [mesh.material]
+          : [];
+      for (const m of mats) {
+        if (!disposedMaterials.has(m)) {
+          disposedMaterials.add(m);
+          disposeMaterialWithTextures(m, disposedTextures);
+        }
       }
     }
   });

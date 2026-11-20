@@ -22,6 +22,7 @@ import {
   computeFurnitureClearanceCm,
   computeFurnitureToWallDistanceCm,
 } from '../../core/measureMath';
+import { getEntityLevelId } from '../../core/levels';
 
 export function FurnitureInspector({
   selectedFurniture,
@@ -34,7 +35,10 @@ export function FurnitureInspector({
   const furniture = useFloorplanStore((s) => s.furniture);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const updateFurniture = useFloorplanStore((s) => s.updateFurniture);
+  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
   const removeFurniture = useFloorplanStore((s) => s.removeFurniture);
+  const masterliftUndoPushedRef = React.useRef(false);
+  const colorUndoPushedRef = React.useRef(false);
   const toggleFurnitureRealStatus = useFloorplanStore((s) => s.toggleFurnitureRealStatus);
   const resetFurnitureToCatalogDimensions = useFloorplanStore(
     (s) => s.resetFurnitureToCatalogDimensions
@@ -380,11 +384,31 @@ export function FurnitureInspector({
               max={MASTERLIFT_HEIGHT.maxCm}
               step={0.5}
               value={clampMasterliftHeightCm(selectedFurniture.heightCm)}
-              onChange={(e) =>
-                updateFurniture(selectedFurniture.id, {
-                  heightCm: clampMasterliftHeightCm(Number(e.target.value)),
-                })
-              }
+              onPointerDown={() => {
+                if (!masterliftUndoPushedRef.current) {
+                  pushUndoSnapshot();
+                  masterliftUndoPushedRef.current = true;
+                }
+              }}
+              onPointerUp={() => {
+                masterliftUndoPushedRef.current = false;
+              }}
+              onBlur={() => {
+                masterliftUndoPushedRef.current = false;
+              }}
+              onChange={(e) => {
+                if (!masterliftUndoPushedRef.current) {
+                  pushUndoSnapshot();
+                  masterliftUndoPushedRef.current = true;
+                }
+                updateFurniture(
+                  selectedFurniture.id,
+                  {
+                    heightCm: clampMasterliftHeightCm(Number(e.target.value)),
+                  },
+                  { recordHistory: false }
+                );
+              }}
             />
             {(selectedFurniture.heightCm < MASTERLIFT_HEIGHT.minCm ||
               selectedFurniture.heightCm > MASTERLIFT_HEIGHT.maxCm) && (
@@ -554,11 +578,28 @@ export function FurnitureInspector({
             className="number-input"
             style={{ height: '31px', padding: '2px 4px' }}
             value={selectedFurniture.color}
-            onChange={(e) =>
-              updateFurniture(selectedFurniture.id, {
-                color: e.target.value,
-              })
-            }
+            onPointerDown={() => {
+              if (!colorUndoPushedRef.current) {
+                pushUndoSnapshot();
+                colorUndoPushedRef.current = true;
+              }
+            }}
+            onBlur={() => {
+              colorUndoPushedRef.current = false;
+            }}
+            onChange={(e) => {
+              if (!colorUndoPushedRef.current) {
+                pushUndoSnapshot();
+                colorUndoPushedRef.current = true;
+              }
+              updateFurniture(
+                selectedFurniture.id,
+                {
+                  color: e.target.value,
+                },
+                { recordHistory: false }
+              );
+            }}
           />
         </div>
 
@@ -722,8 +763,14 @@ export function FurnitureInspector({
 
       {/* Lichte Abstände & Durchgänge */}
       {(() => {
+        const itemLevelId = getEntityLevelId(selectedFurniture);
+        const levelCorners = corners.filter((c) => getEntityLevelId(c) === itemLevelId);
+        const levelWalls = walls.filter((w) => getEntityLevelId(w) === itemLevelId);
         const otherClearances = furniture
-          .filter((f) => f.id !== selectedFurniture.id)
+          .filter(
+            (f) =>
+              f.id !== selectedFurniture.id && getEntityLevelId(f) === itemLevelId
+          )
           .map((other) => ({
             other,
             ...computeFurnitureClearanceCm(selectedFurniture, other),
@@ -731,10 +778,14 @@ export function FurnitureInspector({
           .sort((a, b) => a.clearanceCm - b.clearanceCm)
           .slice(0, 3);
 
-        const wallDistances = walls
+        const wallDistances = levelWalls
           .map((w) => ({
             wall: w,
-            distanceCm: computeFurnitureToWallDistanceCm(selectedFurniture, w, corners),
+            distanceCm: computeFurnitureToWallDistanceCm(
+              selectedFurniture,
+              w,
+              levelCorners
+            ),
           }))
           .sort((a, b) => a.distanceCm - b.distanceCm)
           .slice(0, 2);

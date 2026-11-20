@@ -577,6 +577,15 @@ export const FloorplanCanvas2D: React.FC = () => {
     setDragState(null);
   };
 
+  const handleSvgLostPointerCapture = () => {
+    // Releasing the pointer in polyline draw mode fires pointerup (which anchors the next
+    // segment) followed immediately by lostpointercapture; preserve the active polyline chain.
+    if (dragState?.type === 'draw-wall' && polylineWalls) {
+      return;
+    }
+    handleSvgPointerCancel();
+  };
+
   const handleWallClick = useCallback(
     (e: React.MouseEvent, wall: Wall) => {
       e.stopPropagation();
@@ -727,7 +736,7 @@ export const FloorplanCanvas2D: React.FC = () => {
         onPointerMove={handleSvgPointerMove}
         onPointerUp={handleSvgPointerUp}
         onPointerCancel={handleSvgPointerCancel}
-        onLostPointerCapture={handleSvgPointerCancel}
+        onLostPointerCapture={handleSvgLostPointerCapture}
         onContextMenu={(e) => {
           if (dragState?.type === 'draw-wall') {
             e.preventDefault();

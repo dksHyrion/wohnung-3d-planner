@@ -3,6 +3,7 @@ import { evaluateFloorplanCollisions } from './collisionEngine';
 import { evaluatePassageClearances } from './ergonomicsEngine';
 import { evaluateErgonomicsScorecard, type ScorecardGrade } from './ergonomicsScorecard';
 import { layoutFurnitureParts } from './furnitureShapes';
+import { normalizeLevels, scopeFloorplanToLevel } from './levels';
 import { applyRoomLabels, computeFloorPolygons } from './wallMath';
 
 export interface VariantMetrics {
@@ -46,18 +47,61 @@ export function computeVariantMetrics(
 
   const collisions = evaluateFloorplanCollisions(plan);
   const collisionCount = Object.values(collisions).filter((r) => r.hasCollision).length;
-  const passageReport = evaluatePassageClearances(
-    plan.furniture,
-    plan.walls,
-    plan.corners
-  );
-  const scorecard = evaluateErgonomicsScorecard(plan, passageReport);
+  const levels = normalizeLevels(plan.levels);
 
-  const rooms = applyRoomLabels(
-    computeFloorPolygons(plan.corners, plan.walls),
-    plan.roomLabels
-  );
-  const totalNetSqM = rooms.reduce((sum, r) => sum + r.netAreaSqM, 0);
+  let criticalPassages = 0;
+  let warningPassages = 0;
+  let minClearanceCm: number | null = null;
+  let totalNetSqM = 0;
+  let scoreSum = 0;
+  let scoreCount = 0;
+  let primaryGrade: ScorecardGrade = 'A';
+
+  for (const lvl of levels) {
+    const scoped = levels.length > 1 ? scopeFloorplanToLevel(plan, lvl.id) : plan;
+    const lvlPassages = evaluatePassageClearances(
+      scoped.furniture,
+      scoped.walls,
+      scoped.corners
+    );
+    criticalPassages += lvlPassages.criticalCount;
+    warningPassages += lvlPassages.warningCount;
+    if (lvlPassages.minClearanceCm !== null) {
+      minClearanceCm =
+        minClearanceCm === null
+          ? lvlPassages.minClearanceCm
+          : Math.min(minClearanceCm, lvlPassages.minClearanceCm);
+    }
+
+    const lvlRooms = applyRoomLabels(
+      computeFloorPolygons(scoped.corners, scoped.walls),
+      scoped.roomLabels
+    );
+    totalNetSqM += lvlRooms.reduce((sum, r) => sum + r.netAreaSqM, 0);
+
+    if (scoped.walls.length > 0 || levels.length === 1) {
+      const lvlScorecard = evaluateErgonomicsScorecard(plan, lvlPassages, {
+        levelId: lvl.id,
+      });
+      scoreSum += lvlScorecard.overallScore;
+      scoreCount++;
+      if (scoreCount === 1) {
+        primaryGrade = lvlScorecard.overallGrade;
+      }
+    }
+  }
+
+  const overallScore = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 100;
+  const overallGrade: ScorecardGrade =
+    scoreCount <= 1
+      ? primaryGrade
+      : overallScore >= 88
+        ? 'A'
+        : overallScore >= 72
+          ? 'B'
+          : overallScore >= 55
+            ? 'C'
+            : 'D';
 
   let footprintCm2 = 0;
   for (const f of plan.furniture) {
@@ -75,13 +119,13 @@ export function computeVariantMetrics(
     name: variant.name,
     itemCount: variant.furniture.length,
     collisionCount,
-    criticalPassages: passageReport.criticalCount,
-    warningPassages: passageReport.warningCount,
-    minClearanceCm: passageReport.minClearanceCm,
+    criticalPassages,
+    warningPassages,
+    minClearanceCm,
     occupiedSqM,
     freeFloorPercent,
-    overallScore: scorecard.overallScore,
-    overallGrade: scorecard.overallGrade,
+    overallScore,
+    overallGrade,
   };
 }
 

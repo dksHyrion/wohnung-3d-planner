@@ -28,6 +28,8 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const fixtures = useFloorplanStore((s) => s.fixtures);
   const updateWallLengthCm = useFloorplanStore((s) => s.updateWallLengthCm);
   const updateWallProps = useFloorplanStore((s) => s.updateWallProps);
+  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
+  const colorUndoPushedRef = React.useRef(false);
   const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
   const addOpening = useFloorplanStore((s) => s.addOpening);
   const removeOpening = useFloorplanStore((s) => s.removeOpening);
@@ -420,14 +422,31 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
                     className="number-input"
                     style={{ height: '26px', padding: '1px 3px', marginTop: '4px' }}
                     value={current?.color ?? (finishType === 'accent-paint' ? '#475569' : '#ffffff')}
-                    onChange={(e) =>
-                      updateWallProps(selectedWall.id, {
-                        [patchKey]: {
-                          finish: finishType,
-                          color: e.target.value,
+                    onPointerDown={() => {
+                      if (!colorUndoPushedRef.current) {
+                        pushUndoSnapshot();
+                        colorUndoPushedRef.current = true;
+                      }
+                    }}
+                    onBlur={() => {
+                      colorUndoPushedRef.current = false;
+                    }}
+                    onChange={(e) => {
+                      if (!colorUndoPushedRef.current) {
+                        pushUndoSnapshot();
+                        colorUndoPushedRef.current = true;
+                      }
+                      updateWallProps(
+                        selectedWall.id,
+                        {
+                          [patchKey]: {
+                            finish: finishType,
+                            color: e.target.value,
+                          },
                         },
-                      })
-                    }
+                        { recordHistory: false }
+                      );
+                    }}
                   />
                 )}
               </div>

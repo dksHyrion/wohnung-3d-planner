@@ -195,7 +195,8 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       });
     },
 
-    updateWallProps: (wallId, patch) => {
+    updateWallProps: (wallId, patch, options) => {
+      const recordHistory = options?.recordHistory ?? true;
       const state = get();
       const walls = state.walls.map((w) => {
         if (w.id !== wallId) return w;
@@ -235,7 +236,7 @@ export function createWallSlice(deps: StoreDeps): WallActions {
             )
           : state.furniture;
 
-      setWithCollisions({ walls, furniture });
+      setWithCollisions({ walls, furniture }, recordHistory);
     },
 
     addWallWithCorners: (start, end) => {
@@ -547,6 +548,8 @@ export function createWallSlice(deps: StoreDeps): WallActions {
       const corners = state.corners.filter(
         (c) => c.id !== cornerId && usedCornerIds.has(c.id)
       );
+      const roofSlopes = state.roofSlopes.filter((rs) => !removedWallIds.has(rs.wallId));
+      const fixtures = state.fixtures.filter((fx) => !removedWallIds.has(fx.wallId));
       const furniture = state.furniture.map((f) =>
         f.snappedWallId && removedWallIds.has(f.snappedWallId)
           ? { ...f, snappedWallId: null }
@@ -560,12 +563,17 @@ export function createWallSlice(deps: StoreDeps): WallActions {
           removedWallIds.has(state.selectedId)) ||
         (state.selectedType === 'opening' &&
           state.selectedId !== null &&
-          !openings.some((o) => o.id === state.selectedId));
+          !openings.some((o) => o.id === state.selectedId)) ||
+        (state.selectedType === 'fixture' &&
+          state.selectedId !== null &&
+          !fixtures.some((fx) => fx.id === state.selectedId));
 
       setWithCollisions({
         corners,
         walls,
         openings,
+        roofSlopes,
+        fixtures,
         furniture,
         ...(shouldClearSelection
           ? { selectedId: null, selectedType: null, selectedRoomId: null }

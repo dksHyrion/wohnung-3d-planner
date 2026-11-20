@@ -20,6 +20,7 @@ import {
 import {
   DEFAULT_LEVEL_ID,
   normalizeLevels,
+  scopeFloorplanToLevel,
 } from '../core/levels';
 import { evaluateFloorplanCollisions } from '../core/collisionEngine';
 import { PRESET_FLOORPLANS } from '../core/presets';
@@ -160,6 +161,9 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
       (patch.backgroundImage !== undefined && patch.backgroundImage !== state.backgroundImage);
 
     const historyPatch = recordHistory && hasDataChanged ? pushHistory() : {};
+    const levels = patch.levels ?? state.levels;
+    const stairs = patch.stairs ?? state.stairs;
+    const activeLevelId = patch.activeLevelId ?? state.activeLevelId;
     const corners = patch.corners ?? state.corners;
     const walls = patch.walls ?? state.walls;
     const openings = patch.openings ?? state.openings;
@@ -171,17 +175,33 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     // Rug, label, overlay and selection patches do not affect collisions; keep the old
     // report references so subscribers do not re-render.
     const layoutChanged =
-      corners !== state.corners || walls !== state.walls || furniture !== state.furniture;
+      corners !== state.corners ||
+      walls !== state.walls ||
+      furniture !== state.furniture ||
+      levels !== state.levels ||
+      stairs !== state.stairs;
     const collisionReports =
       layoutChanged ||
       openings !== state.openings ||
       roofSlopes !== state.roofSlopes ||
       fixtures !== state.fixtures
-        ? evaluateFloorplanCollisions({ corners, walls, openings, furniture, roofSlopes, fixtures })
+        ? evaluateFloorplanCollisions({
+            levels,
+            stairs,
+            corners,
+            walls,
+            openings,
+            furniture,
+            roofSlopes,
+            fixtures,
+          })
         : state.collisionReports;
     const showPassageHeatmap = patch.showPassageHeatmap ?? state.showPassageHeatmap;
     const scorecardChanged =
-      layoutChanged || openings !== state.openings || roomLabels !== state.roomLabels;
+      layoutChanged ||
+      openings !== state.openings ||
+      roomLabels !== state.roomLabels ||
+      activeLevelId !== state.activeLevelId;
     const needsErgonomics =
       showPassageHeatmap &&
       (layoutChanged ||
@@ -193,20 +213,33 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     let ergonomicsScorecard = showPassageHeatmap ? state.ergonomicsScorecard : null;
     let isComputingErgonomics = false;
 
+    const ergonomicsPlanData: FloorplanData = {
+      levels,
+      stairs,
+      corners,
+      walls,
+      openings,
+      furniture,
+      roomLabels,
+    };
+
     if (!showPassageHeatmap) {
       sharedErgonomicsWorkerClient.cancelPending();
     } else if (needsErgonomics) {
       if (!sharedErgonomicsWorkerClient.isWorkerSupported()) {
+        const scoped =
+          levels.length > 1
+            ? scopeFloorplanToLevel(ergonomicsPlanData, activeLevelId)
+            : ergonomicsPlanData;
         passageReport =
-          layoutChanged || !state.passageReport
-            ? evaluatePassageClearances(furniture, walls, corners)
+          layoutChanged || activeLevelId !== state.activeLevelId || !state.passageReport
+            ? evaluatePassageClearances(scoped.furniture, scoped.walls, scoped.corners)
             : state.passageReport;
         ergonomicsScorecard =
           scorecardChanged || !state.ergonomicsScorecard
-            ? evaluateErgonomicsScorecard(
-                { corners, walls, openings, furniture, roomLabels },
-                passageReport
-              )
+            ? evaluateErgonomicsScorecard(ergonomicsPlanData, passageReport, {
+                levelId: activeLevelId,
+              })
             : state.ergonomicsScorecard;
       } else {
         isComputingErgonomics = true;
@@ -229,10 +262,10 @@ const floorplanStoreApi = createStore<FloorplanState>()((set, get) => {
     });
     if (isComputingErgonomics) {
       void sharedErgonomicsWorkerClient
-        .evaluateErgonomicsAsync(
-          { corners, walls, openings, furniture, roomLabels },
-          { immediate: recordHistory }
-        )
+        .evaluateErgonomicsAsync(ergonomicsPlanData, {
+          immediate: recordHistory,
+          levelId: activeLevelId,
+        })
         .then((res) => {
           if (!res || !get().showPassageHeatmap) return;
           set({

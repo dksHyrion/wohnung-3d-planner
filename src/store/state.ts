@@ -134,7 +134,8 @@ export interface FloorplanState {
   updateWallLengthCm: (wallId: string, lengthCm: number) => void;
   updateWallProps: (
     wallId: string,
-    patch: Partial<Pick<Wall, 'thicknessCm' | 'heightCm' | 'posFinish' | 'negFinish'>>
+    patch: Partial<Pick<Wall, 'thicknessCm' | 'heightCm' | 'posFinish' | 'negFinish'>>,
+    options?: { recordHistory?: boolean }
   ) => void;
   addWallWithCorners: (
     start: { x: number; z: number },
@@ -208,7 +209,11 @@ export interface FloorplanState {
   ) => void;
   resetFurnitureToCatalogDimensions: (furnitureId: string) => void;
   addRug: (rug: Omit<AreaRug, 'id'>) => string;
-  updateRug: (rugId: string, patch: Partial<Omit<AreaRug, 'id'>>) => void;
+  updateRug: (
+    rugId: string,
+    patch: Partial<Omit<AreaRug, 'id'>>,
+    options?: { recordHistory?: boolean }
+  ) => void;
   moveRug: (
     rugId: string,
     x: number,

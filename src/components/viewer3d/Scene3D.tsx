@@ -839,6 +839,39 @@ interface FloorTexturesBundle {
   };
 }
 
+function pointInPolygonXZ(
+  pt: { x: number; z: number },
+  poly: { x: number; z: number }[]
+): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x;
+    const zi = poly[i].z;
+    const xj = poly[j].x;
+    const zj = poly[j].z;
+    const intersect =
+      zi > pt.z !== zj > pt.z &&
+      pt.x < ((xj - xi) * (pt.z - zi)) / (zj - zi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function holeOverlapsRoomPolygon(
+  hole: { x: number; z: number }[],
+  poly: { x: number; z: number }[]
+): boolean {
+  if (hole.length < 3 || poly.length < 3) return false;
+  let cx = 0;
+  let cz = 0;
+  for (const p of hole) {
+    cx += p.x;
+    cz += p.z;
+    if (pointInPolygonXZ(p, poly)) return true;
+  }
+  return pointInPolygonXZ({ x: cx / hole.length, z: cz / hole.length }, poly);
+}
+
 function computeRoomFloorShapes(
   rooms: ReturnType<typeof applyRoomLabels>,
   arrivingStairHoles: { x: number; z: number }[][] = []
@@ -852,7 +885,10 @@ function computeRoomFloorShapes(
     }
     shape.closePath();
     const roomHoles = room.netHoles ?? room.holes;
-    const combinedHoles = [...(roomHoles ?? []), ...arrivingStairHoles];
+    const overlappingStairHoles = arrivingStairHoles.filter((h) =>
+      holeOverlapsRoomPolygon(h, poly)
+    );
+    const combinedHoles = [...(roomHoles ?? []), ...overlappingStairHoles];
     for (const hole of combinedHoles) {
       if (hole.length < 3) continue;
       const holePath = new THREE.Path();
@@ -1257,7 +1293,6 @@ export const Scene3D: React.FC = () => {
         startPointerAngleDeg: number;
         singleItemId: string | null;
         startItemRotDeg: number;
-        lastAppliedDeltaDeg: number;
       }
     | {
         kind: 'elevation';
@@ -1269,6 +1304,7 @@ export const Scene3D: React.FC = () => {
   >(null);
   const dragHasMovedRef = useRef<boolean>(false);
   const groupDragCommittedDeltaRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
+  const gizmoRotateCommittedDeltaRef = useRef<number>(0);
   const exportRootRef = useRef<THREE.Group | null>(null);
 
   const activeLevel = useMemo(
@@ -1517,16 +1553,17 @@ export const Scene3D: React.FC = () => {
           );
         });
       } else {
-        const stepDelta = rawDelta - draggingGizmo.lastAppliedDeltaDeg;
-        if (Math.abs(stepDelta) >= 0.25) {
-          draggingGizmo.lastAppliedDeltaDeg = rawDelta;
-          const idsSnapshot = selectedIds;
-          dragFrame.schedule(() => {
+        const idsSnapshot = selectedIds;
+        const targetRawDelta = rawDelta;
+        dragFrame.schedule(() => {
+          const stepDelta = targetRawDelta - gizmoRotateCommittedDeltaRef.current;
+          if (Math.abs(stepDelta) >= 0.25) {
+            gizmoRotateCommittedDeltaRef.current = targetRawDelta;
             rotateSelectedFurniture(idsSnapshot, stepDelta, {
               recordHistory: false,
             });
-          });
-        }
+          }
+        });
       }
       return;
     }
@@ -1814,6 +1851,7 @@ export const Scene3D: React.FC = () => {
                   ) *
                     180) /
                   Math.PI;
+                gizmoRotateCommittedDeltaRef.current = 0;
                 setDraggingGizmo({
                   kind: 'rotate',
                   pivotX: gizmoData.pivot.x,
@@ -1821,7 +1859,6 @@ export const Scene3D: React.FC = () => {
                   startPointerAngleDeg: startAngleDeg,
                   singleItemId: gizmoData.single?.id ?? null,
                   startItemRotDeg: gizmoData.single?.rotationYDeg ?? 0,
-                  lastAppliedDeltaDeg: 0,
                 });
               }}
             >

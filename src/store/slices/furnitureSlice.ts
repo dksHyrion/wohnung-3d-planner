@@ -3,6 +3,7 @@ import {
   computeGroupCentroidXZ,
   rotatePointAroundPivotXZ,
 } from '../../core/groupTransformMath';
+import { getEntityLevelId } from '../../core/levels';
 import type { AlignmentGuide, FurnitureItem } from '../../core/types';
 import { findWallSnap } from '../../core/wallMath';
 import type { StoreDeps } from '../deps';
@@ -199,7 +200,14 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
             state.snapToWallEnabled &&
             !updated.attachedToId
           ) {
-            const snap = findWallSnap(updated, state.corners, state.walls);
+            const itemLevelId = getEntityLevelId(updated);
+            const levelCorners = state.corners.filter(
+              (c) => getEntityLevelId(c) === itemLevelId
+            );
+            const levelWalls = state.walls.filter(
+              (w) => getEntityLevelId(w) === itemLevelId
+            );
+            const snap = findWallSnap(updated, levelCorners, levelWalls);
             updated.snappedWallId = snap ? snap.snappedWallId : null;
           } else {
             updated.snappedWallId = null;
@@ -231,7 +239,17 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
         };
 
         if (state.snapToWallEnabled && !f.attachedToId) {
-          const snap = findWallSnap(candidate, state.corners, state.walls);
+          const itemLevelId = getEntityLevelId(candidate);
+          const levelCorners = state.corners.filter(
+            (c) => getEntityLevelId(c) === itemLevelId
+          );
+          const levelWalls = state.walls.filter(
+            (w) => getEntityLevelId(w) === itemLevelId
+          );
+          const levelFurniture = state.furniture.filter(
+            (item) => getEntityLevelId(item) === itemLevelId
+          );
+          const snap = findWallSnap(candidate, levelCorners, levelWalls);
           const wallSnapped: FurnitureItem = snap
             ? {
                 ...candidate,
@@ -247,9 +265,9 @@ export function createFurnitureSlice(deps: StoreDeps): FurnitureActions {
 
           const align = computeFurnitureAlignment(
             wallSnapped,
-            state.furniture,
-            state.corners,
-            state.walls
+            levelFurniture,
+            levelCorners,
+            levelWalls
           );
           nextGuides = align.guides;
           return {

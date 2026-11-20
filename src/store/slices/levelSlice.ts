@@ -145,6 +145,12 @@ export function createLevelSlice(deps: StoreDeps): LevelActions {
           ? nextLevels[0].id
           : state.activeLevelId;
 
+      const nextLayoutVariants = state.layoutVariants.map((variant) => ({
+        ...variant,
+        furniture: variant.furniture.filter((f) => getEntityLevelId(f) !== levelId),
+        rugs: variant.rugs.filter((r) => getEntityLevelId(r) !== levelId),
+      }));
+
       setWithCollisions({
         levels: nextLevels,
         activeLevelId: nextActive,
@@ -159,6 +165,7 @@ export function createLevelSlice(deps: StoreDeps): LevelActions {
         stairs: state.stairs.filter(
           (st) => st.fromLevelId !== levelId && st.toLevelId !== levelId
         ),
+        layoutVariants: nextLayoutVariants,
         selectedId: null,
         selectedIds: [],
         selectedType: null,

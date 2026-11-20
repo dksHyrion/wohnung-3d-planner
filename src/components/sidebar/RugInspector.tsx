@@ -20,7 +20,9 @@ export const RUG_COLOR_PRESETS: Array<{
 export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
   const { t } = useTranslation();
   const updateRug = useFloorplanStore((s) => s.updateRug);
+  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
   const removeRug = useFloorplanStore((s) => s.removeRug);
+  const colorUndoPushedRef = React.useRef(false);
 
   const idName = React.useId();
   const idWidth = React.useId();
@@ -156,9 +158,26 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
             className="number-input"
             style={{ height: '31px', padding: '2px 4px' }}
             value={selectedRug.color ?? '#edece8'}
-            onChange={(e) =>
-              updateRug(selectedRug.id, { color: e.target.value })
-            }
+            onPointerDown={() => {
+              if (!colorUndoPushedRef.current) {
+                pushUndoSnapshot();
+                colorUndoPushedRef.current = true;
+              }
+            }}
+            onBlur={() => {
+              colorUndoPushedRef.current = false;
+            }}
+            onChange={(e) => {
+              if (!colorUndoPushedRef.current) {
+                pushUndoSnapshot();
+                colorUndoPushedRef.current = true;
+              }
+              updateRug(
+                selectedRug.id,
+                { color: e.target.value },
+                { recordHistory: false }
+              );
+            }}
           />
         </div>
 
