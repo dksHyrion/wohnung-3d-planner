@@ -410,6 +410,7 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
   const allRoomLabels = useFloorplanStore((s) => s.roomLabels);
   const allRoofSlopes = useFloorplanStore((s) => s.roofSlopes);
   const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
+  const language = useFloorplanStore((s) => s.language);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
 
@@ -589,7 +590,7 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
                     fontSize="9"
                     fontWeight={700}
                   >
-                    1,00 m
+                    {language === 'en' ? '1.00 m' : '1,00 m'}
                   </text>
                 </g>
               )}
@@ -612,7 +613,7 @@ export const OverlaysAndGuidesLayer = React.memo(function OverlaysAndGuidesLayer
                     fontSize="9"
                     fontWeight={700}
                   >
-                    2,00 m
+                    {language === 'en' ? '2.00 m' : '2,00 m'}
                   </text>
                 </g>
               )}

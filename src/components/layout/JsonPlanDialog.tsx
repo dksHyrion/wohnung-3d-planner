@@ -32,6 +32,15 @@ export function JsonPlanDialog({
   const titleId = useId();
   const [copied, setCopied] = React.useState(false);
   const [shareFeedback, setShareFeedback] = React.useState<'copied' | 'too-large' | null>(null);
+  const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+    };
+  }, []);
 
   const activeMode = jsonModalMode ?? mode ?? (isOpen ? 'export' : null);
 
@@ -39,7 +48,8 @@ export function JsonPlanDialog({
     try {
       await navigator.clipboard?.writeText(jsonText);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Ignore clipboard write failures in restricted sandboxes
     }
@@ -50,7 +60,8 @@ export function JsonPlanDialog({
     const status = await handleCopyShareLink();
     if (status === 'copied' || status === 'too-large') {
       setShareFeedback(status);
-      setTimeout(() => setShareFeedback(null), 2600);
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+      shareTimerRef.current = setTimeout(() => setShareFeedback(null), 2600);
     }
   };
 

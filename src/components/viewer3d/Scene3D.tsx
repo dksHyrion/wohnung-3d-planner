@@ -47,6 +47,7 @@ import {
   WallOpening,
 } from '../../core/types';
 import { getEntityLevelId } from '../../core/levels';
+import { pointInPolygonXZ } from '../../core/geometry2d';
 import { computeLevelSlabs, type LevelSlab } from '../../core/slabMath';
 import { computeStairGeometry } from '../../core/stairsMath';
 import { openingIsWalkthrough, openingLetsLightThrough } from '../../core/doorLeaf';
@@ -867,24 +868,6 @@ interface FloorTexturesBundle {
   };
 }
 
-function pointInPolygonXZ(
-  pt: { x: number; z: number },
-  poly: { x: number; z: number }[]
-): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i].x;
-    const zi = poly[i].z;
-    const xj = poly[j].x;
-    const zj = poly[j].z;
-    const intersect =
-      zi > pt.z !== zj > pt.z &&
-      pt.x < ((xj - xi) * (pt.z - zi)) / (zj - zi + 1e-12) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
 function holeOverlapsRoomPolygon(
   hole: { x: number; z: number }[],
   poly: { x: number; z: number }[]
@@ -895,9 +878,9 @@ function holeOverlapsRoomPolygon(
   for (const p of hole) {
     cx += p.x;
     cz += p.z;
-    if (pointInPolygonXZ(p, poly)) return true;
+    if (pointInPolygonXZ(p.x, p.z, poly)) return true;
   }
-  return pointInPolygonXZ({ x: cx / hole.length, z: cz / hole.length }, poly);
+  return pointInPolygonXZ(cx / hole.length, cz / hole.length, poly);
 }
 
 function computeRoomFloorShapes(

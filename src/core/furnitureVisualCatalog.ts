@@ -1,9 +1,41 @@
 import type { FurnitureVisualType } from './types';
-import type {
-  ArchitecturalModelType,
-  GenericFurnitureSubType,
-} from '../components/viewer3d/furniture/ArchitecturalFurniture3D';
 import { Language, getGlobalLanguage, getTranslation } from '../i18n/i18n';
+
+export type ArchitecturalModelType =
+  | 'sofa'
+  | 'bed'
+  | 'dining-table'
+  | 'kitchen-island'
+  | 'kitchen-unit'
+  | 'plant'
+  | 'bathtub'
+  | 'shower'
+  | 'toilet'
+  | 'washing-machine'
+  | 'boconcept-osaka'
+  | 'vitsoe-606'
+  | 'artemide-tolomeo'
+  | 'musterring-sorrent'
+  | 'inwerk-masterlift'
+  | 'steelcase-gesture'
+  | 'desk-monitor'
+  | 'regalraum-lium'
+  | 'neona-viva'
+  | 'wall-picture'
+  | 'picture-rail'
+  | 'generic';
+
+export type GenericFurnitureSubType =
+  | 'wardrobe'
+  | 'desk'
+  | 'coffee-table'
+  | 'sideboard'
+  | 'vanity'
+  | 'table'
+  | 'seating'
+  | 'storage'
+  | 'bed'
+  | 'box';
 
 export interface FurnitureVisualCatalogEntry {
   label: string;

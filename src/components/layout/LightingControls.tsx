@@ -1,6 +1,6 @@
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import { formatTimeOfDay } from './TopBar';
+import { formatTimeOfDay } from './formatTimeOfDay';
 import { MoodPresetKey } from '../../core/lighting/moodPresets';
 
 export interface LightingControlsProps {

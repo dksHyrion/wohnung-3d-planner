@@ -10,7 +10,10 @@ import {
   RoomPolygon,
   RoomLabel,
 } from './types';
-import { segmentInteriorIntersection2D } from './geometry2d';
+import {
+  pointInPolygonXZ,
+  segmentInteriorIntersection2D,
+} from './geometry2d';
 import { getEntityLevelId } from './levels';
 
 export type { FlooringType, RoomPolygon };
@@ -631,18 +634,7 @@ export function pointInPolygon(
   z: number,
   corners: { x: number; z: number }[]
 ): boolean {
-  let inside = false;
-  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
-    const xi = corners[i].x;
-    const zi = corners[i].z;
-    const xj = corners[j].x;
-    const zj = corners[j].z;
-    const crosses = zi > z !== zj > z;
-    if (!crosses) continue;
-    const xAtZ = ((xj - xi) * (z - zi)) / (zj - zi) + xi;
-    if (x < xAtZ) inside = !inside;
-  }
-  return inside;
+  return pointInPolygonXZ(x, z, corners);
 }
 
 /** Checks whether (x, z) lies inside a room polygon and outside any interior holes. */

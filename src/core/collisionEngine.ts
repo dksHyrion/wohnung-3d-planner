@@ -466,27 +466,22 @@ function computeStairObstaclesForLevel(
     }
 
     if (st.toLevelId === levelId && st.toLevelId !== st.fromLevelId) {
-      // Reserve full stairwell shaft opening on arriving upper floor
-      let minX = Infinity,
-        maxX = -Infinity,
-        minZ = Infinity,
-        maxZ = -Infinity;
-      for (const p of geom.openingPolygonXZ) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.z < minZ) minZ = p.z;
-        if (p.z > maxZ) maxZ = p.z;
-      }
-      if (Number.isFinite(minX)) {
-        const ceilH = toLevel?.ceilingHeightCm ?? 250;
+      // Reserve rotated stairwell shaft OBBs on arriving upper floor so angled/L-shaped stairs
+      // do not over-block adjacent free floor space.
+      const ceilH = toLevel?.ceilingHeightCm ?? 250;
+      for (const box of [...geom.steps, ...geom.landings]) {
+        const rotMatrix = new THREE.Matrix4().makeRotationY(
+          THREE.MathUtils.degToRad(box.rotationYDeg)
+        );
+        const basis = new THREE.Matrix3().setFromMatrix4(rotMatrix);
         const obb = new OBB(
-          new THREE.Vector3((minX + maxX) / 2, ceilH / 2, (minZ + maxZ) / 2),
+          new THREE.Vector3(box.x, ceilH / 2, box.z),
           new THREE.Vector3(
-            Math.max(1, (maxX - minX) / 2),
+            Math.max(1, box.widthCm / 2),
             ceilH / 2,
-            Math.max(1, (maxZ - minZ) / 2)
+            Math.max(1, box.depthCm / 2)
           ),
-          new THREE.Matrix3()
+          basis
         );
         entries.push({ stairId: st.id, obb, box: enclosingBox([obb]) });
       }

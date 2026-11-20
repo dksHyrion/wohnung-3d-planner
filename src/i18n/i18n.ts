@@ -55,13 +55,14 @@ export function getGlobalLanguage(): Language {
   return currentLanguage;
 }
 
-function resolvePathInObject(dict: any, keyPath: string): any {
+function resolvePathInObject(dict: unknown, keyPath: string): unknown {
   if (!dict || typeof dict !== 'object') return undefined;
+  const root = dict as Record<string, unknown>;
   const parts = keyPath.split('.');
-  let current = dict;
+  let current: unknown = root;
   for (const part of parts) {
     if (current && typeof current === 'object' && Object.hasOwn(current, part)) {
-      current = current[part];
+      current = (current as Record<string, unknown>)[part];
     } else {
       current = undefined;
       break;
@@ -72,14 +73,14 @@ function resolvePathInObject(dict: any, keyPath: string): any {
   // Convenience alias for dialogs (e.g. 'export.scaleValue' -> dict.dialogs.export.scaleValue)
   if (
     parts.length > 0 &&
-    dict.dialogs &&
-    typeof dict.dialogs === 'object' &&
-    Object.hasOwn(dict.dialogs, parts[0])
+    root.dialogs &&
+    typeof root.dialogs === 'object' &&
+    Object.hasOwn(root.dialogs, parts[0])
   ) {
-    let sub = dict.dialogs;
+    let sub: unknown = root.dialogs;
     for (const part of parts) {
       if (sub && typeof sub === 'object' && Object.hasOwn(sub, part)) {
-        sub = sub[part];
+        sub = (sub as Record<string, unknown>)[part];
       } else {
         return undefined;
       }

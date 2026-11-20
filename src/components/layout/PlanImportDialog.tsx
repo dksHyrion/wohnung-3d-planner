@@ -86,18 +86,31 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
       : lower.endsWith('.svg')
       ? 'svg'
       : 'roomplan';
-    const text = await file.text();
-    setFilename(file.name);
-    setFormat(detectedFormat);
-    setRawText(text);
-    recomputePreview(text, detectedFormat, dxfUnit, svgCmPerUnit);
+    try {
+      const text = await file.text();
+      setFilename(file.name);
+      setFormat(detectedFormat);
+      setRawText(text);
+      recomputePreview(text, detectedFormat, dxfUnit, svgCmPerUnit);
+    } catch {
+      setPreviewData(null);
+      setErrorMsg(t('dialogs.structuredImport.parseError'));
+    }
+  };
+
+  const handleClose = () => {
+    setRawText('');
+    setFilename('');
+    setPreviewData(null);
+    setErrorMsg(null);
+    onClose();
   };
 
   const handleApplyImport = () => {
     if (!previewData) return;
     const ok = importJson(JSON.stringify(previewData));
     if (ok) {
-      onClose();
+      handleClose();
     } else {
       setErrorMsg(t('dialogs.structuredImport.parseError'));
     }
@@ -106,7 +119,7 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={handleClose}>
       <div
         className="modal-card"
         role="dialog"

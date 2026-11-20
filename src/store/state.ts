@@ -262,7 +262,7 @@ export interface FloorplanState {
   setCalibrationPoint: (pt: Point2D) => void;
   applyCalibration: (realDistanceCm: number) => void;
   cancelCalibration: () => void;
-  exportJson: () => string;
+  exportJson: (options?: { includeOverlayImage?: boolean }) => string;
   importJson: (jsonStr: string) => boolean;
   setLanguage: (lang: Language) => void;
 }

@@ -2,46 +2,16 @@ import React from 'react';
 import { Edges } from '@react-three/drei';
 import { FurnitureCategory, FurnitureItem } from '../../../core/types';
 import { resolveFurnitureVisual } from '../../../core/furnitureVisual';
-import { FURNITURE_VISUAL_CATALOG } from '../../../core/furnitureVisualCatalog';
+import {
+  FURNITURE_VISUAL_CATALOG,
+  type ArchitecturalModelType,
+  type GenericFurnitureSubType,
+} from '../../../core/furnitureVisualCatalog';
 import { FURNITURE_MODELS } from './furnitureRegistry';
 import { CustomGlbModel } from './CustomGlbModel';
 import type { FurnitureModelProps } from './SofaModel';
 
-export type ArchitecturalModelType =
-  | 'sofa'
-  | 'bed'
-  | 'dining-table'
-  | 'kitchen-island'
-  | 'kitchen-unit'
-  | 'plant'
-  | 'bathtub'
-  | 'shower'
-  | 'toilet'
-  | 'washing-machine'
-  | 'boconcept-osaka'
-  | 'vitsoe-606'
-  | 'artemide-tolomeo'
-  | 'musterring-sorrent'
-  | 'inwerk-masterlift'
-  | 'steelcase-gesture'
-  | 'desk-monitor'
-  | 'regalraum-lium'
-  | 'neona-viva'
-  | 'wall-picture'
-  | 'picture-rail'
-  | 'generic';
-
-export type GenericFurnitureSubType =
-  | 'wardrobe'
-  | 'desk'
-  | 'coffee-table'
-  | 'sideboard'
-  | 'vanity'
-  | 'table'
-  | 'seating'
-  | 'storage'
-  | 'bed'
-  | 'box';
+export type { ArchitecturalModelType, GenericFurnitureSubType };
 
 /**
  * Resolves the detailed architectural sub-model for items classified as 'generic'

@@ -65,8 +65,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
 
       <div className="form-grid">
         <div className="form-field full">
-          <label className="form-label">{t('stairs.type')}</label>
+          <label htmlFor={`stair-type-${selectedStair.id}`} className="form-label">{t('stairs.type')}</label>
           <select
+            id={`stair-type-${selectedStair.id}`}
             className="text-input"
             value={selectedStair.type}
             onChange={(e) =>
@@ -82,8 +83,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.fromLevel')}</label>
+          <label htmlFor={`stair-from-${selectedStair.id}`} className="form-label">{t('stairs.fromLevel')}</label>
           <select
+            id={`stair-from-${selectedStair.id}`}
             className="text-input"
             value={selectedStair.fromLevelId}
             onChange={(e) =>
@@ -91,7 +93,7 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
             }
           >
             {levels.map((l) => (
-              <option key={l.id} value={l.id}>
+              <option key={l.id} value={l.id} disabled={l.id === selectedStair.toLevelId}>
                 {l.name}
               </option>
             ))}
@@ -99,8 +101,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.toLevel')}</label>
+          <label htmlFor={`stair-to-${selectedStair.id}`} className="form-label">{t('stairs.toLevel')}</label>
           <select
+            id={`stair-to-${selectedStair.id}`}
             className="text-input"
             value={selectedStair.toLevelId}
             onChange={(e) =>
@@ -108,7 +111,7 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
             }
           >
             {levels.map((l) => (
-              <option key={l.id} value={l.id}>
+              <option key={l.id} value={l.id} disabled={l.id === selectedStair.fromLevelId}>
                 {l.name}
               </option>
             ))}
@@ -116,8 +119,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.widthCm')}</label>
+          <label htmlFor={`stair-width-${selectedStair.id}`} className="form-label">{t('stairs.widthCm')}</label>
           <input
+            id={`stair-width-${selectedStair.id}`}
             type="number"
             min={60}
             max={250}

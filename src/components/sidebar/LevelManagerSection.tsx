@@ -19,6 +19,10 @@ export const LevelManagerSection: React.FC = () => {
 
   const [copyExteriorWalls, setCopyExteriorWalls] = useState(true);
   const [manualExpanded, setManualExpanded] = useState(false);
+  const idLevelName = React.useId();
+  const idCeilingHeight = React.useId();
+  const idSlabThickness = React.useId();
+  const idViewMode = React.useId();
   const showDetails = levels.length > 1 || manualExpanded;
 
   const activeLevel =
@@ -27,10 +31,11 @@ export const LevelManagerSection: React.FC = () => {
   const sortedTopDown = [...levels].sort((a, b) => b.index - a.index);
 
   const handleAddLevel = (direction: 'above' | 'below') => {
+    const indices = levels.map((l) => l.index);
     const nextIndex =
       direction === 'above'
-        ? (levels[levels.length - 1]?.index ?? 0) + 1
-        : (levels[0]?.index ?? 0) - 1;
+        ? (indices.length > 0 ? Math.max(...indices) : 0) + 1
+        : (indices.length > 0 ? Math.min(...indices) : 0) - 1;
     const defaultName =
       direction === 'above'
         ? t('levels.defaultNameAbove', { index: nextIndex })
@@ -154,8 +159,9 @@ export const LevelManagerSection: React.FC = () => {
           {activeLevel && (
             <div className="form-grid" style={{ marginBottom: 8 }}>
               <div className="form-field full">
-                <label className="form-label">{t('levels.nameLabel')}</label>
+                <label htmlFor={idLevelName} className="form-label">{t('levels.nameLabel')}</label>
                 <input
+                  id={idLevelName}
                   type="text"
                   className="text-input"
                   value={activeLevel.name}
@@ -165,8 +171,9 @@ export const LevelManagerSection: React.FC = () => {
                 />
               </div>
               <div className="form-field">
-                <label className="form-label">{t('levels.ceilingHeightCm')}</label>
+                <label htmlFor={idCeilingHeight} className="form-label">{t('levels.ceilingHeightCm')}</label>
                 <input
+                  id={idCeilingHeight}
                   type="number"
                   min={150}
                   max={600}
@@ -181,8 +188,9 @@ export const LevelManagerSection: React.FC = () => {
                 />
               </div>
               <div className="form-field">
-                <label className="form-label">{t('levels.slabThicknessCm')}</label>
+                <label htmlFor={idSlabThickness} className="form-label">{t('levels.slabThicknessCm')}</label>
                 <input
+                  id={idSlabThickness}
                   type="number"
                   min={5}
                   max={100}
@@ -220,8 +228,9 @@ export const LevelManagerSection: React.FC = () => {
           </label>
 
           <div className="form-field full">
-            <label className="form-label">{t('levels.viewModeLabel')}</label>
+            <label htmlFor={idViewMode} className="form-label">{t('levels.viewModeLabel')}</label>
             <select
+              id={idViewMode}
               className="text-input"
               value={levelViewMode}
               onChange={(e) => setLevelViewMode(e.target.value as LevelViewMode)}

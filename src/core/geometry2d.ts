@@ -87,3 +87,44 @@ export function segmentInteriorIntersection2D(
     u,
   };
 }
+
+/**
+ * Ray-casting point-in-polygon test in the XZ floor plane.
+ */
+export function pointInPolygonXZ(
+  px: number,
+  pz: number,
+  polygon: readonly Point2D[]
+): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const zi = polygon[i].z;
+    const xj = polygon[j].x;
+    const zj = polygon[j].z;
+    const intersect =
+      zi > pz !== zj > pz &&
+      px < ((xj - xi) * (pz - zi)) / (zj - zi || 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Rotates a local XZ offset `(lx, lz)` around `(cx, cz)` using Three.js `+Y` rotation convention.
+ */
+export function rotatePointXZ(
+  cx: number,
+  cz: number,
+  rotationYDeg: number,
+  lx: number,
+  lz: number
+): Point2D {
+  const rad = (rotationYDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: cx + lx * cos + lz * sin,
+    z: cz - lx * sin + lz * cos,
+  };
+}

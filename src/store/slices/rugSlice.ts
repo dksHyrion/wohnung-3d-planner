@@ -19,7 +19,7 @@ export function createRugSlice(deps: StoreDeps): RugActions {
       const newRug: AreaRug = {
         id: generateId('rug'),
         levelId: rug.levelId ?? state.activeLevelId,
-        name: rug.name?.trim() || 'Teppich',
+        name: rug.name?.trim() || (state.language === 'en' ? 'Rug' : 'Teppich'),
         widthCm: Math.max(20, Number.isFinite(rug.widthCm) ? rug.widthCm : 200),
         depthCm: Math.max(20, Number.isFinite(rug.depthCm) ? rug.depthCm : 160),
         x: Number((Number.isFinite(rug.x) ? rug.x : 200).toFixed(2)),
@@ -51,7 +51,7 @@ export function createRugSlice(deps: StoreDeps): RugActions {
           ...patch,
           name:
             patch.name !== undefined
-              ? patch.name.trim() || 'Teppich'
+              ? patch.name.trim() || (state.language === 'en' ? 'Rug' : 'Teppich')
               : r.name,
           widthCm:
             patch.widthCm !== undefined && Number.isFinite(patch.widthCm)

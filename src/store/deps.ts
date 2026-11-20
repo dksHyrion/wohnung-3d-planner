@@ -27,6 +27,10 @@ export interface StoreDeps {
     furniture: FloorplanState['furniture'];
     rugs?: FloorplanState['rugs'];
     roomLabels?: FloorplanState['roomLabels'];
+    roofSlopes?: FloorplanState['roofSlopes'];
+    fixtures?: FloorplanState['fixtures'];
+    layoutVariants?: FloorplanState['layoutVariants'];
+    activeVariantId?: FloorplanState['activeVariantId'];
     backgroundImage?: FloorplanState['backgroundImage'];
   }) => FloorplanData;
 }

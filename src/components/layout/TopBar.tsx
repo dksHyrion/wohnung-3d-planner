@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   MousePointer,
   PenTool,
@@ -29,7 +29,10 @@ import {
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
-import type { Language, TranslationKey } from '../../i18n/types';
+import { getTranslation } from '../../i18n/i18n';
+import type { TranslationKey } from '../../i18n/types';
+import { formatTimeOfDay } from './formatTimeOfDay';
+export { formatTimeOfDay };
 import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
@@ -84,23 +87,12 @@ export async function handleOverlayImageFile(
       freshState.setViewMode('2d');
     }
   } catch {
-    useFloorplanStore.getState().setOverlayError('Das Grundrissbild konnte nicht gespeichert werden.');
+    const lang = useFloorplanStore.getState().language;
+    useFloorplanStore
+      .getState()
+      .setOverlayError(getTranslation(lang, 'topbar.actions.underlayError'));
     return;
   }
-}
-
-export function formatTimeOfDay(hour: number, lang?: Language): string {
-  const activeLang = lang ?? 'de';
-  if (!Number.isFinite(hour)) {
-    return activeLang === 'en' ? '12:00' : '12:00 Uhr';
-  }
-  const clamped = Math.max(0, Math.min(24, hour));
-  const h = Math.floor(clamped);
-  const m = Math.round((clamped - h) * 60);
-  const normalizedH = m === 60 ? (h + 1) % 24 : h;
-  const normalizedM = m === 60 ? 0 : m;
-  const time = `${String(normalizedH).padStart(2, '0')}:${String(normalizedM).padStart(2, '0')}`;
-  return activeLang === 'en' ? time : `${time} Uhr`;
 }
 
 export function capture3DCanvasSnapshot(
@@ -179,9 +171,26 @@ export const TopBar: React.FC = () => {
   const [planIncludeFurniture, setPlanIncludeFurniture] = useState<boolean>(true);
   const [planIncludeDimensions, setPlanIncludeDimensions] = useState<boolean>(true);
   const [planTitle, setPlanTitle] = useState<string>('Grundriss Plan');
-  const [shareCopiedFeedback, setShareCopiedFeedback] = useState<boolean>(false);
+  const [shareFeedback, setShareFeedback] = useState<'copied' | 'too-large' | 'error' | null>(null);
 
   const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const scheduleTimer = (fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timersRef.current.delete(id);
+      fn();
+    }, ms);
+    timersRef.current.add(id);
+  };
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const id of timers) clearTimeout(id);
+      timers.clear();
+    };
+  }, []);
 
   const triggerDownload = (content: string, mimeType: string, filename: string) => {
     const blob = new Blob([content], { type: mimeType });
@@ -190,7 +199,7 @@ export const TopBar: React.FC = () => {
     a.href = url;
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(url);
+    scheduleTimer(() => URL.revokeObjectURL(url), 1000);
     setPlanExportModalOpen(false);
   };
 
@@ -281,7 +290,7 @@ export const TopBar: React.FC = () => {
 
     if (viewMode === '2d') {
       setViewMode('3d-persp');
-      setTimeout(triggerSnapshot, 250);
+      scheduleTimer(triggerSnapshot, 250);
     } else {
       triggerSnapshot();
     }
@@ -300,7 +309,7 @@ export const TopBar: React.FC = () => {
     setPlanExportModalOpen(false);
     if (viewMode === '2d') {
       setViewMode('3d-persp');
-      setTimeout(dispatchExport, 250);
+      scheduleTimer(dispatchExport, 250);
     } else {
       dispatchExport();
     }
@@ -332,13 +341,19 @@ export const TopBar: React.FC = () => {
       variants: s.layoutVariants,
       activeVariantId: s.activeVariantId,
     });
-    if (!res.ok) return 'too-large';
+    if (!res.ok) {
+      setShareFeedback('too-large');
+      scheduleTimer(() => setShareFeedback(null), 2600);
+      return 'too-large';
+    }
     try {
       await navigator.clipboard?.writeText(res.url);
-      setShareCopiedFeedback(true);
-      setTimeout(() => setShareCopiedFeedback(false), 2000);
+      setShareFeedback('copied');
+      scheduleTimer(() => setShareFeedback(null), 2000);
       return 'copied';
     } catch {
+      setShareFeedback('error');
+      scheduleTimer(() => setShareFeedback(null), 2600);
       return 'error';
     }
   };
@@ -372,7 +387,7 @@ export const TopBar: React.FC = () => {
     a.href = url;
     a.download = `grundriss-${selectedPreset}-cm.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    scheduleTimer(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleOpenImport = () => {
@@ -715,9 +730,11 @@ export const TopBar: React.FC = () => {
           >
             <Share2 size={14} />
             <span>
-              {shareCopiedFeedback
+              {shareFeedback === 'copied'
                 ? t('dialogs.json.shareCopied')
-                : t('dialogs.json.copyShareLink')}
+                : shareFeedback === 'too-large'
+                  ? t('dialogs.json.shareTooLarge')
+                  : t('dialogs.json.copyShareLink')}
             </span>
           </button>
 

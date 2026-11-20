@@ -694,7 +694,8 @@ export function createWallSlice(deps: StoreDeps): WallActions {
           }
         }
         const roomNumber = roomId.replace('room-', '');
-        const fallbackName = targetRoom.name ?? `Raum ${roomNumber}`;
+        const fallbackPrefix = state.language === 'en' ? 'Room' : 'Raum';
+        const fallbackName = targetRoom.name ?? `${fallbackPrefix} ${roomNumber}`;
         nextRoomLabels = [
           ...state.roomLabels,
           {
