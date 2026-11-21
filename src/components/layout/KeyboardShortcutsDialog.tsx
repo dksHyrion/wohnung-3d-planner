@@ -2,6 +2,7 @@ import React, { useEffect, useId } from 'react';
 import { Keyboard, X } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 
 interface ShortcutRow {
   keys: string[];
@@ -18,6 +19,7 @@ export const KeyboardShortcutsDialog: React.FC = () => {
   const showKeyboardShortcuts = useFloorplanStore((s) => s.showKeyboardShortcuts);
   const setShowKeyboardShortcuts = useFloorplanStore((s) => s.setShowKeyboardShortcuts);
   const titleId = useId();
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(showKeyboardShortcuts);
 
   useEffect(() => {
     if (!showKeyboardShortcuts) return;
@@ -75,10 +77,12 @@ export const KeyboardShortcutsDialog: React.FC = () => {
       onClick={() => setShowKeyboardShortcuts(false)}
     >
       <div
+        ref={dialogRef}
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={{ maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >

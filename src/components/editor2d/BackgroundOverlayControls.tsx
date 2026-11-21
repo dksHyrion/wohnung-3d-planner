@@ -2,17 +2,17 @@ import React from 'react';
 import { Eye, EyeOff, Lock, Unlock, Trash2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useContinuousUndo } from '../../hooks/useContinuousUndo';
 
 export const BackgroundOverlayControls: React.FC = () => {
   const { t } = useTranslation();
   const backgroundImage = useFloorplanStore((s) => s.backgroundImage);
   const activeTool = useFloorplanStore((s) => s.activeTool);
   const updateBackgroundImage = useFloorplanStore((s) => s.updateBackgroundImage);
-  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
   const removeBackgroundImage = useFloorplanStore((s) => s.removeBackgroundImage);
   const startCalibration = useFloorplanStore((s) => s.startCalibration);
   const cancelCalibration = useFloorplanStore((s) => s.cancelCalibration);
-  const opacityUndoPushedRef = React.useRef(false);
+  const opacityUndo = useContinuousUndo();
 
   if (!backgroundImage) {
     return null;
@@ -68,23 +68,9 @@ export const BackgroundOverlayControls: React.FC = () => {
           max="1"
           step="0.05"
           value={opacity}
-          onPointerDown={() => {
-            if (!opacityUndoPushedRef.current) {
-              pushUndoSnapshot();
-              opacityUndoPushedRef.current = true;
-            }
-          }}
-          onPointerUp={() => {
-            opacityUndoPushedRef.current = false;
-          }}
-          onBlur={() => {
-            opacityUndoPushedRef.current = false;
-          }}
+          {...opacityUndo.handlers}
           onChange={(e) => {
-            if (!opacityUndoPushedRef.current) {
-              pushUndoSnapshot();
-              opacityUndoPushedRef.current = true;
-            }
+            opacityUndo.begin();
             updateBackgroundImage(
               { opacity: parseFloat(e.target.value) },
               { recordHistory: false }
@@ -101,6 +87,7 @@ export const BackgroundOverlayControls: React.FC = () => {
             color: '#94a3b8',
             minWidth: 32,
             textAlign: 'right',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {opacityPercent}%
@@ -111,24 +98,26 @@ export const BackgroundOverlayControls: React.FC = () => {
       <button
         type="button"
         className={`btn btn-outline ${locked ? 'active' : ''}`}
+        aria-pressed={locked}
         onClick={() => updateBackgroundImage({ locked: !locked })}
         aria-label={locked ? t('dialogs.overlay.unlockAria') : t('dialogs.overlay.lockAria')}
         title={locked ? t('dialogs.overlay.unlockAria') : t('dialogs.overlay.lockAria')}
         style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}
       >
-        {locked ? <Lock size={13} color="#f59e0b" /> : <Unlock size={13} />}
+        {locked ? <Lock size={13} color="#f59e0b" aria-hidden="true" /> : <Unlock size={13} aria-hidden="true" />}
       </button>
 
       {/* Visibility toggle button */}
       <button
         type="button"
         className={`btn btn-outline ${!visible ? 'active' : ''}`}
+        aria-pressed={!visible}
         onClick={() => updateBackgroundImage({ visible: !visible })}
         aria-label={visible ? t('dialogs.overlay.hideAria') : t('dialogs.overlay.showAria')}
         title={visible ? t('dialogs.overlay.hideAria') : t('dialogs.overlay.showAria')}
         style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}
       >
-        {visible ? <Eye size={13} /> : <EyeOff size={13} color="#94a3b8" />}
+        {visible ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} color="#94a3b8" aria-hidden="true" />}
       </button>
 
       {/* Calibration button */}

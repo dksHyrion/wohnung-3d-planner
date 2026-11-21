@@ -137,8 +137,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.treadDepthCm')}</label>
+          <label htmlFor={`stair-tread-${selectedStair.id}`} className="form-label">{t('stairs.treadDepthCm')}</label>
           <input
+            id={`stair-tread-${selectedStair.id}`}
             type="number"
             min={18}
             max={40}
@@ -154,8 +155,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.riserCount')}</label>
+          <label htmlFor={`stair-risers-${selectedStair.id}`} className="form-label">{t('stairs.riserCount')}</label>
           <input
+            id={`stair-risers-${selectedStair.id}`}
             type="number"
             min={3}
             max={40}
@@ -172,8 +174,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('stairs.rotationDeg')}</label>
+          <label htmlFor={`stair-rot-${selectedStair.id}`} className="form-label">{t('stairs.rotationDeg')}</label>
           <input
+            id={`stair-rot-${selectedStair.id}`}
             type="number"
             step={15}
             className="number-input"
@@ -189,8 +192,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
         {selectedStair.type !== 'straight' && (
           <>
             <div className="form-field">
-              <label className="form-label">{t('stairs.turnDirection')}</label>
+              <label htmlFor={`stair-turn-${selectedStair.id}`} className="form-label">{t('stairs.turnDirection')}</label>
               <select
+                id={`stair-turn-${selectedStair.id}`}
                 className="text-input"
                 value={selectedStair.turnDirection ?? 'right'}
                 onChange={(e) =>
@@ -204,8 +208,9 @@ export const StairInspector: React.FC<{ selectedStair: Staircase }> = ({
               </select>
             </div>
             <div className="form-field">
-              <label className="form-label">{t('stairs.landingLengthCm')}</label>
+              <label htmlFor={`stair-landing-${selectedStair.id}`} className="form-label">{t('stairs.landingLengthCm')}</label>
               <input
+                id={`stair-landing-${selectedStair.id}`}
                 type="number"
                 min={60}
                 max={250}

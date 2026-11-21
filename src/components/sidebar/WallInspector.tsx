@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useContinuousUndo } from '../../hooks/useContinuousUndo';
 import { getWallGeometry } from '../../core/wallMath';
 import { createDefaultFixture, WALL_FIXTURE_TYPES } from '../../core/mepFixtures';
 import { WALL_FINISH_TYPES } from '../../core/materials/wallFinishes';
@@ -28,8 +29,7 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
   const fixtures = useFloorplanStore((s) => s.fixtures);
   const updateWallLengthCm = useFloorplanStore((s) => s.updateWallLengthCm);
   const updateWallProps = useFloorplanStore((s) => s.updateWallProps);
-  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
-  const colorUndoPushedRef = React.useRef(false);
+  const colorUndo = useContinuousUndo();
   const splitWallAt = useFloorplanStore((s) => s.splitWallAt);
   const addOpening = useFloorplanStore((s) => s.addOpening);
   const removeOpening = useFloorplanStore((s) => s.removeOpening);
@@ -197,10 +197,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
               >
                 <button
                   type="button"
+                  className="unstyled-btn"
                   onClick={() => selectEntity(op.id, 'opening')}
                   style={{
-                    all: 'unset',
-                    cursor: 'pointer',
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
@@ -220,8 +219,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
                   style={{ padding: '4px 6px' }}
                   onClick={() => removeOpening(op.id)}
                   title={t('inspector.wall.deleteOpening')}
+                  aria-label={t('inspector.wall.deleteOpening')}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={12} aria-hidden="true" />
                 </button>
               </div>
             ))}
@@ -379,18 +379,20 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
             const current = side === 'pos' ? selectedWall.posFinish : selectedWall.negFinish;
             const finishType = current?.finish ?? 'plaster';
             const patchKey = side === 'pos' ? 'posFinish' : 'negFinish';
+            const finishSelectId = `wall-finish-${selectedWall.id}-${side}`;
             return (
               <div
                 key={side}
                 className="form-field"
                 data-testid={`wall-finish-${side}`}
               >
-                <label className="form-label">
+                <label htmlFor={finishSelectId} className="form-label">
                   {side === 'pos'
                     ? t('inspector.wall.posSide')
                     : t('inspector.wall.negSide')}
                 </label>
                 <select
+                  id={finishSelectId}
                   className="select-input"
                   value={finishType}
                   onChange={(e) => {
@@ -422,20 +424,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
                     className="number-input"
                     style={{ height: '26px', padding: '1px 3px', marginTop: '4px' }}
                     value={current?.color ?? (finishType === 'accent-paint' ? '#475569' : '#ffffff')}
-                    onPointerDown={() => {
-                      if (!colorUndoPushedRef.current) {
-                        pushUndoSnapshot();
-                        colorUndoPushedRef.current = true;
-                      }
-                    }}
-                    onBlur={() => {
-                      colorUndoPushedRef.current = false;
-                    }}
+                    {...colorUndo.handlers}
                     onChange={(e) => {
-                      if (!colorUndoPushedRef.current) {
-                        pushUndoSnapshot();
-                        colorUndoPushedRef.current = true;
-                      }
+                      colorUndo.begin();
                       updateWallProps(
                         selectedWall.id,
                         {
@@ -495,10 +486,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
               >
                 <button
                   type="button"
+                  className="unstyled-btn"
                   onClick={() => selectEntity(fx.id, 'fixture')}
                   style={{
-                    all: 'unset',
-                    cursor: 'pointer',
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
@@ -514,8 +504,9 @@ export function WallInspector({ selectedWall }: { selectedWall: Wall }) {
                   style={{ padding: '3px 6px' }}
                   onClick={() => removeFixture(fx.id)}
                   title={t('inspector.fixture.deleteFixture')}
+                  aria-label={t('inspector.fixture.deleteFixture')}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={12} aria-hidden="true" />
                 </button>
               </div>
             ))}

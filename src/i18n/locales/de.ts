@@ -15,9 +15,10 @@ export const de = {
     rotation: 'Drehung',
     color: 'Farbe',
     area: 'Fläche',
-    loading: 'Wird geladen...',
+    loading: 'Wird geladen…',
     error: 'Fehler',
     none: 'Keine',
+    skipToMain: 'Zum Hauptinhalt springen',
   },
   topbar: {
     brand: 'Wohnung 3D Planer',
@@ -26,6 +27,8 @@ export const de = {
       tools: 'Editor-Werkzeuge',
       history: 'Verlauf (Undo/Redo)',
       camera: 'Kamera-Perspektive',
+      displayMenu: 'Anzeige',
+      fileMenu: 'Datei & Export',
     },
     tools: {
       select: 'Auswählen',
@@ -166,6 +169,16 @@ export const de = {
     },
   },
   dialogs: {
+    confirm: {
+      resetTitle: 'Grundriss zurücksetzen?',
+      resetMessage:
+        'Alle nicht gespeicherten Änderungen werden durch die Standard-Vorlage (55 m²) ersetzt. Du kannst dies bei Bedarf über Rückgängig (Strg+Z) wiederherstellen.',
+      resetConfirm: 'Jetzt zurücksetzen',
+      deleteLevelTitle: 'Etage löschen?',
+      deleteLevelMessage:
+        'Möchtest du die Etage „{name}“ inklusive aller darauf platzierten Wände, Möbel und Öffnungen löschen?',
+      deleteLevelConfirm: 'Etage löschen',
+    },
     shortcuts: {
       title: 'Tastaturkürzel',
       closeAriaLabel: 'Schließen',

@@ -17,9 +17,10 @@ export const en: TranslationSchema = {
     rotation: 'Rotation',
     color: 'Color',
     area: 'Area',
-    loading: 'Loading...',
+    loading: 'Loading…',
     error: 'Error',
     none: 'None',
+    skipToMain: 'Skip to main content',
   },
   topbar: {
     brand: 'Apartment 3D Planner',
@@ -28,6 +29,8 @@ export const en: TranslationSchema = {
       tools: 'Editor Tools',
       history: 'History (Undo/Redo)',
       camera: 'Camera Perspective',
+      displayMenu: 'Display',
+      fileMenu: 'File & Export',
     },
     tools: {
       select: 'Select',
@@ -168,6 +171,16 @@ export const en: TranslationSchema = {
     },
   },
   dialogs: {
+    confirm: {
+      resetTitle: 'Reset floorplan?',
+      resetMessage:
+        'Your current floorplan will be replaced with the default 55 m² template. You can still undo this action with Ctrl+Z.',
+      resetConfirm: 'Reset now',
+      deleteLevelTitle: 'Delete level?',
+      deleteLevelMessage:
+        'Delete level “{name}” along with all walls, openings, and furniture placed on it?',
+      deleteLevelConfirm: 'Delete level',
+    },
     shortcuts: {
       title: 'Keyboard Shortcuts',
       closeAriaLabel: 'Close',

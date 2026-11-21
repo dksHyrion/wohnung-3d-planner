@@ -6,7 +6,7 @@ import type { ScorecardGrade } from '../../core/ergonomicsScorecard';
 import { computeFurnitureOBBs } from '../../core/collisionEngine';
 import { evaluateMepDiagnostics } from '../../core/mepFixtures';
 import { computeFloorPolygons } from '../../core/wallMath';
-import { getEntityLevelId } from '../../core/levels';
+import { useActiveLevelEntities } from '../../hooks/useActiveLevelEntities';
 import { evaluateWalkAndSightlines } from '../../core/walkAndSightlines';
 
 const GRADE_COLORS: Record<ScorecardGrade, string> = {
@@ -22,34 +22,9 @@ export const ErgonomicsScorecardSection: React.FC = () => {
   const ergonomicsScorecard = useFloorplanStore((s) => s.ergonomicsScorecard);
   const isComputingErgonomics = useFloorplanStore((s) => s.isComputingErgonomics);
   const setShowPassageHeatmap = useFloorplanStore((s) => s.setShowPassageHeatmap);
-  const corners = useFloorplanStore((s) => s.corners);
-  const walls = useFloorplanStore((s) => s.walls);
-  const openings = useFloorplanStore((s) => s.openings);
-  const furniture = useFloorplanStore((s) => s.furniture);
-  const fixtures = useFloorplanStore((s) => s.fixtures);
-  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const timeOfDay = useFloorplanStore((s) => s.timeOfDay);
   const alignSunWithWindows = useFloorplanStore((s) => s.alignSunWithWindows);
-
-  const levelScoped = React.useMemo(() => {
-    const lvlCorners = corners.filter((c) => getEntityLevelId(c) === activeLevelId);
-    const lvlWalls = walls.filter((w) => getEntityLevelId(w) === activeLevelId);
-    const lvlWallIds = new Set(lvlWalls.map((w) => w.id));
-    const lvlOpenings = openings.filter(
-      (o) => lvlWallIds.has(o.wallId) && (o.levelId === undefined || o.levelId === activeLevelId)
-    );
-    const lvlFurniture = furniture.filter((f) => getEntityLevelId(f) === activeLevelId);
-    const lvlFixtures = (fixtures ?? []).filter(
-      (fx) => lvlWallIds.has(fx.wallId) && (fx.levelId === undefined || fx.levelId === activeLevelId)
-    );
-    return {
-      corners: lvlCorners,
-      walls: lvlWalls,
-      openings: lvlOpenings,
-      furniture: lvlFurniture,
-      fixtures: lvlFixtures,
-    };
-  }, [corners, walls, openings, furniture, fixtures, activeLevelId]);
+  const levelScoped = useActiveLevelEntities();
 
   const mepDiagnostics = React.useMemo(() => {
     if (!showPassageHeatmap || levelScoped.fixtures.length === 0) return null;

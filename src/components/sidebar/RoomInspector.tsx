@@ -4,7 +4,7 @@ import { FlooringType, RoomPolygon } from '../../core/types';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
 import { computeRoomWoFlVBreakdown, resolveRoofSlopePlanes } from '../../core/roofSlopeMath';
-import { getEntityLevelId } from '../../core/levels';
+import { useActiveLevelEntities } from '../../hooks/useActiveLevelEntities';
 
 export interface RoomInspectorProps {
   selectedRoom: RoomPolygon;
@@ -26,20 +26,13 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
 }) => {
   const { t, language } = useTranslation();
   const updateRoom = useFloorplanStore((s) => s.updateRoom);
-  const corners = useFloorplanStore((s) => s.corners);
-  const walls = useFloorplanStore((s) => s.walls);
-  const roofSlopes = useFloorplanStore((s) => s.roofSlopes);
-  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
+  const {
+    corners: levelCorners,
+    walls: levelWalls,
+    roofSlopes: levelRoofSlopes,
+  } = useActiveLevelEntities();
 
   const woflvBreakdown = React.useMemo(() => {
-    const levelCorners = corners.filter((c) => getEntityLevelId(c) === activeLevelId);
-    const levelWalls = walls.filter((w) => getEntityLevelId(w) === activeLevelId);
-    const levelWallIds = new Set(levelWalls.map((w) => w.id));
-    const levelRoofSlopes = (roofSlopes ?? []).filter(
-      (rs) =>
-        levelWallIds.has(rs.wallId) &&
-        (rs.levelId === undefined || rs.levelId === activeLevelId)
-    );
     if (levelRoofSlopes.length === 0) return null;
     const planes = resolveRoofSlopePlanes(
       levelCorners,
@@ -51,7 +44,7 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
       levelWalls.length > 0 ? Math.max(250, ...levelWalls.map((w) => w.heightCm)) : 250;
     const res = computeRoomWoFlVBreakdown(selectedRoom, planes, maxCeilingCm);
     return res.hasRoofSlopes ? res : null;
-  }, [corners, walls, roofSlopes, activeLevelId, selectedRoom]);
+  }, [levelCorners, levelWalls, levelRoofSlopes, selectedRoom]);
 
   const fallbackName = `${t('inspector.room.defaultName')} ${roomIndex + 1}`;
   const displayName = selectedRoom.name ?? fallbackName;
@@ -90,10 +83,10 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
 
   return (
     <section className="sidebar-section" data-testid="room-inspector">
-      <div className="sidebar-title">
+      <h2 className="sidebar-title">
         <span>{t('inspector.room.titleWithName', { name: displayName })}</span>
-        <Home size={14} />
-      </div>
+        <Home size={14} aria-hidden="true" />
+      </h2>
 
       <div className="form-grid">
         <div className="form-field full">
@@ -147,53 +140,19 @@ export const RoomInspector: React.FC<RoomInspectorProps> = ({
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('inspector.room.netArea')}</label>
-          <div
-            style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              color: '#f8fafc',
-              padding: '6px 8px',
-              background: 'rgba(15, 23, 42, 0.55)',
-              borderRadius: 6,
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            {netArea} m²
-          </div>
+          <span className="form-label">{t('inspector.room.netArea')}</span>
+          <div className="readout-value">{netArea} m²</div>
         </div>
 
         <div className="form-field">
-          <label className="form-label">{t('inspector.room.perimeter')}</label>
-          <div
-            style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              color: '#f8fafc',
-              padding: '6px 8px',
-              background: 'rgba(15, 23, 42, 0.55)',
-              borderRadius: 6,
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            {perimeterM} m
-          </div>
+          <span className="form-label">{t('inspector.room.perimeter')}</span>
+          <div className="readout-value">{perimeterM} m</div>
         </div>
 
         {woflvBreakdown && (
           <div className="form-field full" data-testid="room-woflv-readout">
-            <label className="form-label">{t('inspector.room.woflvArea')}</label>
-            <div
-              style={{
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                color: '#38bdf8',
-                padding: '6px 8px',
-                background: 'rgba(15, 23, 42, 0.55)',
-                borderRadius: 6,
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
+            <span className="form-label">{t('inspector.room.woflvArea')}</span>
+            <div className="readout-value" style={{ color: '#38bdf8' }}>
               {woflvBreakdown.woflvAreaSqM.toLocaleString(locale, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,

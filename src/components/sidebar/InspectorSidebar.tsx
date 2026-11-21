@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Plus,
   CheckCircle2,
   AlertTriangle,
   Sliders,
-  PackagePlus,
   Trash2,
   Link2,
   RotateCw,
@@ -20,31 +19,25 @@ import { StairInspector } from './StairInspector';
 import { LayoutVariantsSection } from './LayoutVariantsSection';
 import { ErgonomicsScorecardSection } from './ErgonomicsScorecardSection';
 import { LevelManagerSection } from './LevelManagerSection';
+import {
+  FurnitureCatalogSection,
+  filterCatalogTemplates,
+  type CatalogFilterTab,
+} from './FurnitureCatalogSection';
+import { CustomFurnitureFormSection } from './CustomFurnitureFormSection';
 import { getEntityLevelId } from '../../core/levels';
+import { useActiveLevelEntities } from '../../hooks/useActiveLevelEntities';
 import {
   CatalogFurnitureTemplate,
   FURNITURE_CATALOG,
-  getCatalogCategoryLabel,
   getCatalogItemName,
 } from '../../core/presets';
 import { FurnitureItem } from '../../core/types';
 import { applyRoomLabels, computeFloorPolygons } from '../../core/wallMath';
 import { useTranslation } from '../../i18n/useTranslation';
 
-export type CatalogFilterTab = 'all' | 'real' | 'placeholder';
-
-export function filterCatalogTemplates(
-  catalog: CatalogFurnitureTemplate[],
-  filter: CatalogFilterTab
-): CatalogFurnitureTemplate[] {
-  if (filter === 'real') {
-    return catalog.filter((tpl) => Boolean(tpl.isRealFurniture));
-  }
-  if (filter === 'placeholder') {
-    return catalog.filter((tpl) => !tpl.isRealFurniture);
-  }
-  return catalog;
-}
+export { filterCatalogTemplates };
+export type { CatalogFilterTab };
 
 export interface InspectorSidebarProps {
   initialCatalogFilter?: CatalogFilterTab;
@@ -60,13 +53,11 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const { t, language } = useTranslation();
   const corners = useFloorplanStore((s) => s.corners);
   const walls = useFloorplanStore((s) => s.walls);
-  const roomLabels = useFloorplanStore((s) => s.roomLabels);
   const openings = useFloorplanStore((s) => s.openings);
   const fixtures = useFloorplanStore((s) => s.fixtures);
   const furniture = useFloorplanStore((s) => s.furniture);
   const rugs = useFloorplanStore((s) => s.rugs);
   const stairs = useFloorplanStore((s) => s.stairs);
-  const activeLevelId = useFloorplanStore((s) => s.activeLevelId);
   const collisionReports = useFloorplanStore((s) => s.collisionReports);
   const selectedId = useFloorplanStore((s) => s.selectedId);
   const selectedIds = useFloorplanStore((s) => s.selectedIds);
@@ -83,49 +74,21 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
   const addStair = useFloorplanStore((s) => s.addStair);
   const selectEntity = useFloorplanStore((s) => s.selectEntity);
 
-  const levelCorners = useMemo(
-    () => corners.filter((c) => getEntityLevelId(c) === activeLevelId),
-    [corners, activeLevelId]
-  );
-  const levelWalls = useMemo(
-    () => walls.filter((w) => getEntityLevelId(w) === activeLevelId),
-    [walls, activeLevelId]
-  );
-  const levelRoomLabels = useMemo(
-    () => roomLabels.filter((l) => getEntityLevelId(l) === activeLevelId),
-    [roomLabels, activeLevelId]
-  );
-  const levelFurniture = useMemo(
-    () => furniture.filter((f) => getEntityLevelId(f) === activeLevelId),
-    [furniture, activeLevelId]
-  );
-  const levelRugs = useMemo(
-    () => rugs.filter((r) => getEntityLevelId(r) === activeLevelId),
-    [rugs, activeLevelId]
-  );
+  const {
+    corners: levelCorners,
+    walls: levelWalls,
+    roomLabels: levelRoomLabels,
+    furniture: levelFurniture,
+    rugs: levelRugs,
+  } = useActiveLevelEntities();
 
   const computedRooms = useMemo(
     () => applyRoomLabels(computeFloorPolygons(levelCorners, levelWalls), levelRoomLabels),
     [levelCorners, levelWalls, levelRoomLabels]
   );
 
-  // Catalog tab filter state
-  const [catalogFilter, setCatalogFilter] =
-    useState<CatalogFilterTab>(initialCatalogFilter);
-
-  const filteredCatalog = useMemo(
-    () => filterCatalogTemplates(catalog, catalogFilter),
-    [catalog, catalogFilter]
-  );
-
-  // Custom furniture generator state
-  const defaultCustomName = t('inspector.customFurniture.defaultName');
-  const [customName, setCustomName] = useState<string | null>(null);
-  const effectiveCustomName = customName ?? defaultCustomName;
-  const [customWidthCm, setCustomWidthCm] = useState(180);
-  const [customHeightCm, setCustomHeightCm] = useState(85);
-  const [customDepthCm, setCustomDepthCm] = useState(60);
-  const [customColor, setCustomColor] = useState('#6366f1');
+  const idCornerX = React.useId();
+  const idCornerZ = React.useId();
 
   const selectedWall =
     selectedType === 'wall'
@@ -232,22 +195,25 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
     });
   };
 
-  const handleAddCustomFurniture = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddCustomFurniture = (item: {
+    name: string;
+    widthCm: number;
+    heightCm: number;
+    depthCm: number;
+    color: string;
+  }) => {
     const center = getRoomCenter();
     addFurniture({
-      name:
-        (customName !== null ? customName.trim() : '') ||
-        t('inspector.customFurniture.fallbackName'),
+      name: item.name,
       category: 'custom',
-      widthCm: Math.max(1, Number(customWidthCm)),
-      heightCm: Math.max(1, Number(customHeightCm)),
-      depthCm: Math.max(1, Number(customDepthCm)),
+      widthCm: item.widthCm,
+      heightCm: item.heightCm,
+      depthCm: item.depthCm,
       elevationCm: 0,
       x: center.x,
       z: center.z,
       rotationYDeg: 0,
-      color: customColor,
+      color: item.color,
       snappedWallId: null,
     });
   };
@@ -283,8 +249,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
           </div>
           <div className="form-grid">
             <div className="form-field">
-              <label className="form-label">{t('inspector.corner.posX')}</label>
+              <label htmlFor={idCornerX} className="form-label">{t('inspector.corner.posX')}</label>
               <input
+                id={idCornerX}
                 type="number"
                 step={5}
                 className="number-input"
@@ -299,8 +266,9 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
               />
             </div>
             <div className="form-field">
-              <label className="form-label">{t('inspector.corner.posZ')}</label>
+              <label htmlFor={idCornerZ} className="form-label">{t('inspector.corner.posZ')}</label>
               <input
+                id={idCornerZ}
                 type="number"
                 step={5}
                 className="number-input"
@@ -502,201 +470,14 @@ export const InspectorSidebar: React.FC<InspectorSidebarProps> = ({
       )}
 
       {/* 5. Standard Furniture Catalog (DIN / Neufert & Designer Inventory) */}
-      <section className="sidebar-section">
-        <div className="sidebar-title">
-          <span>{t('inspector.catalogTitle')}</span>
-          <Plus size={14} />
-        </div>
-
-        {/* Tab Filter Switcher */}
-        <div
-          role="tablist"
-          style={{
-            display: 'flex',
-            gap: '4px',
-            background: 'var(--bg-app)',
-            padding: '3px',
-            borderRadius: '6px',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={catalogFilter === 'all'}
-            className={`btn ${catalogFilter === 'all' ? 'active' : ''}`}
-            style={{ flex: 1, padding: '4px 6px', fontSize: '0.72rem' }}
-            onClick={() => setCatalogFilter('all')}
-          >
-            {t('inspector.catalogTabs.all')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={catalogFilter === 'real'}
-            className={`btn ${catalogFilter === 'real' ? 'active' : ''}`}
-            style={{ flex: 1.6, padding: '4px 6px', fontSize: '0.72rem' }}
-            onClick={() => setCatalogFilter('real')}
-          >
-            {t('inspector.catalogTabs.real')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={catalogFilter === 'placeholder'}
-            className={`btn ${catalogFilter === 'placeholder' ? 'active' : ''}`}
-            style={{ flex: 1, padding: '4px 6px', fontSize: '0.72rem' }}
-            onClick={() => setCatalogFilter('placeholder')}
-          >
-            {t('inspector.catalogTabs.placeholder')}
-          </button>
-        </div>
-
-        <div className="catalog-grid">
-          {filteredCatalog.length === 0 ? (
-            <div
-              style={{
-                fontSize: '0.75rem',
-                color: '#94a3b8',
-                padding: '8px 4px',
-                textAlign: 'center',
-              }}
-            >
-              {t('inspector.catalogEmpty')}
-            </div>
-          ) : (
-            filteredCatalog.map((tpl) => (
-              <button
-                key={tpl.name}
-                type="button"
-                className="catalog-item-btn"
-                onClick={() => handleAddCatalogItem(tpl)}
-              >
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {getCatalogItemName(tpl, language)}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        padding: '1px 5px',
-                        borderRadius: '4px',
-                        background: tpl.isRealFurniture
-                          ? 'rgba(16, 185, 129, 0.16)'
-                          : 'rgba(148, 163, 184, 0.12)',
-                        color: tpl.isRealFurniture ? '#34d399' : '#94a3b8',
-                        border: `1px solid ${
-                          tpl.isRealFurniture
-                            ? 'rgba(16, 185, 129, 0.35)'
-                            : 'rgba(148, 163, 184, 0.25)'
-                        }`,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {tpl.isRealFurniture
-                        ? tpl.brand
-                          ? `🟢 ${tpl.brand} · ${t('inspector.catalogRealBadge')}`
-                          : `🟢 ${t('inspector.catalogRealBadge')}`
-                        : `⚪ ${t('inspector.catalogPlaceholderBadge')}`}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                    {tpl.widthCm} × {tpl.heightCm} × {tpl.depthCm} cm{' '}
-                    {t('inspector.catalogDimensions')} · {getCatalogCategoryLabel(tpl.category, language)}
-                  </div>
-                </div>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 4,
-                    background: tpl.color,
-                    display: 'inline-block',
-                    flexShrink: 0,
-                  }}
-                />
-              </button>
-            ))
-          )}
-        </div>
-      </section>
+      <FurnitureCatalogSection
+        catalog={catalog}
+        initialFilter={initialCatalogFilter}
+        onAddTemplate={handleAddCatalogItem}
+      />
 
       {/* 6. Custom Furniture Generator ("Eigenes Wunschmöbel nach Maß") */}
-      <section className="sidebar-section">
-        <div className="sidebar-title">
-          <span>{t('inspector.customFurniture.title')}</span>
-          <PackagePlus size={14} />
-        </div>
-        <form onSubmit={handleAddCustomFurniture} className="form-grid">
-          <div className="form-field full">
-            <label className="form-label">{t('inspector.customFurniture.name')}</label>
-            <input
-              type="text"
-              className="text-input"
-              value={effectiveCustomName}
-              onChange={(e) => setCustomName(e.target.value)}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">{t('inspector.customFurniture.width')}</label>
-            <input
-              type="number"
-              min={1}
-              className="number-input"
-              value={customWidthCm}
-              onChange={(e) => setCustomWidthCm(Number(e.target.value))}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">{t('inspector.customFurniture.height')}</label>
-            <input
-              type="number"
-              min={1}
-              className="number-input"
-              value={customHeightCm}
-              onChange={(e) => setCustomHeightCm(Number(e.target.value))}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">{t('inspector.customFurniture.depth')}</label>
-            <input
-              type="number"
-              min={1}
-              className="number-input"
-              value={customDepthCm}
-              onChange={(e) => setCustomDepthCm(Number(e.target.value))}
-            />
-          </div>
-          <div className="form-field">
-            <label className="form-label">{t('inspector.customFurniture.color')}</label>
-            <input
-              type="color"
-              className="number-input"
-              style={{ height: '31px', padding: '2px 4px' }}
-              value={customColor}
-              onChange={(e) => setCustomColor(e.target.value)}
-            />
-          </div>
-          <div className="form-field full">
-            <button
-              type="submit"
-              className="btn active"
-              style={{ width: '100%', padding: '8px' }}
-            >
-              <Plus size={14} />
-              <span>{t('inspector.customFurniture.add')}</span>
-            </button>
-          </div>
-        </form>
-      </section>
+      <CustomFurnitureFormSection onAddCustom={handleAddCustomFurniture} />
 
       {/* Quick list of placed furniture with collision indicator */}
       {levelFurniture.length > 0 && (

@@ -54,6 +54,7 @@ export function LightingControls({ isOpen }: LightingControlsProps = {}) {
       <button
         type="button"
         className={`btn ${roomLightsActive ? 'active' : ''}`}
+        aria-pressed={roomLightsActive}
         onClick={() => setRoomLightsActive(!roomLightsActive)}
         title={t('lighting.options.roomLightsHint')}
       >
@@ -62,6 +63,7 @@ export function LightingControls({ isOpen }: LightingControlsProps = {}) {
       <button
         type="button"
         className={`btn ${alignSunWithWindows ? 'active' : ''}`}
+        aria-pressed={alignSunWithWindows}
         onClick={() => setAlignSunWithWindows(!alignSunWithWindows)}
         title={t('lighting.options.windowSunHint')}
       >

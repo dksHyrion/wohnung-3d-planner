@@ -103,6 +103,9 @@ export const LayoutVariantsSection: React.FC = () => {
       <form onSubmit={handleSave} style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
         <input
           type="text"
+          name="variantName"
+          autoComplete="off"
+          aria-label={t('inspector.variants.namePlaceholder')}
           className="text-input"
           placeholder={t('inspector.variants.namePlaceholder')}
           value={draftName}
@@ -157,10 +160,9 @@ export const LayoutVariantsSection: React.FC = () => {
                 >
                   <button
                     type="button"
+                    className="unstyled-btn"
                     onClick={() => switchLayoutVariant(m.variantId)}
                     style={{
-                      all: 'unset',
-                      cursor: 'pointer',
                       flex: 1,
                       fontSize: '0.76rem',
                       fontWeight: 600,
@@ -172,7 +174,7 @@ export const LayoutVariantsSection: React.FC = () => {
                   >
                     <span>{m.name}</span>
                     {isBest && (
-                      <Star size={11} color="#fbbf24" fill="#fbbf24" />
+                      <Star size={11} color="#fbbf24" fill="#fbbf24" aria-hidden="true" />
                     )}
                   </button>
                   {!isActive && (
@@ -181,6 +183,11 @@ export const LayoutVariantsSection: React.FC = () => {
                       className={`btn btn-outline${isGhost ? ' active' : ''}`}
                       data-testid={`variant-ghost-toggle-${m.variantId}`}
                       aria-pressed={isGhost}
+                      aria-label={
+                        isGhost
+                          ? t('inspector.variants.hideGhost')
+                          : t('inspector.variants.showGhost')
+                      }
                       style={{ padding: '2px 5px' }}
                       onClick={() =>
                         setGhostVariantId(isGhost ? null : m.variantId)
@@ -191,7 +198,7 @@ export const LayoutVariantsSection: React.FC = () => {
                           : t('inspector.variants.showGhost')
                       }
                     >
-                      {isGhost ? <EyeOff size={11} /> : <Eye size={11} />}
+                      {isGhost ? <EyeOff size={11} aria-hidden="true" /> : <Eye size={11} aria-hidden="true" />}
                     </button>
                   )}
                   <button
@@ -200,8 +207,9 @@ export const LayoutVariantsSection: React.FC = () => {
                     style={{ padding: '2px 5px' }}
                     onClick={() => deleteLayoutVariant(m.variantId)}
                     title={t('inspector.variants.delete')}
+                    aria-label={t('inspector.variants.delete')}
                   >
-                    <Trash2 size={11} />
+                    <Trash2 size={11} aria-hidden="true" />
                   </button>
                 </div>
                 <div

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { Suspense, useState, useRef, useEffect } from 'react';
 import {
   MousePointer,
   PenTool,
@@ -26,6 +26,8 @@ import {
   Footprints,
   HelpCircle,
   Share2,
+  SlidersHorizontal,
+  FolderOpen,
 } from 'lucide-react';
 import { useFloorplanStore, CameraPreset } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -37,20 +39,19 @@ import { LanguageSwitch } from './LanguageSwitch';
 import { LightingControls } from './LightingControls';
 import { JsonPlanDialog } from './JsonPlanDialog';
 import { PlanExportDialog } from './PlanExportDialog';
-import { PlanImportDialog } from './PlanImportDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { ConfirmDialog } from './ConfirmDialog';
+import { TopBarMenu } from './TopBarMenu';
 import { PRESET_FLOORPLANS } from '../../core/presets';
 import { EditorTool, ViewMode } from '../../core/types';
-import { exportScaledFloorplanSvg } from '../../core/export/planSvgExport';
-import { exportFloorplanDxf } from '../../core/export/dxfExport';
-import {
-  exportFurnitureBomCsv,
-  exportFurnitureBomMarkdown,
-} from '../../core/export/bomExport';
 import { buildSharePlanUrl } from '../../core/export/urlSnapshot';
 import { fitOverlayToViewport } from '../../core/tracingMath';
 import { computeFitViewBox } from '../../core/wallMath';
 import { prepareOverlayImage } from '../../core/overlayImageStore';
+
+const LazyPlanImportDialog = React.lazy(() =>
+  import('./PlanImportDialog').then((m) => ({ default: m.PlanImportDialog }))
+);
 
 export async function handleOverlayImageFile(
   file: File,
@@ -165,6 +166,7 @@ export const TopBar: React.FC = () => {
 
   const [planExportModalOpen, setPlanExportModalOpen] = useState<boolean>(false);
   const [structuredImportOpen, setStructuredImportOpen] = useState<boolean>(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState<boolean>(false);
   const [planScale, setPlanScale] = useState<'1:50' | '1:100'>('1:50');
   const [planPaper, setPlanPaper] = useState<'A4' | 'A3'>('A4');
   const [planOrientation, setPlanOrientation] = useState<'landscape' | 'portrait'>('landscape');
@@ -230,7 +232,8 @@ export const TopBar: React.FC = () => {
     };
   };
 
-  const handleDownloadPlanSvg = () => {
+  const handleDownloadPlanSvg = async () => {
+    const { exportScaledFloorplanSvg } = await import('../../core/export/planSvgExport');
     const data = getPlanExportData();
     const activeLevelId = useFloorplanStore.getState().activeLevelId;
     const svg = exportScaledFloorplanSvg(data, {
@@ -250,7 +253,8 @@ export const TopBar: React.FC = () => {
     );
   };
 
-  const handleDownloadPlanDxf = () => {
+  const handleDownloadPlanDxf = async () => {
+    const { exportFloorplanDxf } = await import('../../core/export/dxfExport');
     const data = getPlanExportData();
     const activeLevelId = useFloorplanStore.getState().activeLevelId;
     const dxf = exportFloorplanDxf(data, {
@@ -262,13 +266,15 @@ export const TopBar: React.FC = () => {
     triggerDownload(dxf, 'application/dxf;charset=utf-8', `plan-${selectedPreset}.dxf`);
   };
 
-  const handleDownloadBomCsv = () => {
+  const handleDownloadBomCsv = async () => {
+    const { exportFurnitureBomCsv } = await import('../../core/export/bomExport');
     const data = getPlanExportData();
     const csv = exportFurnitureBomCsv(data, { language });
     triggerDownload(csv, 'text/csv;charset=utf-8', `stueckliste-${selectedPreset}.csv`);
   };
 
-  const handleDownloadBomMd = () => {
+  const handleDownloadBomMd = async () => {
+    const { exportFurnitureBomMarkdown } = await import('../../core/export/bomExport');
     const data = getPlanExportData();
     const md = exportFurnitureBomMarkdown(data, {
       projectTitle: planTitle.trim() || undefined,
@@ -409,8 +415,8 @@ export const TopBar: React.FC = () => {
     <>
       <header className="topbar">
         <div className="topbar-brand">
-          <Ruler size={18} color="#818cf8" />
-          <span>{t('topbar.brand')}</span>
+          <Ruler size={18} color="#818cf8" aria-hidden="true" />
+          <h1 className="topbar-brand-heading">{t('topbar.brand')}</h1>
           <span className="topbar-brand-badge">1 Unit = 1 cm</span>
         </div>
 
@@ -470,29 +476,40 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
 
-        {/* Cutaway & Wall-Snap Toggles */}
-        <div className="topbar-group">
+        {/* Display & Overlay Options Dropdown */}
+        <TopBarMenu
+          label={t('topbar.groups.displayMenu')}
+          icon={<SlidersHorizontal size={14} aria-hidden="true" />}
+          badge={
+            passageReport && passageReport.criticalCount > 0
+              ? passageReport.criticalCount
+              : null
+          }
+        >
           <button
             type="button"
             className={`btn ${cutawayEnabled ? 'active' : ''}`}
+            aria-pressed={cutawayEnabled}
             onClick={() => setCutawayEnabled(!cutawayEnabled)}
             title={t('topbar.actions.cutawayTitle')}
           >
-            {cutawayEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
+            {cutawayEnabled ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
             <span>{t('topbar.actions.cutawayLabel')}</span>
           </button>
           <button
             type="button"
             className={`btn ${snapToWallEnabled ? 'active' : ''}`}
+            aria-pressed={snapToWallEnabled}
             onClick={() => setSnapToWallEnabled(!snapToWallEnabled)}
             title={t('topbar.actions.wallSnapping')}
           >
-            <Magnet size={14} />
+            <Magnet size={14} aria-hidden="true" />
             <span>{t('topbar.actions.wallSnapLabel')}</span>
           </button>
           <button
             type="button"
             className={`btn ${renderTheme === 'studio' ? 'active' : ''}`}
+            aria-pressed={renderTheme === 'studio'}
             onClick={() =>
               setRenderTheme(renderTheme === 'studio' ? 'blueprint' : 'studio')
             }
@@ -502,21 +519,23 @@ export const TopBar: React.FC = () => {
                 : t('topbar.actions.themeStudioTitle')
             }
           >
-            {renderTheme === 'studio' ? <Sun size={14} /> : <Moon size={14} />}
+            {renderTheme === 'studio' ? <Sun size={14} aria-hidden="true" /> : <Moon size={14} aria-hidden="true" />}
             <span>{renderTheme === 'studio' ? 'Studio' : 'Blueprint'}</span>
           </button>
           <button
             type="button"
             className={`btn ${showDimensions3D ? 'active' : ''}`}
+            aria-pressed={showDimensions3D}
             onClick={() => setShowDimensions3D(!showDimensions3D)}
             title={t('topbar.actions.dimensions')}
           >
-            <Ruler size={14} />
+            <Ruler size={14} aria-hidden="true" />
             <span>{t('topbar.actions.dimensionsLabel')}</span>
           </button>
           <button
             type="button"
             className={`btn ${showDecor ? 'active' : ''}`}
+            aria-pressed={showDecor}
             onClick={() => setShowDecor(!showDecor)}
             title={showDecor ? t('topbar.actions.decorTitleActive') : t('topbar.actions.decorTitleInactive')}
           >
@@ -529,14 +548,14 @@ export const TopBar: React.FC = () => {
             onClick={() => setShowPassageHeatmap(!showPassageHeatmap)}
             title={t('topbar.actions.passagesTitle')}
           >
-            <Footprints size={14} />
+            <Footprints size={14} aria-hidden="true" />
             <span>
               {passageReport && passageReport.criticalCount > 0
                 ? `${t('topbar.actions.passagesLabel')} (${passageReport.criticalCount} ⚠️)`
                 : t('topbar.actions.passagesLabel')}
             </span>
           </button>
-        </div>
+        </TopBarMenu>
 
         {/* Architectural Camera Presets */}
         <div className="topbar-group" role="group" aria-label={t('topbar.groups.camera')}>
@@ -604,17 +623,7 @@ export const TopBar: React.FC = () => {
         {/* Atmosphere & Lighting Controls (only when 3D is active) */}
         <LightingControls />
 
-        {/* Render PNG Snapshot Export */}
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={handleExportSnapshot}
-          title={t('topbar.actions.exportRenderTitle')}
-        >
-          <span>{t('topbar.actions.exportRenderLabel')}</span>
-        </button>
-
-        {/* Preset Selector & JSON Export/Import */}
+        {/* Preset Selector & File/Export Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
             aria-label={t('topbar.actions.presetAria')}
@@ -641,29 +650,6 @@ export const TopBar: React.FC = () => {
             })}
           </select>
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => {
-              setSelectedPreset('standard-55');
-              loadPreset('standard-55');
-            }}
-            title={t('topbar.actions.resetPlan')}
-          >
-            <RotateCcw size={14} />
-            <span>{t('topbar.actions.resetLabel')}</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => overlayFileInputRef.current?.click()}
-            title={t('topbar.actions.overlay')}
-          >
-            <FileUp size={14} />
-            <span>{t('topbar.actions.underlayLabel')}</span>
-          </button>
-          {overlayError && <span className="form-label">{overlayError}</span>}
           <input
             ref={overlayFileInputRef}
             type="file"
@@ -682,61 +668,103 @@ export const TopBar: React.FC = () => {
             }}
           />
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setPlanExportModalOpen(true)}
-            title={t('topbar.actions.export')}
+          <TopBarMenu
+            label={t('topbar.groups.fileMenu')}
+            icon={<FolderOpen size={14} aria-hidden="true" />}
+            align="right"
           >
-            <FileText size={14} />
-            <span>{t('topbar.actions.planSvgLabel')}</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setPlanExportModalOpen(true)}
+              title={t('topbar.actions.export')}
+            >
+              <FileText size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.planSvgLabel')}</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={handleOpenExport}
-            title={t('topbar.actions.jsonExportTitle')}
-          >
-            <Download size={14} />
-            <span>{t('topbar.actions.jsonExportLabel')}</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleExportSnapshot}
+              title={t('topbar.actions.exportRenderTitle')}
+            >
+              <Camera size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.exportRenderLabel')}</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setStructuredImportOpen(true)}
-            title={t('dialogs.structuredImport.buttonTitle')}
-          >
-            <FileUp size={14} />
-            <span>{t('dialogs.structuredImport.buttonLabel')}</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleOpenExport}
+              title={t('topbar.actions.jsonExportTitle')}
+            >
+              <Download size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.jsonExportLabel')}</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={handleOpenImport}
-            title={t('topbar.actions.jsonImportTitle')}
-          >
-            <Upload size={14} />
-            <span>{t('topbar.actions.jsonImportLabel')}</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => void handleCopyShareLink()}
+              title={t('dialogs.json.copyShareLink')}
+            >
+              <Share2 size={14} aria-hidden="true" />
+              <span>
+                {shareFeedback === 'copied'
+                  ? t('dialogs.json.shareCopied')
+                  : shareFeedback === 'too-large'
+                    ? t('dialogs.json.shareTooLarge')
+                    : t('dialogs.json.copyShareLink')}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => void handleCopyShareLink()}
-            title={t('dialogs.json.copyShareLink')}
-          >
-            <Share2 size={14} />
-            <span>
-              {shareFeedback === 'copied'
-                ? t('dialogs.json.shareCopied')
-                : shareFeedback === 'too-large'
-                  ? t('dialogs.json.shareTooLarge')
-                  : t('dialogs.json.copyShareLink')}
-            </span>
-          </button>
+            <div className="topbar-menu-divider" />
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => overlayFileInputRef.current?.click()}
+              title={t('topbar.actions.overlay')}
+            >
+              <FileUp size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.underlayLabel')}</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setStructuredImportOpen(true)}
+              title={t('dialogs.structuredImport.buttonTitle')}
+            >
+              <FileUp size={14} aria-hidden="true" />
+              <span>{t('dialogs.structuredImport.buttonLabel')}</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleOpenImport}
+              title={t('topbar.actions.jsonImportTitle')}
+            >
+              <Upload size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.jsonImportLabel')}</span>
+            </button>
+
+            <div className="topbar-menu-divider" />
+
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setResetConfirmOpen(true)}
+              title={t('topbar.actions.resetPlan')}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              <span>{t('topbar.actions.resetLabel')}</span>
+            </button>
+          </TopBarMenu>
+
+          {overlayError && <span className="form-label" role="alert">{overlayError}</span>}
 
           <button
             type="button"
@@ -745,7 +773,7 @@ export const TopBar: React.FC = () => {
             title={t('topbar.actions.shortcuts')}
             aria-label={t('topbar.actions.shortcuts')}
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </button>
 
           <LanguageSwitch />
@@ -753,6 +781,8 @@ export const TopBar: React.FC = () => {
           {/* Global Collision Status Badge */}
           <div
             className={`status-badge ${collisionCount === 0 ? 'ok' : 'conflict'}`}
+            role="status"
+            aria-live="polite"
             title={t('topbar.actions.collisionTitle')}
           >
             {collisionCount === 0 ? (
@@ -806,11 +836,27 @@ export const TopBar: React.FC = () => {
         handleDownloadGlb={handleDownloadGlb}
         handleDownloadUsdz={handleDownloadUsdz}
       />
-      <PlanImportDialog
-        isOpen={structuredImportOpen}
-        onClose={() => setStructuredImportOpen(false)}
-      />
+      {structuredImportOpen && (
+        <Suspense fallback={null}>
+          <LazyPlanImportDialog
+            isOpen={structuredImportOpen}
+            onClose={() => setStructuredImportOpen(false)}
+          />
+        </Suspense>
+      )}
       <KeyboardShortcutsDialog />
+      <ConfirmDialog
+        isOpen={resetConfirmOpen}
+        title={t('dialogs.confirm.resetTitle')}
+        message={t('dialogs.confirm.resetMessage')}
+        confirmLabel={t('dialogs.confirm.resetConfirm')}
+        onCancel={() => setResetConfirmOpen(false)}
+        onConfirm={() => {
+          setResetConfirmOpen(false);
+          setSelectedPreset('standard-55');
+          loadPreset('standard-55');
+        }}
+      />
     </>
   );
 };

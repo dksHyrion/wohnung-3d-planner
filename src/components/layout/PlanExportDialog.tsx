@@ -1,6 +1,7 @@
 import { useEffect, useId } from 'react';
 import { Download, Ruler } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 
 export interface PlanExportDialogProps {
   planExportModalOpen?: boolean;
@@ -59,6 +60,7 @@ export function PlanExportDialog({
   const titleInputId = useId();
 
   const isModalOpen = isOpen ?? planExportModalOpen;
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(isModalOpen);
   const handleClose = () => {
     if (onClose) onClose();
     if (setPlanExportModalOpen) setPlanExportModalOpen(false);
@@ -84,10 +86,12 @@ export function PlanExportDialog({
           onClick={handleClose}
         >
           <div
+            ref={dialogRef}
             className="modal-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby={dialogTitleId}
+            tabIndex={-1}
             style={{ maxWidth: '520px' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -211,6 +215,8 @@ export function PlanExportDialog({
                 </label>
                 <input
                   id={titleInputId}
+                  name="planTitle"
+                  autoComplete="off"
                   type="text"
                   className="text-input"
                   value={planTitle}

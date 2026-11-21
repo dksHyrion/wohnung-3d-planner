@@ -211,15 +211,19 @@ describe('Sprint 3: 3D Miter Joints, Demand Rendering & Dynamic Sun Projection',
   });
 
   describe('Scene3D demand rendering & netCorners floor shapes', () => {
-    it('configures Canvas frameloop="demand" and netCorners floor geometry in Scene3D.tsx', () => {
+    it('configures Canvas frameloop="demand" in Scene3D and netCorners floor geometry in LevelGroup3D', () => {
       const sceneSrc = fs.readFileSync(
         path.resolve(__dirname, '../src/components/viewer3d/Scene3D.tsx'),
         'utf-8'
       );
+      const levelGroupSrc = fs.readFileSync(
+        path.resolve(__dirname, '../src/components/viewer3d/LevelGroup3D.tsx'),
+        'utf-8'
+      );
       expect(sceneSrc).toContain('frameloop="demand"');
       expect(sceneSrc).toContain('DemandRenderController');
-      expect(sceneSrc).toContain('room.netCorners');
-      expect(sceneSrc).toContain('computeWallMiterMap');
+      expect(levelGroupSrc).toContain('room.netCorners');
+      expect(levelGroupSrc).toContain('computeWallMiterMap');
     });
   });
 });

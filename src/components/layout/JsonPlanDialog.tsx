@@ -1,5 +1,6 @@
 import React, { useEffect, useId } from 'react';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 
 export interface JsonPlanDialogProps {
   jsonModalMode?: 'export' | 'import' | null;
@@ -43,6 +44,7 @@ export function JsonPlanDialog({
   }, []);
 
   const activeMode = jsonModalMode ?? mode ?? (isOpen ? 'export' : null);
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(Boolean(activeMode));
 
   const handleCopy = async () => {
     try {
@@ -90,10 +92,12 @@ export function JsonPlanDialog({
           onClick={handleClose}
         >
           <div
+            ref={dialogRef}
             className="modal-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sidebar-title" id={titleId}>
@@ -118,10 +122,10 @@ export function JsonPlanDialog({
             />
 
             {importError && (
-              <div className="diagnostic-box error">{importError}</div>
+              <div className="diagnostic-box error" role="alert">{importError}</div>
             )}
             {shareFeedback === 'too-large' && (
-              <div className="diagnostic-box error">{t('dialogs.json.shareTooLarge')}</div>
+              <div className="diagnostic-box error" role="alert">{t('dialogs.json.shareTooLarge')}</div>
             )}
 
             <div

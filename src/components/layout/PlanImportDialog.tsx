@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { FileUp, Upload } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { parseDxfFloorplan, type DxfUnit } from '../../core/import/dxfImport';
 import { parseSvgFloorplan } from '../../core/import/svgImport';
@@ -20,7 +21,11 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const titleId = useId();
+  const formatId = useId();
+  const dxfUnitId = useId();
+  const svgScaleId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useModalFocusTrap<HTMLDivElement>(isOpen);
   const importJson = useFloorplanStore((s) => s.importJson);
 
   const [format, setFormat] = useState<StructuredImportFormat>('dxf');
@@ -121,10 +126,12 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
   return (
     <div className="modal-backdrop" onClick={handleClose}>
       <div
+        ref={dialogRef}
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={{ maxWidth: '520px' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -143,8 +150,9 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
 
         <div className="form-grid" style={{ marginTop: '6px' }}>
           <div className="form-field">
-            <label className="form-label">{t('dialogs.structuredImport.formatLabel')}</label>
+            <label htmlFor={formatId} className="form-label">{t('dialogs.structuredImport.formatLabel')}</label>
             <select
+              id={formatId}
               className="select-input"
               value={format}
               onChange={(e) => {
@@ -161,8 +169,9 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
 
           {format === 'dxf' && (
             <div className="form-field">
-              <label className="form-label">{t('dialogs.structuredImport.dxfUnit')}</label>
+              <label htmlFor={dxfUnitId} className="form-label">{t('dialogs.structuredImport.dxfUnit')}</label>
               <select
+                id={dxfUnitId}
                 className="select-input"
                 value={dxfUnit}
                 onChange={(e) => {
@@ -181,8 +190,9 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
 
           {format === 'svg' && (
             <div className="form-field">
-              <label className="form-label">{t('dialogs.structuredImport.svgScale')}</label>
+              <label htmlFor={svgScaleId} className="form-label">{t('dialogs.structuredImport.svgScale')}</label>
               <input
+                id={svgScaleId}
                 type="number"
                 step={0.1}
                 min={0.01}
@@ -238,7 +248,7 @@ export const PlanImportDialog: React.FC<PlanImportDialogProps> = ({
           </div>
         )}
 
-        {errorMsg && <div className="diagnostic-box error">{errorMsg}</div>}
+        {errorMsg && <div className="diagnostic-box error" role="alert">{errorMsg}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
           <button type="button" className="btn btn-outline" onClick={onClose}>

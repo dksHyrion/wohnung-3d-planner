@@ -75,7 +75,7 @@ export const MobileNoticeBanner: React.FC<MobileNoticeBannerProps> = ({
       className="mobile-notice-banner"
       style={{
         position: 'fixed',
-        bottom: '16px',
+        bottom: 'max(16px, env(safe-area-inset-bottom))',
         left: '50%',
         transform: 'translateX(-50%)',
         width: 'min(92vw, 560px)',

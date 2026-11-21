@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect } from 'react';
+import React, { Suspense, useEffect, useLayoutEffect } from 'react';
 import { floorplanStoreGeneration, useFloorplanStore } from './store/useFloorplanStore';
 import { createAutosaveScheduler, restoreAutosaveForGeneration } from './store/autosave';
 import { adoptPlanFileIfBrowserHasOnlyExample } from './store/planFile';
@@ -8,10 +8,13 @@ import {
 } from './core/export/urlSnapshot';
 import { TopBar } from './components/layout/TopBar';
 import { FloorplanCanvas2D } from './components/editor2d/FloorplanCanvas2D';
-import { Scene3D } from './components/viewer3d/Scene3D';
 import { InspectorSidebar } from './components/sidebar/InspectorSidebar';
 import { MobileNoticeBanner } from './components/layout/MobileNoticeBanner';
 import { useTranslation } from './i18n/useTranslation';
+
+const LazyScene3D = React.lazy(() =>
+  import('./components/viewer3d/Scene3D').then((m) => ({ default: m.Scene3D }))
+);
 
 export const App: React.FC = () => {
   const { t, language } = useTranslation();
@@ -156,9 +159,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">
+        {t('common.skipToMain')}
+      </a>
       <TopBar />
       <MobileNoticeBanner />
-      <main className="workspace-main">
+      <main id="main-content" tabIndex={-1} className="workspace-main">
         <div className="viewports-area">
           {show2D && (
             <div className="viewport-pane">
@@ -167,7 +173,15 @@ export const App: React.FC = () => {
           )}
           {show3D && (
             <div className="viewport-pane">
-              <Scene3D />
+              <Suspense
+                fallback={
+                  <div className="viewport-loading" role="status">
+                    {t('common.loading')}
+                  </div>
+                }
+              >
+                <LazyScene3D />
+              </Suspense>
             </div>
           )}
         </div>

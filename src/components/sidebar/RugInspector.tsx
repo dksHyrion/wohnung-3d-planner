@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, RotateCw } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { useContinuousUndo } from '../../hooks/useContinuousUndo';
 import type { AreaRug } from '../../core/types';
 
 export const RUG_COLOR_PRESETS: Array<{
@@ -20,9 +21,8 @@ export const RUG_COLOR_PRESETS: Array<{
 export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
   const { t } = useTranslation();
   const updateRug = useFloorplanStore((s) => s.updateRug);
-  const pushUndoSnapshot = useFloorplanStore((s) => s.pushUndoSnapshot);
   const removeRug = useFloorplanStore((s) => s.removeRug);
-  const colorUndoPushedRef = React.useRef(false);
+  const colorUndo = useContinuousUndo();
 
   const idName = React.useId();
   const idWidth = React.useId();
@@ -144,8 +144,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
                 })
               }
               title={t('inspector.rug.rotate90')}
+              aria-label={t('inspector.rug.rotate90')}
             >
-              <RotateCw size={13} />
+              <RotateCw size={13} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -158,20 +159,9 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
             className="number-input"
             style={{ height: '31px', padding: '2px 4px' }}
             value={selectedRug.color ?? '#edece8'}
-            onPointerDown={() => {
-              if (!colorUndoPushedRef.current) {
-                pushUndoSnapshot();
-                colorUndoPushedRef.current = true;
-              }
-            }}
-            onBlur={() => {
-              colorUndoPushedRef.current = false;
-            }}
+            {...colorUndo.handlers}
             onChange={(e) => {
-              if (!colorUndoPushedRef.current) {
-                pushUndoSnapshot();
-                colorUndoPushedRef.current = true;
-              }
+              colorUndo.begin();
               updateRug(
                 selectedRug.id,
                 { color: e.target.value },
@@ -182,30 +172,36 @@ export function RugInspector({ selectedRug }: { selectedRug: AreaRug }) {
         </div>
 
         <div className="form-field full">
-          <label className="form-label">{t('inspector.rug.colorPresets')}</label>
+          <span className="form-label">{t('inspector.rug.colorPresets')}</span>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {RUG_COLOR_PRESETS.map((preset) => (
-              <button
-                key={preset.color}
-                type="button"
-                onClick={() =>
-                  updateRug(selectedRug.id, { color: preset.color })
-                }
-                title={t(`inspector.rug.presets.${preset.presetKey}`)}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: preset.color,
-                  border:
-                    (selectedRug.color ?? '#edece8').toLowerCase() ===
-                    preset.color.toLowerCase()
+            {RUG_COLOR_PRESETS.map((preset) => {
+              const isSelected =
+                (selectedRug.color ?? '#edece8').toLowerCase() ===
+                preset.color.toLowerCase();
+              const presetName = t(`inspector.rug.presets.${preset.presetKey}`);
+              return (
+                <button
+                  key={preset.color}
+                  type="button"
+                  aria-label={presetName}
+                  aria-pressed={isSelected}
+                  onClick={() =>
+                    updateRug(selectedRug.id, { color: preset.color })
+                  }
+                  title={presetName}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 6,
+                    background: preset.color,
+                    border: isSelected
                       ? '2px solid #38bdf8'
                       : '1px solid #475569',
-                  cursor: 'pointer',
-                }}
-              />
-            ))}
+                    cursor: 'pointer',
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       </div>

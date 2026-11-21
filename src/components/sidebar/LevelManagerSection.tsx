@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Layers, Plus, Trash2 } from 'lucide-react';
 import { useFloorplanStore } from '../../store/useFloorplanStore';
 import { useTranslation } from '../../i18n/useTranslation';
+import { ConfirmDialog } from '../layout/ConfirmDialog';
 import type { LevelViewMode } from '../../core/types';
 
 export const LevelManagerSection: React.FC = () => {
@@ -19,6 +20,10 @@ export const LevelManagerSection: React.FC = () => {
 
   const [copyExteriorWalls, setCopyExteriorWalls] = useState(true);
   const [manualExpanded, setManualExpanded] = useState(false);
+  const [pendingDeleteLevel, setPendingDeleteLevel] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const idLevelName = React.useId();
   const idCeilingHeight = React.useId();
   const idSlabThickness = React.useId();
@@ -52,7 +57,7 @@ export const LevelManagerSection: React.FC = () => {
       className="sidebar-section level-manager-section"
       data-testid="level-manager-section"
     >
-      <div className="sidebar-title">
+      <h2 className="sidebar-title">
         <span>{t('levels.title')}</span>
         <button
           type="button"
@@ -60,10 +65,11 @@ export const LevelManagerSection: React.FC = () => {
           style={{ padding: '2px 6px', fontSize: '0.7rem' }}
           onClick={() => setManualExpanded((prev) => !prev)}
           aria-label={t('levels.title')}
+          aria-expanded={showDetails}
         >
-          <Layers size={12} />
+          <Layers size={12} aria-hidden="true" />
         </button>
-      </div>
+      </h2>
 
       {/* Stacked level tabs (top down like a building section) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
@@ -101,10 +107,11 @@ export const LevelManagerSection: React.FC = () => {
                   type="button"
                   className="btn btn-outline"
                   title={t('levels.deleteLevel')}
+                  aria-label={t('levels.deleteLevel')}
                   style={{ padding: '5px 6px' }}
-                  onClick={() => removeLevel(lvl.id)}
+                  onClick={() => setPendingDeleteLevel({ id: lvl.id, name: lvl.name })}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={12} aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -242,6 +249,21 @@ export const LevelManagerSection: React.FC = () => {
           </div>
         </>
       )}
+      <ConfirmDialog
+        isOpen={pendingDeleteLevel !== null}
+        title={t('dialogs.confirm.deleteLevelTitle')}
+        message={t('dialogs.confirm.deleteLevelMessage', {
+          name: pendingDeleteLevel?.name ?? '',
+        })}
+        confirmLabel={t('dialogs.confirm.deleteLevelConfirm')}
+        onCancel={() => setPendingDeleteLevel(null)}
+        onConfirm={() => {
+          if (pendingDeleteLevel) {
+            removeLevel(pendingDeleteLevel.id);
+          }
+          setPendingDeleteLevel(null);
+        }}
+      />
     </section>
   );
 };
