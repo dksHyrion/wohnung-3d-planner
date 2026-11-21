@@ -95,8 +95,9 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
   * Grundriss-Unterleger (PNG, JPG, WebP, SVG) mit 2-Punkt-Referenzkalibrierung und IndexedDB-Speicherung sowie freies 2D-Maßband.
   * **Exporte:** Maßstabsgetreues **1:50 / 1:100 / 1:200 SVG** (inkl. Etagentitel & Treppen), **AutoCAD R12 DXF** (Layer `WALLS`, `OPENINGS`, `STAIRS`, `MEP`, `FURNITURE`, `DIMENSIONS`), **CSV/Markdown-Stück- & Flächenbilanz** pro Geschoss sowie **`.glb` & `.usdz` (AR)** im korrekten Meter-Maßstab (`1 cm -> 0.01 m`).
 
-* **🛡️ Session-Sicherheit, URL-Sharing & Privatsphäre:**
-  * 30-Schritt-Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), LocalStorage-Autosave, komprimiertes **URL-Hash-Sharing** (`#plan=gz:...`) und portabler JSON-Import/-Export.
+* **🛡️ Session-Sicherheit, Barrierefreiheit, URL-Sharing & Privatsphäre:**
+  * 30-Schritt-Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), Bestätigungsdialoge vor dem Zurücksetzen oder Löschen von Etagen, LocalStorage-Autosave, komprimiertes **URL-Hash-Sharing** (`#plan=gz:...`) und portabler JSON-Import/-Export.
+  * Schneller Start durch **Lazy-Loading** der 3D-Ansicht und Exporter sowie kompakte TopBar-Menüs und volle Tastatur-Bedienbarkeit (Skip-Link, Fokus-Ringe, Modal-Focus-Trap).
   * 100 % lokal und privat: Keine Serverübertragung, private Pläne im git-ignorierten Ordner `privat/`.
 
 ---
@@ -110,7 +111,7 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 | **Geometrie & Mathe** | **`THREE.OBB`** + SAT + 2D-EDT + WebWorker (`ergonomicsWorker`) |
 | **Frontend & UI** | **React 18**, **TypeScript 5**, **Zustand 5** (Domain-Slices), **Lucide React**, **DE/EN i18n** |
 | **2D-Engine & Exporte** | Natives React + SVG, `GLTFExporter` / `USDZExporter`, AutoCAD R12 DXF, RFC-4180 CSV/BOM |
-| **Build & Testing** | **Vite 5**, **Vitest 2** (80 Suites / 696 Tests), **Playwright** (E2E) |
+| **Build & Testing** | **Vite 5** (Code-Splitting / Lazy-Loading), **Vitest 2** (84 Suites / 723 Tests), **Playwright** (E2E) |
 | **Wissensbasis** | **Karpathy LLM-Wiki Pattern** (`SCHEMA.md`, `raw/`, `wiki/index.md`, `wiki/log.md`) |
 
 ---
@@ -121,10 +122,11 @@ npm run build    # Production-Build in dist/ (TypeScript + Vite)
 wohnung-3d-planner/
 ├── src/
 │   ├── core/         # Geometrie, Mehrgeschossigkeit, Treppen/Decken, SAT/OBB-Kollision, Ergonomie-Worker, CAD-Import/-Export
-│   ├── store/        # Zustand-Store (Slices: wall, furniture, rug, level, stair, variant, preset; view, history)
+│   ├── store/        # Zustand-Store (Slices: wall, wallDetails, furniture, rug, level, stair, variant, preset; view, history)
+│   ├── hooks/        # Gemeinsame React-Hooks (Etagen-Filter, Slider-/Color-Undo, Modal-Focus-Trap)
 │   ├── i18n/         # Vollständig typisierte DE/EN-Übersetzungen (100 % Key-Parität)
 │   └── components/   # 2D-SVG-Canvas, 3D-R3F-Szene, Treppen/Decken, Beleuchtung & Inspektoren
-├── tests/            # 80 Vitest-Testdateien (Geometrie, Mehrgeschossigkeit, Treppen, Kollision, Ergonomie, Exporte)
+├── tests/            # 84 Vitest-Testdateien / 723 Tests (Geometrie, Mehrgeschossigkeit, Treppen, Kollision, Ergonomie, Exporte)
 ├── e2e/              # Playwright End-to-End Browser-Tests
 ├── wiki/             # Vernetzte LLM-Wissensbasis (Konzepte, Architektur, Audit-Log)
 ├── raw/              # Referenz-Quellen und GitHub-Benchmark-Dokumentation
